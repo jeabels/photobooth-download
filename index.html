@@ -6,144 +6,237 @@
 <title>Your photo strip</title>
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#F2EDE5">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
-/* Guest download page — opened by scanning the booth's QR code.
-   One page serves every booth: the link says which Supabase project to read.
-     ?r=<project ref>&b=<bucket>&id=<strip id>&v=<c|b>&n=<booth name>          */
+/* =============================================================================
+   Guest download page — opened by scanning the booth's QR code.
+
+   One page serves every booth. The link carries everything it needs:
+     r   Supabase project ref        b   bucket          id  strip id
+     v   c | b (colour or B&W)
+     n   header top line             s   header bottom line
+     f   header typeface (index)     c   header colour (hex, no #)
+     t   booth theme id              k   start-button style
+   So the page always looks like the booth that printed the strip.
+   ========================================================================== */
 :root{
-  --paper:#F2EDE5; --ink:#1B1712; --sub:#6B645B; --line:rgba(27,23,18,.12); --card:#FFFFFF;
+  --paper:#F2EDE5; --ink:#1B1712; --sub:#6B645B; --line:rgba(27,23,18,.12);
+  --accent:#1B1712; --on-accent:#FFFFFF; --head-color:#1B1712;
+  --font-head:Georgia,"Times New Roman",serif;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --btn-radius:999px; --btn-case:none; --btn-track:.01em;
 }
-@media (prefers-color-scheme: dark){
-  :root{ --paper:#141210; --ink:#F2EDE5; --sub:#A69F95; --line:rgba(242,237,229,.16); --card:#1E1B18; }
-}
+body.dark{ --ink:#F3F0EA; --sub:#A9A39B; --line:rgba(255,255,255,.14); }
+
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
-body{background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  min-height:100vh;display:flex;flex-direction:column;align-items:center;
-  padding:max(24px,env(safe-area-inset-top)) 16px max(32px,env(safe-area-inset-bottom))}
-.booth{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:26px;letter-spacing:.06em;text-align:center;line-height:1.1}
-.sub{color:var(--sub);font-size:14px;text-align:center;margin-top:6px}
-.tabs{display:flex;gap:4px;background:var(--line);padding:4px;border-radius:999px;margin:18px 0 16px}
-.tabs button{border:0;background:transparent;color:var(--sub);font:600 14px system-ui,sans-serif;padding:10px 18px;border-radius:999px;cursor:pointer}
-.tabs button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.15)}
-.strip{width:min(320px,100%);min-height:220px;background:var(--card);border-radius:6px;overflow:hidden;
-  box-shadow:0 12px 32px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center}
-.strip img{width:100%;height:auto;display:block;-webkit-touch-callout:default}
-.msg{padding:40px 22px;text-align:center;color:var(--sub);font-size:14px}
-.actions{width:min(320px,100%);display:flex;flex-direction:column;gap:10px;margin-top:20px}
-.btn{border:0;border-radius:999px;background:var(--ink);color:var(--paper);font:700 16px system-ui,sans-serif;
-  padding:16px;cursor:pointer;text-align:center;text-decoration:none;display:block}
-.btn.quiet{background:transparent;color:var(--ink);border:1.5px solid var(--line);font-weight:600;font-size:15px;padding:13px}
-.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
-.hint{color:var(--sub);font-size:13px;text-align:center;margin-top:12px;max-width:320px}
-.done{color:var(--ink);font-weight:600}
-button:focus-visible,a:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+body{background:var(--paper);color:var(--ink);font:16px/1.5 var(--font-body);
+  min-height:100vh;display:flex;justify-content:center;
+  padding:max(28px,env(safe-area-inset-top)) 20px max(28px,env(safe-area-inset-bottom))}
+main{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;text-align:center}
+
+/* ---- the booth's own header ---- */
+.brand{margin-top:8px}
+.brand-top{font-family:var(--font-head);color:var(--head-color);font-weight:700;
+  font-size:clamp(30px,10vw,42px);line-height:1.02;letter-spacing:.04em;overflow-wrap:anywhere}
+.brand-bottom{color:var(--head-color);opacity:.78;font-size:11px;font-weight:700;
+  letter-spacing:.26em;margin-top:9px;overflow-wrap:anywhere}
+.lede{font-size:15px;color:var(--sub);margin-top:22px}
+.when{font-size:13px;color:var(--sub);opacity:.85}
+
+/* ---- version switch ---- */
+.switch{display:flex;background:var(--line);padding:4px;border-radius:999px;margin:22px 0 18px}
+.switch button{border:0;background:transparent;color:var(--sub);font:600 14px var(--font-body);
+  padding:9px 18px;border-radius:999px;cursor:pointer;min-width:112px}
+.switch button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+
+/* ---- the strip, presented like a print ---- */
+.print{width:min(300px,100%);background:#fff;padding:10px;border-radius:3px;
+  box-shadow:0 1px 2px rgba(0,0,0,.08),0 18px 40px -12px rgba(0,0,0,.35)}
+.print img{display:block;width:100%;height:auto;-webkit-touch-callout:default}
+.placeholder{aspect-ratio:1/2.6;background:#EEEBE6;display:flex;align-items:center;justify-content:center;
+  color:#8A847C;font-size:14px;padding:24px;line-height:1.45}
+@media (prefers-reduced-motion:no-preference){
+  .placeholder.loading{animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.55}}
+}
+
+/* ---- actions ---- */
+.actions{width:min(300px,100%);margin-top:26px;display:flex;flex-direction:column;gap:6px}
+.save{display:block;border:0;background:var(--accent);color:var(--on-accent);
+  font:700 16px var(--font-body);letter-spacing:var(--btn-track);text-transform:var(--btn-case);
+  padding:16px;border-radius:var(--btn-radius);text-decoration:none;cursor:pointer}
+.save.outline{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.save.marquee{background:transparent;color:var(--accent);outline:1px solid var(--accent);outline-offset:3px;box-shadow:inset 0 0 0 1px var(--accent)}
+.full{color:var(--sub);font-size:14px;font-weight:600;padding:12px;text-decoration:underline;text-underline-offset:3px}
+[aria-disabled="true"]{opacity:.4;pointer-events:none}
+.hint{color:var(--sub);font-size:13px;margin-top:6px;max-width:300px;min-height:40px}
+.hint.done{color:var(--ink);font-weight:600}
+footer{margin-top:auto;padding-top:28px;font-size:12px;color:var(--sub);opacity:.8}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 </style>
 </head>
 <body>
-  <div class="booth" id="booth">Your photo strip</div>
-  <p class="sub">Thanks for snapping with us.</p>
+<main>
+  <header class="brand">
+    <div class="brand-top" id="top">Your photo strip</div>
+    <div class="brand-bottom" id="bottom"></div>
+  </header>
 
-  <div class="tabs" role="group" aria-label="Version">
+  <p class="lede">Your strip is ready to keep.</p>
+  <p class="when" id="when"></p>
+
+  <div class="switch" role="group" aria-label="Version">
     <button type="button" data-v="c" aria-pressed="true">Colour</button>
     <button type="button" data-v="b" aria-pressed="false">Black &amp; white</button>
   </div>
 
-  <div class="strip" id="strip"><p class="msg">Loading your photo…</p></div>
+  <div class="print" id="print"><div class="placeholder loading">Loading your photo…</div></div>
 
   <div class="actions">
-    <a class="btn" id="save" href="#" aria-disabled="true">Save to my phone</a>
-    <a class="btn quiet" id="open" href="#" target="_blank" rel="noopener" aria-disabled="true">Open full size</a>
+    <a class="save" id="save" href="#" aria-disabled="true">Save to my phone</a>
+    <a class="full" id="open" href="#" target="_blank" rel="noopener" aria-disabled="true">Open full size</a>
   </div>
   <p class="hint" id="hint">Nothing happened? Press and hold the photo, then choose Save image.</p>
 
+  <footer id="thanks">Thank you for snapping with us.</footer>
+</main>
+
 <script>
 (function(){
+  /* Mirrors of the booth's THEMES and HEADER_FONTS tables (same order). */
+  var THEMES = {
+    noir:    { accent:'#1B1712', paper:'#F2EDE5', dark:false, head:'Bodoni Moda',        body:'Manrope' },
+    verdant: { accent:'#2F5D4A', paper:'#EFF3EE', dark:false, head:'Cormorant Garamond', body:'Outfit' },
+    blush:   { accent:'#B23A62', paper:'#FBF0F2', dark:false, head:'Instrument Serif',   body:'Outfit' },
+    ember:   { accent:'#8B1E1E', paper:'#F7F2EF', dark:false, head:'DM Serif Display',   body:'Manrope' },
+    gold:    { accent:'#8E6F30', paper:'#FAF5EA', dark:false, head:'Cormorant Garamond', body:'Archivo' },
+    midnight:{ accent:'#8E7CFF', paper:'#0E0D13', dark:true,  head:'Syne',               body:'Sora' },
+    neon:    { accent:'#FF3D7F', paper:'#0D0C12', dark:true,  head:'Archivo',            body:'Sora' }
+  };
+  var FONTS = ['Bodoni Moda','Instrument Serif','Cormorant Garamond','DM Serif Display','Syne',
+               'Archivo','Outfit','Manrope','Sora','Space Mono'];
+  var SERIF = { 'Bodoni Moda':1, 'Instrument Serif':1, 'Cormorant Garamond':1, 'DM Serif Display':1 };
+  var SINGLE_WEIGHT = { 'Instrument Serif':1, 'DM Serif Display':1 };
+
   var q = new URLSearchParams(location.search);
-  var ref = (q.get('r') || '').replace(/[^a-z0-9]/gi, '');
-  var bucket = (q.get('b') || 'photos').replace(/[^a-z0-9_-]/gi, '');
-  var id = (q.get('id') || '').replace(/[^a-z0-9-]/gi, '');
-  var name = (q.get('n') || '').slice(0, 40);
+  var clean = function(v, re){ return (q.get(v) || '').replace(re, ''); };
+  var ref = clean('r', /[^a-z0-9]/gi);
+  var bucket = clean('b', /[^a-z0-9_-]/gi) || 'photos';
+  var id = clean('id', /[^a-z0-9-]/gi);
   var variant = q.get('v') === 'b' ? 'b' : 'c';
+  var top = (q.get('n') || '').slice(0, 40);
+  var bottom = (q.get('s') || '').slice(0, 50);
+  var theme = THEMES[q.get('t')] || THEMES.noir;
+  var headFont = FONTS[parseInt(q.get('f'), 10)] || FONTS[0];   /* the booth leaves out f for its default, Bodoni Moda */
+  var headColor = /^[0-9a-f]{6}$/i.test(q.get('c') || '') ? '#' + q.get('c') : theme.accent;
+  var buttonStyle = q.get('k') || 'pill';
 
-  var strip = document.getElementById('strip');
+  /* ---------- apply the booth's look ---------- */
+  var root = document.documentElement.style;
+  root.setProperty('--paper', theme.paper);
+  root.setProperty('--accent', theme.accent);
+  root.setProperty('--head-color', headColor);
+  root.setProperty('--font-head', "'" + headFont + "'," + (SERIF[headFont] ? 'Georgia,serif' : 'system-ui,sans-serif'));
+  root.setProperty('--font-body', "'" + theme.body + "',system-ui,-apple-system,sans-serif");
+  document.body.classList.toggle('dark', theme.dark);
+  document.querySelector('meta[name=theme-color]').setAttribute('content', theme.paper);
+
   var save = document.getElementById('save');
-  var open = document.getElementById('open');
-  var hint = document.getElementById('hint');
+  if (buttonStyle === 'block' || buttonStyle === 'marquee'){
+    root.setProperty('--btn-radius', '3px'); root.setProperty('--btn-case', 'uppercase'); root.setProperty('--btn-track', '.14em');
+  } else if (buttonStyle === 'glass'){
+    root.setProperty('--btn-radius', '16px');
+  }
+  if (buttonStyle === 'outline' || buttonStyle === 'marquee') save.classList.add(buttonStyle);
 
-  if (name){
-    document.getElementById('booth').textContent = name;
-    document.title = name + ' — your photo strip';
+  var fam = function(name){ return 'family=' + name.replace(/ /g, '+') + (SINGLE_WEIGHT[name] ? '' : ':wght@400;600;700'); };
+  var link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?' + fam(headFont) + (headFont !== theme.body ? '&' + fam(theme.body) : '') + '&display=swap';
+  document.head.appendChild(link);
+
+  if (top){
+    document.getElementById('top').textContent = top;
+    document.title = top + ' — your photo strip';
+  }
+  document.getElementById('bottom').textContent = bottom;
+  if (top) document.getElementById('thanks').textContent = 'Thank you for snapping with ' + top + '.';
+
+  /* The strip id starts with the moment it was taken: YYYYMMDD-HHMMSS */
+  var m = id.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})/);
+  if (m){
+    var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    document.getElementById('when').textContent = 'Taken ' +
+      d.toLocaleDateString(undefined, { day:'numeric', month:'long', year:'numeric' }) + ', ' +
+      d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
   }
 
+  /* ---------- the photo ---------- */
+  var print = document.getElementById('print');
+  var open = document.getElementById('open');
+  var hint = document.getElementById('hint');
   var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-  function fileName(){ return 'photo-strip-' + id + (variant === 'b' ? '-bw' : '') + '.jpg'; }
-  function photoUrl(v){
-    return 'https://' + ref + '.supabase.co/storage/v1/object/public/' + bucket + '/p/' + id + '-' + v + '.jpg';
-  }
-  /* Supabase sends the file as a download when ?download= is added —
-     the most reliable way to save on Android and desktop browsers. */
+  function fileName(){ return (top ? top.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '-' : 'photo-strip-') + id + (variant === 'b' ? '-bw' : '') + '.jpg'; }
+  function photoUrl(v){ return 'https://' + ref + '.supabase.co/storage/v1/object/public/' + bucket + '/p/' + id + '-' + v + '.jpg'; }
+  /* Supabase serves the file as a download when ?download= is added. */
   function downloadUrl(){ return photoUrl(variant) + '?download=' + encodeURIComponent(fileName()); }
-
-  function enable(on){
-    save.setAttribute('aria-disabled', String(!on));
-    open.setAttribute('aria-disabled', String(!on));
-  }
+  function enable(on){ save.setAttribute('aria-disabled', String(!on)); open.setAttribute('aria-disabled', String(!on)); }
 
   function show(v){
     variant = v;
-    document.querySelectorAll('.tabs button').forEach(function(b){
-      b.setAttribute('aria-pressed', String(b.dataset.v === v));
-    });
+    document.querySelectorAll('.switch button').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.v === v)); });
     enable(false);
     if (!ref || !id){
-      strip.innerHTML = '<p class="msg">This link is incomplete. Scan the QR code at the booth again.</p>';
+      print.innerHTML = '<div class="placeholder">This link is incomplete. Scan the QR code at the booth again.</div>';
       return;
     }
+    if (!print.querySelector('img')) print.innerHTML = '<div class="placeholder loading">Loading your photo…</div>';
     var img = new Image();
     img.alt = v === 'b' ? 'Your photo strip in black and white' : 'Your photo strip in colour';
     img.onload = function(){
-      strip.innerHTML = '';
-      strip.appendChild(img);
+      print.innerHTML = '';
+      print.appendChild(img);
       open.href = photoUrl(variant);
       save.href = downloadUrl();
       enable(true);
     };
     img.onerror = function(){
-      strip.innerHTML = '<p class="msg">This photo isn’t available yet. Wait a moment, then reload this page.</p>';
+      print.innerHTML = '<div class="placeholder">This photo isn’t available yet. Wait a moment, then reload this page.</div>';
     };
     img.src = photoUrl(v);
   }
 
-  document.querySelectorAll('.tabs button').forEach(function(b){
-    b.onclick = function(){ show(b.dataset.v); };
-  });
+  document.querySelectorAll('.switch button').forEach(function(b){ b.onclick = function(){ show(b.dataset.v); }; });
 
-  /* iPhone: Safari can't drop a file into Photos directly, but the share sheet
-     has "Save Image". Everywhere else the download link does the job. */
+  /* iPhone saves to Photos through the share sheet's "Save Image";
+     everywhere else the download link saves straight to the phone. */
   save.onclick = function(e){
-    if (!ios) { hint.textContent = 'Saved to your Downloads. It also appears in your Gallery or Photos.'; hint.className = 'hint done'; return; }
+    if (!ios){
+      hint.textContent = 'Saved to your phone. Look in Downloads or your Gallery.';
+      hint.className = 'hint done';
+      return;
+    }
     e.preventDefault();
     fetch(photoUrl(variant)).then(function(r){
       if (!r.ok) throw new Error(String(r.status));
       return r.blob();
     }).then(function(blob){
-      var file = new File([blob], fileName(), { type: 'image/jpeg' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })){
-        return navigator.share({ files: [file] }).then(function(){
-          hint.textContent = 'Saved. Find it in your Photos.';
+      var file = new File([blob], fileName(), { type:'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files:[file] })){
+        return navigator.share({ files:[file] }).then(function(){
+          hint.textContent = 'Saved. You’ll find it in Photos.';
           hint.className = 'hint done';
-        }, function(){ /* closed the share sheet */ });
+        }, function(){});
       }
       location.href = photoUrl(variant);
-    }).catch(function(){
-      location.href = photoUrl(variant);
-    });
+    }).catch(function(){ location.href = photoUrl(variant); });
   };
 
-  if (ios) hint.textContent = 'Tap Save, then choose "Save Image". Or press and hold the photo.';
+  if (ios) hint.textContent = 'Tap Save, then choose “Save Image”. Or press and hold the photo.';
 
   show(variant);
 })();
