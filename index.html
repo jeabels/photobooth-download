@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your photo strip</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#F2EDE5">
+<style>
+/* Guest download page — opened by scanning the booth's QR code.
+   One page serves every booth: the link says which Supabase project to read.
+     ?r=<project ref>&b=<bucket>&id=<strip id>&v=<c|b>&n=<booth name>          */
+:root{
+  --paper:#F2EDE5; --ink:#1B1712; --sub:#6B645B; --line:rgba(27,23,18,.12); --card:#FFFFFF;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --paper:#141210; --ink:#F2EDE5; --sub:#A69F95; --line:rgba(242,237,229,.16); --card:#1E1B18; }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:max(24px,env(safe-area-inset-top)) 16px max(32px,env(safe-area-inset-bottom))}
+.booth{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:26px;letter-spacing:.06em;text-align:center;line-height:1.1}
+.sub{color:var(--sub);font-size:14px;text-align:center;margin-top:6px}
+.tabs{display:flex;gap:4px;background:var(--line);padding:4px;border-radius:999px;margin:18px 0 16px}
+.tabs button{border:0;background:transparent;color:var(--sub);font:600 14px system-ui,sans-serif;padding:10px 18px;border-radius:999px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.strip{width:min(320px,100%);min-height:220px;background:var(--card);border-radius:6px;overflow:hidden;
+  box-shadow:0 12px 32px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center}
+.strip img{width:100%;height:auto;display:block;-webkit-touch-callout:default}
+.msg{padding:40px 22px;text-align:center;color:var(--sub);font-size:14px}
+.actions{width:min(320px,100%);display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.btn{border:0;border-radius:999px;background:var(--ink);color:var(--paper);font:700 16px system-ui,sans-serif;
+  padding:16px;cursor:pointer;text-align:center;text-decoration:none;display:block}
+.btn.quiet{background:transparent;color:var(--ink);border:1.5px solid var(--line);font-weight:600;font-size:15px;padding:13px}
+.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.hint{color:var(--sub);font-size:13px;text-align:center;margin-top:12px;max-width:320px}
+.done{color:var(--ink);font-weight:600}
+button:focus-visible,a:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+</style>
+</head>
+<body>
+  <div class="booth" id="booth">Your photo strip</div>
+  <p class="sub">Thanks for snapping with us.</p>
+
+  <div class="tabs" role="group" aria-label="Version">
+    <button type="button" data-v="c" aria-pressed="true">Colour</button>
+    <button type="button" data-v="b" aria-pressed="false">Black &amp; white</button>
+  </div>
+
+  <div class="strip" id="strip"><p class="msg">Loading your photo…</p></div>
+
+  <div class="actions">
+    <a class="btn" id="save" href="#" aria-disabled="true">Save to my phone</a>
+    <a class="btn quiet" id="open" href="#" target="_blank" rel="noopener" aria-disabled="true">Open full size</a>
+  </div>
+  <p class="hint" id="hint">Nothing happened? Press and hold the photo, then choose Save image.</p>
+
+<script>
+(function(){
+  var q = new URLSearchParams(location.search);
+  var ref = (q.get('r') || '').replace(/[^a-z0-9]/gi, '');
+  var bucket = (q.get('b') || 'photos').replace(/[^a-z0-9_-]/gi, '');
+  var id = (q.get('id') || '').replace(/[^a-z0-9-]/gi, '');
+  var name = (q.get('n') || '').slice(0, 40);
+  var variant = q.get('v') === 'b' ? 'b' : 'c';
+
+  var strip = document.getElementById('strip');
+  var save = document.getElementById('save');
+  var open = document.getElementById('open');
+  var hint = document.getElementById('hint');
+
+  if (name){
+    document.getElementById('booth').textContent = name;
+    document.title = name + ' — your photo strip';
+  }
+
+  var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  function fileName(){ return 'photo-strip-' + id + (variant === 'b' ? '-bw' : '') + '.jpg'; }
+  function photoUrl(v){
+    return 'https://' + ref + '.supabase.co/storage/v1/object/public/' + bucket + '/p/' + id + '-' + v + '.jpg';
+  }
+  /* Supabase sends the file as a download when ?download= is added —
+     the most reliable way to save on Android and desktop browsers. */
+  function downloadUrl(){ return photoUrl(variant) + '?download=' + encodeURIComponent(fileName()); }
+
+  function enable(on){
+    save.setAttribute('aria-disabled', String(!on));
+    open.setAttribute('aria-disabled', String(!on));
+  }
+
+  function show(v){
+    variant = v;
+    document.querySelectorAll('.tabs button').forEach(function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.v === v));
+    });
+    enable(false);
+    if (!ref || !id){
+      strip.innerHTML = '<p class="msg">This link is incomplete. Scan the QR code at the booth again.</p>';
+      return;
+    }
+    var img = new Image();
+    img.alt = v === 'b' ? 'Your photo strip in black and white' : 'Your photo strip in colour';
+    img.onload = function(){
+      strip.innerHTML = '';
+      strip.appendChild(img);
+      open.href = photoUrl(variant);
+      save.href = downloadUrl();
+      enable(true);
+    };
+    img.onerror = function(){
+      strip.innerHTML = '<p class="msg">This photo isn’t available yet. Wait a moment, then reload this page.</p>';
+    };
+    img.src = photoUrl(v);
+  }
+
+  document.querySelectorAll('.tabs button').forEach(function(b){
+    b.onclick = function(){ show(b.dataset.v); };
+  });
+
+  /* iPhone: Safari can't drop a file into Photos directly, but the share sheet
+     has "Save Image". Everywhere else the download link does the job. */
+  save.onclick = function(e){
+    if (!ios) { hint.textContent = 'Saved to your Downloads. It also appears in your Gallery or Photos.'; hint.className = 'hint done'; return; }
+    e.preventDefault();
+    fetch(photoUrl(variant)).then(function(r){
+      if (!r.ok) throw new Error(String(r.status));
+      return r.blob();
+    }).then(function(blob){
+      var file = new File([blob], fileName(), { type: 'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })){
+        return navigator.share({ files: [file] }).then(function(){
+          hint.textContent = 'Saved. Find it in your Photos.';
+          hint.className = 'hint done';
+        }, function(){ /* closed the share sheet */ });
+      }
+      location.href = photoUrl(variant);
+    }).catch(function(){
+      location.href = photoUrl(variant);
+    });
+  };
+
+  if (ios) hint.textContent = 'Tap Save, then choose "Save Image". Or press and hold the photo.';
+
+  show(variant);
+})();
+</script>
+</body>
+</html>
