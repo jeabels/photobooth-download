@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Snaps Photobooth — the photobooth app for Android tablets</title>
+<meta name="description" content="A complete self-service photobooth for any Android tablet: GCash and cash payments, receipt and photo printing, QR digital copies, your own branding.">
+<meta name="theme-color" content="#F2EDE5">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   Snaps Photobooth — sales page
+   Send customers here. They try the real booth (demo mode), then request the
+   app. The code arrives in the seller's email; the customer can only download
+   after entering it. Settings: see SELLER below.
+   ========================================================================== */
+:root{
+  --paper:#F2EDE5; --paper-2:#EAE3D8; --card:#FFFFFF; --ink:#1B1712; --sub:#6B645B;
+  --line:rgba(27,23,18,.12); --accent:#1B1712; --good:#2F6B4A; --bad:#A3262A;
+  --serif:'Bodoni Moda',Georgia,'Times New Roman',serif;
+  --sans:'Manrope',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--paper);color:var(--ink);font:16px/1.6 var(--sans)}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding:0 20px}
+
+/* ---- top bar ---- */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0}
+.mark{font-family:var(--serif);font-weight:700;font-size:21px;letter-spacing:.02em;text-decoration:none}
+.mark small{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.2em;color:var(--sub);margin-left:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;
+  background:var(--accent);color:var(--paper);font:700 15px var(--sans);padding:13px 22px;border-radius:999px;
+  text-decoration:none;white-space:nowrap;transition:transform .12s ease,opacity .2s}
+.btn:active{transform:scale(.98)}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line)}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn.small{padding:10px 18px;font-size:14px}
+
+/* ---- hero ---- */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;padding:36px 0 80px}
+.hero h1{font-family:var(--serif);font-weight:500;font-size:clamp(40px,6vw,68px);line-height:1.02;letter-spacing:-.01em}
+.hero p.lead{font-size:18px;color:var(--sub);max-width:34em;margin-top:22px}
+.hero .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+.facts{display:grid;grid-template-columns:repeat(3,auto);justify-content:start;gap:12px 36px;margin-top:38px;padding-top:24px;border-top:1px solid var(--line)}
+.facts div{font-size:13px;color:var(--sub)}
+.facts b{display:block;font-size:16px;color:var(--ink)}
+
+/* the live booth inside a tablet */
+.device{justify-self:center;width:min(100%,420px)}
+.tablet{background:#16130F;border-radius:34px;padding:16px;box-shadow:0 2px 0 #000 inset,0 40px 80px -30px rgba(27,23,18,.55),0 12px 30px -12px rgba(27,23,18,.35)}
+.screen{position:relative;border-radius:20px;overflow:hidden;aspect-ratio:10/16;background:var(--paper-2)}
+.screen iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.screen .start{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  background:linear-gradient(160deg,#EFE7DB,#E2D6C4);color:var(--ink);border:0;cursor:pointer;font:600 15px var(--sans)}
+.screen .start span.play{width:64px;height:64px;border-radius:50%;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:4px}
+.device .under{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:14px;font-size:13px;color:var(--sub)}
+.device .under a{font-weight:700;color:var(--ink);white-space:nowrap}
+
+/* ---- features ---- */
+section.band{padding:80px 0;border-top:1px solid var(--line)}
+.band h2{font-family:var(--serif);font-weight:500;font-size:clamp(30px,4vw,44px);line-height:1.1;max-width:18em}
+.band p.intro{color:var(--sub);margin-top:14px;max-width:38em}
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:40px 48px;margin-top:48px}
+.feature h3{font-size:17px;font-weight:800;margin-bottom:6px}
+.feature p{color:var(--sub);font-size:15px}
+
+.needs{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:40px}
+.need{background:var(--card);border-radius:16px;padding:22px}
+.need b{display:block;font-size:15px;margin-bottom:4px}
+.need span{font-size:14px;color:var(--sub)}
+
+/* ---- get the app ---- */
+.get{display:grid;grid-template-columns:.9fr 1.1fr;gap:56px;align-items:start}
+.steps{list-style:none;margin-top:32px;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:40px 1fr;gap:14px;padding:16px 0;border-top:1px solid var(--line)}
+.steps li::before{content:counter(s);font-family:var(--serif);font-size:26px;line-height:1.1}
+.steps b{display:block}
+.steps span{color:var(--sub);font-size:15px}
+
+.panel{background:var(--card);border-radius:24px;padding:32px;box-shadow:0 24px 60px -34px rgba(27,23,18,.45)}
+.panel h3{font-family:var(--serif);font-weight:500;font-size:28px;line-height:1.15}
+.panel p.sub{color:var(--sub);font-size:15px;margin-top:6px}
+.fields{display:grid;gap:14px;margin-top:24px}
+.fields .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
+label small{font-weight:500;color:var(--sub)}
+input,textarea{width:100%;font:16px var(--sans);color:var(--ink);background:var(--paper);border:1.5px solid transparent;
+  border-radius:12px;padding:13px 14px;transition:border-color .15s}
+input:focus,textarea:focus{outline:none;border-color:var(--ink)}
+textarea{min-height:84px;resize:vertical}
+.code{font:700 30px/1 var(--sans);letter-spacing:.5em;text-align:center;padding:16px 0 16px .5em}
+.panel .btn{width:100%;margin-top:20px;padding:16px}
+.msg{font-size:14px;margin-top:14px;min-height:22px}
+.msg.bad{color:var(--bad)} .msg.good{color:var(--good);font-weight:700}
+.switch-link{background:none;border:0;color:var(--sub);font:600 14px var(--sans);text-decoration:underline;text-underline-offset:3px;cursor:pointer;margin-top:14px}
+.install{margin-top:18px;background:var(--paper);border-radius:14px;padding:16px 18px;font-size:14px;color:var(--sub)}
+.install b{color:var(--ink)}
+.install ol{margin:8px 0 0 18px}
+[hidden]{display:none!important}
+
+footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+@media (max-width:900px){
+  .hero,.get{grid-template-columns:1fr;gap:44px}
+  .hero{padding-top:12px}
+  .features{grid-template-columns:1fr 1fr}
+  .needs{grid-template-columns:1fr 1fr}
+}
+@media (max-width:560px){
+  .mark small{display:none}
+  .bar .btn.ghost{display:none}
+  .features,.needs,.fields .two{grid-template-columns:1fr}
+  .facts{grid-template-columns:1fr 1fr}
+  .panel{padding:24px 20px}
+  section.band{padding:60px 0}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="bar" aria-label="Main">
+    <a class="mark" href="#top">Snaps Photobooth<small>BY SNAPS STUDIO</small></a>
+    <div style="display:flex;gap:10px">
+      <a class="btn ghost small" href="demo/" target="_blank" rel="noopener">Full-screen demo</a>
+      <a class="btn small" href="#get">Get the app</a>
+    </div>
+  </nav>
+
+  <header class="hero" id="top">
+    <div>
+      <h1>Your photobooth, on any Android tablet.</h1>
+      <p class="lead">Guests choose a layout, pay by GCash or cash, take their shots, add stickers and text, then print and scan a QR code to keep a copy. One app. No laptop.</p>
+      <div class="ctas">
+        <a class="btn" href="#get">Get the app</a>
+        <a class="btn ghost" href="demo/" target="_blank" rel="noopener">Try it full screen</a>
+      </div>
+      <div class="facts">
+        <div><b>GCash or cash</b>scan, pay, tap I've paid</div>
+        <div><b>Any printer</b>receipt or photo paper</div>
+        <div><b>Your brand</b>themes, header, live wallpaper</div>
+      </div>
+    </div>
+
+    <div class="device">
+      <div class="tablet">
+        <div class="screen" id="screen">
+          <button class="start" id="start-demo" type="button" aria-label="Start the live demo">
+            <span class="play" aria-hidden="true">▶</span>
+            Tap to try the real booth
+          </button>
+        </div>
+      </div>
+      <div class="under"><span>Live demo — prints and uploads are switched off.</span><a href="demo/" target="_blank" rel="noopener">Open full screen</a></div>
+    </div>
+  </header>
+</div>
+
+<section class="band">
+  <div class="wrap">
+    <h2>Everything a paid photobooth needs, already set up.</h2>
+    <p class="intro">Built for Filipino photobooth businesses: pay-per-print at malls and pop-ups, or hourly rentals for weddings and parties.</p>
+    <div class="features">
+      <div class="feature"><h3>GCash and cash</h3><p>Guests scan your own GCash QR on screen, send the exact amount and tap "I've paid". Cash goes to the attendant. Every sale is logged.</p></div>
+      <div class="feature"><h3>Prints on what you own</h3><p>Bluetooth receipt printers (58 or 80 mm) or any colour photo printer Android can print to, on 2×6, 4×6, 5×7 or A6 paper.</p></div>
+      <div class="feature"><h3>Digital copy by QR</h3><p>Every strip gets a QR code. Guests scan it and save the photo to their phone, in colour or black and white.</p></div>
+      <div class="feature"><h3>Looks like your brand</h3><p>Ten themes, 35 typefaces for your header, twelve start-button designs, and a photo or live-video wallpaper.</p></div>
+      <div class="feature"><h3>Stickers, text and designs</h3><p>Guests decorate each shot. You upload your own frame designs and place the photo spaces by hand.</p></div>
+      <div class="feature"><h3>Sales and event mode</h3><p>Daily, weekly and monthly sales by cash and GCash, CSV export, and a timed mode for rented events.</p></div>
+    </div>
+
+    <h2 style="margin-top:88px;font-size:clamp(26px,3vw,34px)">What you need</h2>
+    <div class="needs">
+      <div class="need"><b>An Android tablet</b><span>Android 8 or newer, any size. The booth fills the screen automatically.</span></div>
+      <div class="need"><b>A printer</b><span>Bluetooth receipt printer, or any photo printer that works with Android printing.</span></div>
+      <div class="need"><b>Internet</b><span>For QR digital copies. Payments and printing work offline.</span></div>
+      <div class="need"><b>Nothing else to set up</b><span>Your download code switches on digital copies inside the app. No accounts, no keys to copy.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="get">
+  <div class="wrap get">
+    <div>
+      <h2>Get the app</h2>
+      <p class="intro">The app is released to confirmed buyers. Here's how it works:</p>
+      <ol class="steps">
+        <li><div><b>Send a request</b><span>Tell us your name and how to reach you.</span></div></li>
+        <li><div><b>Complete your purchase</b><span>We'll message you with the price and payment details.</span></div></li>
+        <li><div><b>Enter your code</b><span>Once payment is confirmed we send you a 6-digit code. Enter it here and the app downloads.</span></div></li>
+      </ol>
+    </div>
+
+    <div class="panel" aria-live="polite">
+      <!-- step 1: request -->
+      <form id="request-form" novalidate>
+        <h3>Request the app</h3>
+        <p class="sub">We'll get back to you with payment details.</p>
+        <div class="fields">
+          <div class="two">
+            <div><label for="f-name">Your name</label><input id="f-name" name="name" autocomplete="name" maxlength="80" required></div>
+            <div><label for="f-booth">Booth or business name <small>(optional)</small></label><input id="f-booth" name="booth" maxlength="80"></div>
+          </div>
+          <div><label for="f-contact">How can we reach you? <small>Facebook, mobile or email</small></label><input id="f-contact" name="contact" maxlength="120" required></div>
+          <div><label for="f-note">Anything we should know? <small>(optional)</small></label><textarea id="f-note" name="note" maxlength="500" placeholder="Your tablet and printer, number of booths…"></textarea></div>
+        </div>
+        <button class="btn" type="submit" id="request-btn">Send request</button>
+        <p class="msg" id="request-msg"></p>
+        <button class="switch-link" type="button" id="have-code">I already have a code</button>
+      </form>
+
+      <!-- step 2: enter the code -->
+      <form id="code-form" hidden novalidate>
+        <h3>Enter your code</h3>
+        <p class="sub" id="code-sub">Your request was sent. When your purchase is confirmed, you'll receive a 6-digit code.</p>
+        <div class="fields">
+          <div><label for="f-code">6-digit code</label>
+            <input id="f-code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="\d{6}" required></div>
+        </div>
+        <button class="btn" type="submit" id="code-btn">Download the app</button>
+        <p class="msg" id="code-msg"></p>
+        <div class="install" id="install" hidden>
+          <b>Installing on your tablet</b>
+          <ol>
+            <li>Open <b>SnapsPhotobooth.apk</b> from your downloads.</li>
+            <li>If asked, allow installing apps from this source.</li>
+            <li>Open Snaps Photobooth and follow the setup guide we sent you.</li>
+          </ol>
+        </div>
+        <button class="switch-link" type="button" id="new-request">Send a new request instead</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer>
+    <span>© <span id="year"></span> Snaps Studio. All rights reserved.</span>
+    <span>Snaps Photobooth runs on Android 8 and newer.</span>
+  </footer>
+</div>
+
+<script>
+/* ----------------------------------------------------------------------------
+   SELLER — your Supabase project, where the download-gate function runs.
+   The publishable key is safe to show here; it cannot read requests or the app.
+   -------------------------------------------------------------------------- */
+var SELLER = {
+  project: 'cucddnghxshhmudkwdcl',
+  key: 'sb_publishable_s5YJq6xkBafqakqGgealLw_0wmq2we-'
+};
+
+(function(){
+  var FN = 'https://' + SELLER.project + '.supabase.co/functions/v1/download-gate';
+  var STORE = 'snaps_request_id';
+  var $ = function(id){ return document.getElementById(id); };
+  $('year').textContent = new Date().getFullYear();
+
+  /* Live demo loads only when asked, so the page opens fast. */
+  $('start-demo').onclick = function(){
+    var f = document.createElement('iframe');
+    f.src = 'demo/';
+    f.title = 'Snaps Photobooth live demo';
+    f.allow = 'camera; fullscreen';
+    $('screen').innerHTML = '';
+    $('screen').appendChild(f);
+  };
+
+  function remember(id){ try{ id ? localStorage.setItem(STORE, id) : localStorage.removeItem(STORE); }catch(e){} }
+  function recall(){ try{ return localStorage.getItem(STORE) || ''; }catch(e){ return ''; } }
+
+  function showCodeForm(text){
+    $('request-form').hidden = true;
+    $('code-form').hidden = false;
+    if (text) $('code-sub').textContent = text;
+    $('f-code').focus();
+  }
+  function showRequestForm(){
+    $('code-form').hidden = true;
+    $('request-form').hidden = false;
+  }
+
+  function say(el, text, kind){ el.textContent = text; el.className = 'msg' + (kind ? ' ' + kind : ''); }
+
+  function call(payload){
+    return fetch(FN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SELLER.key },
+      body: JSON.stringify(payload)
+    }).then(function(res){
+      return res.json().catch(function(){ return {}; }).then(function(body){
+        if (!res.ok) throw new Error(body.error || 'Something went wrong. Please try again.');
+        return body;
+      });
+    }, function(){ throw new Error('Could not connect. Check your internet and try again.'); });
+  }
+
+  /* Step 1 — request */
+  $('request-form').onsubmit = function(e){
+    e.preventDefault();
+    var name = $('f-name').value.trim(), contact = $('f-contact').value.trim();
+    if (!name){ say($('request-msg'), 'Please add your name.', 'bad'); $('f-name').focus(); return; }
+    if (!contact){ say($('request-msg'), 'Please add a way to reach you.', 'bad'); $('f-contact').focus(); return; }
+    var btn = $('request-btn');
+    btn.disabled = true; btn.textContent = 'Sending…'; say($('request-msg'), '');
+    call({ action:'request', name:name, contact:contact, booth:$('f-booth').value.trim(), note:$('f-note').value.trim() })
+      .then(function(body){
+        remember(body.id);
+        showCodeForm('Request sent. We’ll contact you at ' + contact + ' with payment details. After payment you’ll receive a 6-digit code — enter it here. You can open this page on your tablet later to download.');
+      })
+      .catch(function(err){ say($('request-msg'), err.message, 'bad'); })
+      .then(function(){ btn.disabled = false; btn.textContent = 'Send request'; });
+  };
+
+  /* Step 2 — code */
+  $('f-code').oninput = function(){ this.value = this.value.replace(/\D/g, '').slice(0, 6); };
+  $('code-form').onsubmit = function(e){
+    e.preventDefault();
+    var code = $('f-code').value.trim();
+    if (!/^\d{6}$/.test(code)){ say($('code-msg'), 'The code is 6 digits.', 'bad'); $('f-code').focus(); return; }
+    var btn = $('code-btn');
+    btn.disabled = true; btn.textContent = 'Checking…'; say($('code-msg'), '');
+    call({ action:'verify', code:code })
+      .then(function(body){
+        say($('code-msg'), 'Code accepted. Your download is starting.', 'good');
+        $('install').hidden = false;
+        window.location.href = body.url;
+      })
+      .catch(function(err){ say($('code-msg'), err.message, 'bad'); })
+      .then(function(){ btn.disabled = false; btn.textContent = 'Download the app'; });
+  };
+
+  $('have-code').onclick = function(){ showCodeForm('Enter the 6-digit code we sent you. It works on any device.'); };
+  $('new-request').onclick = function(){ remember(''); $('f-code').value = ''; say($('code-msg'), ''); showRequestForm(); };
+
+  if (recall()) showCodeForm('Welcome back. Enter the 6-digit code we sent you after your purchase.');
+})();
+</script>
+</body>
+</html>
