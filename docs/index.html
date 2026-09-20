@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your photo strip</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#F2EDE5">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+/* =============================================================================
+   Guest download page — opened by scanning the booth's QR code.
+
+   One page serves every booth. The link carries everything it needs:
+     r   Supabase project ref        b   bucket          id  strip id
+     v   c | b (colour or B&W)
+     n   header top line             s   header bottom line
+     f   header typeface (index)     c   header colour (hex, no #)
+     t   booth theme id              k   start-button style
+   So the page always looks like the booth that printed the strip.
+   ========================================================================== */
+:root{
+  --paper:#F4F3EF; --ink:#141414; --sub:#6B645B; --line:rgba(27,23,18,.12);
+  --accent:#111111; --accent-2:#444444; --on-accent:#FFFFFF; --head-color:#111111;
+  --font-head:Georgia,"Times New Roman",serif;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --btn-radius:999px; --btn-case:none; --btn-track:.01em;
+}
+body.dark{ --ink:#F3F0EA; --sub:#A9A39B; --line:rgba(255,255,255,.14); }
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font:16px/1.5 var(--font-body);
+  min-height:100vh;display:flex;justify-content:center;
+  padding:max(28px,env(safe-area-inset-top)) 20px max(28px,env(safe-area-inset-bottom))}
+main{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;text-align:center}
+
+/* ---- the booth's own header ---- */
+.brand{margin-top:8px}
+.brand-top{font-family:var(--font-head);color:var(--head-color);font-weight:var(--head-weight,700);
+  font-size:clamp(30px,10vw,42px);line-height:1.02;letter-spacing:.04em;overflow-wrap:anywhere}
+.brand-bottom{color:var(--head-color);opacity:.78;font-size:11px;font-weight:700;
+  letter-spacing:.26em;margin-top:9px;overflow-wrap:anywhere}
+.lede{font-size:15px;color:var(--sub);margin-top:22px}
+.when{font-size:13px;color:var(--sub);opacity:.85}
+
+/* ---- version switch ---- */
+.switch{display:flex;background:var(--line);padding:4px;border-radius:999px;margin:22px 0 18px}
+.switch button{border:0;background:transparent;color:var(--sub);font:600 14px var(--font-body);
+  padding:9px 18px;border-radius:999px;cursor:pointer;min-width:112px}
+.switch button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+
+/* ---- the strip, presented like a print ---- */
+.print{width:min(300px,100%);background:#fff;padding:10px;border-radius:3px;
+  box-shadow:0 1px 2px rgba(0,0,0,.08),0 18px 40px -12px rgba(0,0,0,.35)}
+.print img{display:block;width:100%;height:auto;-webkit-touch-callout:default}
+.placeholder{aspect-ratio:1/2.6;background:#EEEBE6;display:flex;align-items:center;justify-content:center;
+  color:#8A847C;font-size:14px;padding:24px;line-height:1.45}
+@media (prefers-reduced-motion:no-preference){
+  .placeholder.loading{animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.55}}
+}
+
+/* ---- actions ---- */
+.actions{width:min(300px,100%);margin-top:26px;display:flex;flex-direction:column;gap:6px}
+.save{display:block;border:0;background:var(--accent);color:var(--on-accent);
+  font:700 16px var(--font-body);letter-spacing:var(--btn-track);text-transform:var(--btn-case);
+  padding:16px;border-radius:var(--btn-radius);text-decoration:none;cursor:pointer}
+.save.ring{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.save.frame{background:transparent;color:var(--accent);outline:1px solid var(--accent);outline-offset:3px;box-shadow:inset 0 0 0 1px var(--accent)}
+.save.neon{box-shadow:0 0 14px var(--accent),0 0 32px color-mix(in srgb,var(--accent) 55%,transparent)}
+.save.gradient{background:linear-gradient(120deg,var(--accent),var(--accent-2))}
+.save.retro{box-shadow:4px 4px 0 var(--ink)}
+.full{color:var(--sub);font-size:14px;font-weight:600;padding:12px;text-decoration:underline;text-underline-offset:3px}
+[aria-disabled="true"]{opacity:.4;pointer-events:none}
+.hint{color:var(--sub);font-size:13px;margin-top:6px;max-width:300px;min-height:40px}
+.hint.done{color:var(--ink);font-weight:600}
+footer{margin-top:auto;padding-top:28px;font-size:12px;color:var(--sub);opacity:.8}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+</style>
+</head>
+<body>
+<main>
+  <header class="brand">
+    <div class="brand-top" id="top">Your photo strip</div>
+    <div class="brand-bottom" id="bottom"></div>
+  </header>
+
+  <p class="lede">Your strip is ready to keep.</p>
+  <p class="when" id="when"></p>
+
+  <div class="switch" role="group" aria-label="Version">
+    <button type="button" data-v="c" aria-pressed="true">Colour</button>
+    <button type="button" data-v="b" aria-pressed="false">Black &amp; white</button>
+  </div>
+
+  <div class="print" id="print"><div class="placeholder loading">Loading your photo…</div></div>
+
+  <div class="actions">
+    <a class="save" id="save" href="#" aria-disabled="true">Save to my phone</a>
+    <a class="full" id="open" href="#" target="_blank" rel="noopener" aria-disabled="true">Open full size</a>
+  </div>
+  <p class="hint" id="hint">Nothing happened? Press and hold the photo, then choose Save image.</p>
+
+  <footer id="thanks">Thank you for snapping with us.</footer>
+</main>
+
+<script>
+(function(){
+  /* Mirrors of the booth's THEMES, HEADER_FONTS and BUTTON_SHAPES tables
+     (fonts in the same order — a link names its typeface by number). */
+  var THEMES = {
+    studio:    { accent:'#111111', accent2:'#444444', on:'#ffffff', paper:'#F4F3EF', dark:false, body:'Manrope' },
+    porcelain: { accent:'#2446F5', accent2:'#1530C4', on:'#ffffff', paper:'#F2F4F8', dark:false, body:'Manrope' },
+    terracotta:{ accent:'#B4532F', accent2:'#8E3C1F', on:'#ffffff', paper:'#F5EEE6', dark:false, body:'Outfit' },
+    sage:      { accent:'#3F5E4B', accent2:'#2C4436', on:'#ffffff', paper:'#ECF0E8', dark:false, body:'Outfit' },
+    blush:     { accent:'#B23A62', accent2:'#8C2A4B', on:'#ffffff', paper:'#FAF0F1', dark:false, body:'Outfit' },
+    citrus:    { accent:'#EE6A1C', accent2:'#C9500B', on:'#ffffff', paper:'#FFF6E7', dark:false, body:'Outfit' },
+    mono:      { accent:'#000000', accent2:'#2a2a2a', on:'#ffffff', paper:'#FFFFFF', dark:false, body:'Archivo' },
+    champagne: { accent:'#D9C4A3', accent2:'#B89C72', on:'#16130F', paper:'#121110', dark:true,  body:'Manrope' },
+    midnight:  { accent:'#8FA3FF', accent2:'#6C82F0', on:'#0B1022', paper:'#0C1022', dark:true,  body:'Sora' },
+    neon:      { accent:'#FF2E88', accent2:'#D61E6C', on:'#ffffff', paper:'#0B0A10', dark:true,  body:'Sora' }
+  };
+  var ALIASES = { noir:'studio', verdant:'sage', ember:'terracotta', gold:'champagne' };
+  /* [family, weight, fallback] */
+  var FONTS = [
+    ['Bodoni Moda',700,'serif'],['Instrument Serif',400,'serif'],['Cormorant Garamond',700,'serif'],['DM Serif Display',400,'serif'],
+    ['Syne',800,'sans-serif'],['Archivo',800,'sans-serif'],['Outfit',700,'sans-serif'],['Manrope',800,'sans-serif'],
+    ['Sora',700,'sans-serif'],['Space Mono',700,'monospace'],['Playfair Display',700,'serif'],['Fraunces',700,'serif'],
+    ['Abril Fatface',400,'serif'],['Cinzel',700,'serif'],['Italiana',400,'serif'],['Yeseva One',400,'serif'],
+    ['Unbounded',700,'sans-serif'],['Bebas Neue',400,'sans-serif'],['Anton',400,'sans-serif'],['Montserrat',800,'sans-serif'],
+    ['Bricolage Grotesque',800,'sans-serif'],['Righteous',400,'sans-serif'],['Great Vibes',400,'cursive'],['Pinyon Script',400,'cursive'],
+    ['Allura',400,'cursive'],['Parisienne',400,'cursive'],['Dancing Script',700,'cursive'],['Sacramento',400,'cursive'],
+    ['Caveat',700,'cursive'],['Pacifico',400,'cursive'],['Lobster',400,'cursive'],['Shrikhand',400,'cursive'],
+    ['Monoton',400,'cursive'],['Special Elite',400,'monospace'],['UnifrakturMaguntia',400,'serif']
+  ];
+  /* radius in px (999 = round), capitals, look */
+  var BUTTONS = {
+    pill:[999], block:[3,1], outline:[999,0,'ring'], glass:[16], marquee:[0,1,'frame'], neon:[12,0,'neon'],
+    gradient:[999,0,'gradient'], retro:[6,1,'retro'], ticket:[6,1], halo:[999], minimal:[12,0,'ring'], stamp:[4,1,'frame']
+  };
+
+  var q = new URLSearchParams(location.search);
+  var clean = function(v, re){ return (q.get(v) || '').replace(re, ''); };
+  var ref = clean('r', /[^a-z0-9]/gi);
+  var bucket = clean('b', /[^a-z0-9_-]/gi) || 'photos';
+  var id = clean('id', /[^a-z0-9-]/gi);
+  var variant = q.get('v') === 'b' ? 'b' : 'c';
+  var top = (q.get('n') || '').slice(0, 40);
+  var bottom = (q.get('s') || '').slice(0, 50);
+  var themeId = ALIASES[q.get('t')] || q.get('t');
+  var theme = THEMES[themeId] || THEMES.studio;
+  var head = FONTS[parseInt(q.get('f'), 10)] || FONTS[0];   /* the booth leaves out f only for Bodoni Moda */
+  var headColor = /^[0-9a-f]{6}$/i.test(q.get('c') || '') ? '#' + q.get('c') : theme.accent;
+  var buttonStyle = BUTTONS[q.get('k')] ? q.get('k') : 'pill';
+
+  /* ---------- apply the booth's look ---------- */
+  var root = document.documentElement.style;
+  root.setProperty('--paper', theme.paper);
+  root.setProperty('--accent', theme.accent);
+  root.setProperty('--accent-2', theme.accent2);
+  root.setProperty('--on-accent', theme.on);
+  root.setProperty('--head-color', headColor);
+  root.setProperty('--head-weight', head[1]);
+  root.setProperty('--font-head', "'" + head[0] + "'," + (head[2] === 'serif' ? 'Georgia,serif' : head[2] === 'cursive' ? 'cursive' : 'system-ui,sans-serif'));
+  root.setProperty('--font-body', "'" + theme.body + "',system-ui,-apple-system,sans-serif");
+  document.body.classList.toggle('dark', theme.dark);
+  document.querySelector('meta[name=theme-color]').setAttribute('content', theme.paper);
+
+  var save = document.getElementById('save');
+  var shape = BUTTONS[buttonStyle];
+  root.setProperty('--btn-radius', shape[0] >= 999 ? '999px' : shape[0] + 'px');
+  if (shape[1]){ root.setProperty('--btn-case', 'uppercase'); root.setProperty('--btn-track', '.14em'); }
+  if (shape[2]) save.classList.add(shape[2]);
+
+  var fam = function(f){ return 'family=' + f[0].replace(/ /g, '+') + (f[1] === 400 ? '' : ':wght@' + f[1]); };
+  var link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?' + fam(head) +
+    (head[0] !== theme.body ? '&family=' + theme.body.replace(/ /g, '+') + ':wght@400;600;700' : '') + '&display=swap';
+  document.head.appendChild(link);
+
+  if (top){
+    document.getElementById('top').textContent = top;
+    document.title = top + ' — your photo strip';
+  }
+  document.getElementById('bottom').textContent = bottom;
+  if (top) document.getElementById('thanks').textContent = 'Thank you for snapping with ' + top + '.';
+
+  /* The strip id starts with the moment it was taken: YYYYMMDD-HHMMSS */
+  var m = id.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})/);
+  if (m){
+    var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    document.getElementById('when').textContent = 'Taken ' +
+      d.toLocaleDateString(undefined, { day:'numeric', month:'long', year:'numeric' }) + ', ' +
+      d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+  }
+
+  /* ---------- the photo ---------- */
+  var print = document.getElementById('print');
+  var open = document.getElementById('open');
+  var hint = document.getElementById('hint');
+  var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  function fileName(){ return (top ? top.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '-' : 'photo-strip-') + id + (variant === 'b' ? '-bw' : '') + '.jpg'; }
+  function photoUrl(v){ return 'https://' + ref + '.supabase.co/storage/v1/object/public/' + bucket + '/p/' + id + '-' + v + '.jpg'; }
+  /* Supabase serves the file as a download when ?download= is added. */
+  function downloadUrl(){ return photoUrl(variant) + '?download=' + encodeURIComponent(fileName()); }
+  function enable(on){ save.setAttribute('aria-disabled', String(!on)); open.setAttribute('aria-disabled', String(!on)); }
+
+  function show(v){
+    variant = v;
+    document.querySelectorAll('.switch button').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.v === v)); });
+    enable(false);
+    if (!ref || !id){
+      print.innerHTML = '<div class="placeholder">This link is incomplete. Scan the QR code at the booth again.</div>';
+      return;
+    }
+    if (!print.querySelector('img')) print.innerHTML = '<div class="placeholder loading">Loading your photo…</div>';
+    var img = new Image();
+    img.alt = v === 'b' ? 'Your photo strip in black and white' : 'Your photo strip in colour';
+    img.onload = function(){
+      print.innerHTML = '';
+      print.appendChild(img);
+      open.href = photoUrl(variant);
+      save.href = downloadUrl();
+      enable(true);
+    };
+    img.onerror = function(){
+      print.innerHTML = '<div class="placeholder">This photo isn’t available yet. Wait a moment, then reload this page.</div>';
+    };
+    img.src = photoUrl(v);
+  }
+
+  document.querySelectorAll('.switch button').forEach(function(b){ b.onclick = function(){ show(b.dataset.v); }; });
+
+  /* iPhone saves to Photos through the share sheet's "Save Image";
+     everywhere else the download link saves straight to the phone. */
+  save.onclick = function(e){
+    if (!ios){
+      hint.textContent = 'Saved to your phone. Look in Downloads or your Gallery.';
+      hint.className = 'hint done';
+      return;
+    }
+    e.preventDefault();
+    fetch(photoUrl(variant)).then(function(r){
+      if (!r.ok) throw new Error(String(r.status));
+      return r.blob();
+    }).then(function(blob){
+      var file = new File([blob], fileName(), { type:'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files:[file] })){
+        return navigator.share({ files:[file] }).then(function(){
+          hint.textContent = 'Saved. You’ll find it in Photos.';
+          hint.className = 'hint done';
+        }, function(){});
+      }
+      location.href = photoUrl(variant);
+    }).catch(function(){ location.href = photoUrl(variant); });
+  };
+
+  if (ios) hint.textContent = 'Tap Save, then choose “Save Image”. Or press and hold the photo.';
+
+  show(variant);
+})();
+</script>
+</body>
+</html>
