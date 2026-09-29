@@ -190,12 +190,23 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 
   /* The strip id starts with the moment it was taken: YYYYMMDD-HHMMSS */
   var m = id.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})/);
+  /* The booth deletes photos after "Keep photos online" (3 days unless the
+     link says otherwise with e=hours), so the page can say when it expires. */
+  var keepHours = parseInt(q.get('e'), 10) || 72;
+  var expiresAt = 0;
   if (m){
     var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    expiresAt = d.getTime() + keepHours * 3600000;
+    var until = new Date(expiresAt);
     document.getElementById('when').textContent = 'Taken ' +
       d.toLocaleDateString(undefined, { day:'numeric', month:'long', year:'numeric' }) + ', ' +
-      d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+      d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' }) +
+      ' · save it before ' + (keepHours < 24
+        ? until.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' })
+        : until.toLocaleDateString(undefined, { day:'numeric', month:'long' }));
   }
+  var keepText = keepHours === 1 ? 'an hour' : keepHours < 48 ? keepHours + ' hours' : Math.round(keepHours / 24) + ' days';
+  var waited = 0, retry = null;
 
   /* ---------- the photo ---------- */
   var print = document.getElementById('print');
@@ -229,9 +240,24 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
       enable(true);
     };
     img.onerror = function(){
-      print.innerHTML = '<div class="placeholder">This photo isn’t available yet. Wait a moment, then reload this page.</div>';
+      if (v !== variant) return;
+      if (expiresAt && Date.now() > expiresAt){
+        print.innerHTML = '<div class="placeholder">This link has expired. Photos stay online for ' + keepText +
+          ' after they are taken. Ask the booth if you need a copy.</div>';
+        return;
+      }
+      /* Just taken, or the booth lost its internet: the photo is still on its
+         way, so keep looking for it instead of giving up. */
+      if (waited < 120){
+        print.innerHTML = '<div class="placeholder loading">Your photo is on its way… this page updates by itself.</div>';
+        waited++;
+        clearTimeout(retry);
+        retry = setTimeout(function(){ if (v === variant) show(v); }, 5000);
+        return;
+      }
+      print.innerHTML = '<div class="placeholder">The booth hasn’t sent this photo yet. Keep this page and reload it later.</div>';
     };
-    img.src = photoUrl(v);
+    img.src = photoUrl(v) + (waited ? '?w=' + waited : '');
   }
 
   document.querySelectorAll('.switch button').forEach(function(b){ b.onclick = function(){ show(b.dataset.v); }; });
