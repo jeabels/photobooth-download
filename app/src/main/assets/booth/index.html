@@ -1108,7 +1108,7 @@ body.framing #frame-bar{display:flex}
               <button data-dots="smooth" onclick="Printing.setDots('smooth')">Smooth</button>
               <button data-dots="silk" onclick="Printing.setDots('silk')">Silk</button>
             </div>
-            <p class="set-sub"><b>Fine</b> scatters tiny dots for the sharpest detail and hair. <b>Smooth</b> uses an even dot pattern for softer skin and cleaner backgrounds. <b>Silk</b> removes camera grain and prints a fine, even texture with crisp outlines, like a classic receipt photobooth.</p>
+            <p class="set-sub"><b>Fine</b> scatters tiny dots for the sharpest detail and hair. <b>Smooth</b> uses an even dot pattern for softer skin and cleaner backgrounds. <b>Silk</b> (recommended) smooths out camera grain, keeps faces clear and prints a fine, even texture, like a classic receipt photobooth.</p>
             <canvas id="tone-preview" width="260" height="44" style="width:100%;height:calc(var(--u)*38);border-radius:calc(var(--u)*6);border:1px solid var(--line)"></canvas>
             <p class="set-sub">Top is the tone curve, bottom is the real dot pattern. Lower the darkness if faces print as black blobs.</p>
           </div>
@@ -3126,6 +3126,32 @@ function smoothSkin(lum, isPhoto, w, h, sigma){
     lum[i] = sum / wt;
   }
 }
+function boxBlur(src, w, h, r){
+  const tmp = new Float32Array(src.length), out = new Float32Array(src.length), d = 2 * r + 1;
+  for (let y = 0; y < h; y++){
+    let acc = 0;
+    for (let k = -r; k <= r; k++) acc += src[y * w + clamp(k, 0, w - 1)];
+    for (let x = 0; x < w; x++){
+      tmp[y * w + x] = acc / d;
+      acc += src[y * w + Math.min(w - 1, x + r + 1)] - src[y * w + Math.max(0, x - r)];
+    }
+  }
+  for (let x = 0; x < w; x++){
+    let acc = 0;
+    for (let k = -r; k <= r; k++) acc += tmp[clamp(k, 0, h - 1) * w + x];
+    for (let y = 0; y < h; y++){
+      out[y * w + x] = acc / d;
+      acc += tmp[Math.min(h - 1, y + r + 1) * w + x] - tmp[Math.max(0, y - r) * w + x];
+    }
+  }
+  return out;
+}
+function clarity(lum, isPhoto, w, h, radius, amount){
+  /* local contrast: draws soft pencil-like outlines around eyes, glasses,
+     mouth and hair so faces stay readable on light skin */
+  const b = boxBlur(boxBlur(lum, w, h, radius), w, h, radius);
+  for (let i = 0; i < lum.length; i++) if (isPhoto[i]) lum[i] = clamp(lum[i] + (lum[i] - b[i]) * amount, 0, 255);
+}
 function dither(lum, isPhoto, ditherArt, w, h, threshold, mode){
   if (mode === 'silk'){
     /* serpentine Floyd-Steinberg: keeps all the error so tones stay smooth,
@@ -3137,7 +3163,7 @@ function dither(lum, isPhoto, ditherArt, w, h, threshold, mode){
         const diffuse = isPhoto[i] || ditherArt;
         const old = lum[i];
         if (!diffuse){ lum[i] = old < threshold ? 0 : 255; continue; }
-        const t = 128 + (CLUSTER[(y & 7) * 8 + (x & 7)] / 63 - .5) * 36;
+        const t = 128 + (CLUSTER[(y & 7) * 8 + (x & 7)] / 63 - .5) * 12;
         const val = old < t ? 0 : 255;
         lum[i] = val;
         const err = clamp(old - val, -160, 160) / 16;
@@ -3208,10 +3234,11 @@ function binarize(canvas, maskCanvas, profile){
 
   const silk = settings.printDots === 'silk';
   medianFilter(lum, isPhoto, w, h, p.despeckle);
-  if (silk) smoothSkin(lum, isPhoto, w, h, 16);
+  if (silk) smoothSkin(lum, isPhoto, w, h, 12);
   autoLevel(lum, isPhoto, p.autolevel);
+  if (silk) clarity(lum, isPhoto, w, h, 4, .8);
   for (let px = 0; px < n; px++) if (isPhoto[px] || ditherArt) lum[px] = curve[clamp(Math.round(lum[px]), 0, 255)];
-  unsharp(lum, isPhoto, w, h, silk ? p.sharpen * 1.3 : p.sharpen);
+  unsharp(lum, isPhoto, w, h, p.sharpen);
   for (let px = 0; px < n; px++){
     if (!(isPhoto[px] || ditherArt)) continue;
     if (lum[px] >= p.snapW) lum[px] = 255; else if (lum[px] <= p.snapB) lum[px] = 0;
