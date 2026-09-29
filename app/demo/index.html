@@ -286,6 +286,8 @@ body.theme-dark .ghost.danger{background:rgba(255,80,80,.12);color:#ff9b9b;borde
   background-repeat:no-repeat;opacity:.7}
 video#webcam{width:100%;height:100%;object-fit:cover;display:block}
 video#webcam.mirror{transform:scaleX(-1)}
+.vf-back{display:inline-flex;align-items:center;gap:calc(var(--u)*4);border:none;cursor:pointer;font-family:inherit}
+.vf-back svg{width:calc(var(--u)*13);height:calc(var(--u)*13)}
 .vf-top{position:absolute;top:calc(var(--u)*22);left:calc(var(--u)*22);right:calc(var(--u)*22);z-index:3;
   display:flex;justify-content:space-between;align-items:center}
 .chip{background:rgba(0,0,0,.5);color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
@@ -732,7 +734,7 @@ body.framing #frame-bar{display:flex}
     <div class="viewfinder">
       <div class="flash" id="flash"></div>
       <video id="webcam" autoplay playsinline muted></video>
-      <div class="vf-top"><span class="chip" id="shot-progress">Ready</span><span class="chip rec">LIVE</span></div>
+      <div class="vf-top"><button class="chip vf-back" id="cam-back" onclick="Booth.backFromCamera()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Back</button><span class="chip" id="shot-progress">Ready</span><span class="chip rec">LIVE</span></div>
       <div class="vf-dots" id="shot-dots"></div>
       <div class="count" id="countdown"></div>
     </div>
@@ -1214,6 +1216,12 @@ body.framing #frame-bar{display:flex}
             <button data-sec="10" onclick="Admin.setCountdown(10)">10s</button>
           </div>
         </div>
+        <div class="set">
+          <div class="set-icon">🪞</div>
+          <div class="set-text"><div class="set-title">Lock mirror</div>
+            <div class="set-sub">Every session starts mirrored, like looking in a mirror. Guests can still tap Normal or Mirror on the review screen.</div></div>
+          <button class="switch" id="sw-mirror" onclick="Admin.toggle('mirrorLock',this)"></button>
+        </div>
       </section>
 
       <!-- ---------- ADVANCED ---------- -->
@@ -1518,7 +1526,7 @@ const DEFAULTS = {
   wallKind:'preset', wallPreset:'theme', wallFit:'cover',
   wallZoom:100, wallX:50, wallY:50, wallTint:0, wallAvg:'#f7f5f3',
 
-  countdown:3,
+  countdown:3, mirrorLock:false,
   basicPrices:{ solo:20, classic4:30, trio:30, mega6:30 },
 
   printEngine:'photo', paperSize:'4x6',
@@ -3678,7 +3686,7 @@ const Booth = {
   state:{
     layout:'solo', designId:null, needed:1, price:0,
     shots:[], transforms:[], overlays:[], retake:null,
-    filter:'color', mirrored:false, copies:1,
+    filter:'color', mirrored:false, copies:1, credit:0,
     stream:null, strips:{ color:'', bw:'' }, pending:{ color:null, bw:null },
     printCanvas:null, previewVariant:'color'
   },
@@ -3689,6 +3697,7 @@ const Booth = {
                                  : 'Event mode is on but the timer has not been started.', true);
       return;
     }
+    Booth.state.credit = 0;
     go('screen-layout');
     Camera.open();
   },
@@ -3736,6 +3745,16 @@ const Booth = {
 
   afterLayout(){
     if (EventMode.isEvent()){ Booth.startSession(); return; }
+    if (Booth.state.credit > 0){
+      /* came back from the camera after paying: the payment carries over */
+      if (Booth.total() > Booth.state.credit){
+        toast('That layout costs more than what was paid. Please choose another or see the attendant.', true);
+        return;
+      }
+      Sales.relabel(Booth.layoutName(), Booth.state.price);
+      Booth.startSession();
+      return;
+    }
     Booth.state.copies = 1;
     $('pay-layout').textContent = Booth.layoutName();
     $('pay-thumb').innerHTML = Booth.thumb();
@@ -3771,6 +3790,7 @@ const Booth = {
   payCash(){
     Sales.record({ mode:'nonevent', method:'cash', layout:Booth.layoutName(),
       copies:Booth.state.copies, unit:Booth.state.price, amount:Booth.total() });
+    Booth.state.credit = Booth.total();
     Booth.startSession();
   },
 
@@ -3795,7 +3815,7 @@ const Booth = {
     Booth.state.overlays = [];
     Booth.state.retake = null;
     Booth.clearStrips();
-    Booth.setMirror(false, true);
+    Booth.setMirror(!!settings.mirrorLock, true);
     Booth.openCamera();
   },
 
@@ -3804,6 +3824,7 @@ const Booth = {
   async openCamera(){
     go('screen-camera');
     $('shoot-btn').style.display = 'block';
+    $('cam-back').style.display = '';
     $('countdown').textContent = '';
     $('shot-progress').textContent = Booth.state.retake !== null
       ? 'Retaking photo ' + (Booth.state.retake + 1)
@@ -3822,8 +3843,21 @@ const Booth = {
       (_, i) => '<i class="' + (i <= current ? 'on' : '') + '"></i>').join('');
   },
 
+  /** Before the first shot: back to the review (retake) or to the layouts. */
+  backFromCamera(){
+    if (Booth.state.retake !== null){
+      Booth.state.retake = null;
+      Review.sel = -1; Review.render(); go('screen-review');
+      return;
+    }
+    if (Booth.state.shots.length) return;
+    if (Booth.state.credit > 0) toast('Your payment is kept. Pick your layout.');
+    go('screen-layout');
+  },
+
   startSequence(){
     $('shoot-btn').style.display = 'none';
+    $('cam-back').style.display = 'none';
     Booth.countdown(Booth.state.retake !== null ? Booth.state.retake : Booth.state.shots.length);
   },
 
@@ -3851,6 +3885,7 @@ const Booth = {
     if (!Booth.state.stream || !video.videoWidth){
       toast('The camera frame is not ready yet. Press start again.', true);
       $('shoot-btn').style.display = 'block';
+      if (!Booth.state.shots.length || Booth.state.retake !== null) $('cam-back').style.display = '';
       return;
     }
     const aspect = 3 / 4, vw = video.videoWidth, vh = video.videoHeight;
@@ -4081,12 +4116,13 @@ const Booth = {
     Booth.state.layout = 'solo';
     Booth.state.designId = null;
     Booth.state.copies = 1;
+    Booth.state.credit = 0;
     Booth.state.filter = 'color';
     Booth.clearStrips();
     $('copies').textContent = '1';
     $('f-color').classList.add('on');
     $('f-bw').classList.remove('on');
-    Booth.setMirror(false, true);
+    Booth.setMirror(!!settings.mirrorLock, true);
     go('screen-start');
   }
 };
@@ -4515,6 +4551,7 @@ const Gcash = {
     Gcash.active = false;
     Sales.record({ mode:'nonevent', method:'gcash', layout:Booth.layoutName(),
       copies:Booth.state.copies, unit:Booth.state.price, amount:Booth.total() });
+    Booth.state.credit = Booth.total();
     close_('gcash-modal');
     Booth.startSession();
   },
@@ -4627,6 +4664,15 @@ const Sales = {
     });
     Sales.persist();
     if ($('admin-modal').classList.contains('open')){ Sales.render(); Admin.paintHome(); }
+  },
+
+  /** The guest went back and swapped layouts after paying: fix the last sale. */
+  relabel(layout, unit){
+    const last = Sales.all()[Sales.all().length - 1];
+    if (!last || last.mode !== 'nonevent') return;
+    last.layout = layout || last.layout;
+    last.unit = Number(unit) || last.unit;
+    Sales.persist();
   },
 
   from(range){
@@ -4820,6 +4866,7 @@ const Admin = {
     Wallpaper.paint();
     Admin.paintSwitch('sw-cash', settings.acceptCash);
     Admin.paintSwitch('sw-gcash', settings.acceptGcash);
+    Admin.paintSwitch('sw-mirror', settings.mirrorLock);
     Gcash.paint();
     $('act-code').value = '';
     $('kiosk-row').style.display = Kiosk.available() ? '' : 'none';
@@ -5077,7 +5124,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   Theme.apply();
   await Wallpaper.restore();
   await Gcash.restore();
-  Booth.setMirror(false, true);
+  Booth.setMirror(!!settings.mirrorLock, true);
   Booth.badge();
   renderBasicCards();
   loadDesigns();
