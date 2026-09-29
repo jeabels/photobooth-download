@@ -1106,8 +1106,9 @@ body.framing #frame-bar{display:flex}
             <div class="seg" id="dots-seg">
               <button data-dots="fine" onclick="Printing.setDots('fine')">Fine</button>
               <button data-dots="smooth" onclick="Printing.setDots('smooth')">Smooth</button>
+              <button data-dots="silk" onclick="Printing.setDots('silk')">Silk</button>
             </div>
-            <p class="set-sub"><b>Fine</b> scatters tiny dots for the sharpest detail and hair. <b>Smooth</b> uses an even dot pattern for softer skin and cleaner backgrounds.</p>
+            <p class="set-sub"><b>Fine</b> scatters tiny dots for the sharpest detail and hair. <b>Smooth</b> uses an even dot pattern for softer skin and cleaner backgrounds. <b>Silk</b> removes camera grain and prints a fine, even texture with crisp outlines, like a classic receipt photobooth.</p>
             <canvas id="tone-preview" width="260" height="44" style="width:100%;height:calc(var(--u)*38);border-radius:calc(var(--u)*6);border:1px solid var(--line)"></canvas>
             <p class="set-sub">Top is the tone curve, bottom is the real dot pattern. Lower the darkness if faces print as black blobs.</p>
           </div>
@@ -1520,7 +1521,7 @@ const DEFAULTS = {
   basicPrices:{ solo:20, classic4:30, trio:30, mega6:30 },
 
   printEngine:'photo', paperSize:'4x6',
-  printWidth:576, printDarkness:'soft', printDots:'smooth',
+  printWidth:576, printDarkness:'soft', printDots:'silk',
   btName:'', btAddress:'', btChunk:180, btPacing:12, cutMode:'full', cutFeed:4,
 
   boothMode:'nonevent', eventEndsAt:0, eventHours:4,
@@ -3103,7 +3104,55 @@ function unsharp(lum, isPhoto, w, h, amount){
     lum[i] = clamp(src[i] + (src[i] - sum / n) * amount, 0, 255);
   }
 }
+function smoothSkin(lum, isPhoto, w, h, sigma){
+  /* edge-preserving (bilateral) blur: melts camera grain on skin and walls,
+     keeps eyes, hair and outlines crisp */
+  const R = 2, src = Float32Array.from(lum), range = new Float32Array(256), space = [];
+  for (let d = 0; d < 256; d++) range[d] = Math.exp(-(d * d) / (2 * sigma * sigma));
+  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) space.push([dx, dy, Math.exp(-(dx * dx + dy * dy) / 4.5)]);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+    const i = y * w + x;
+    if (!isPhoto[i]) continue;
+    const c = src[i];
+    let sum = 0, wt = 0;
+    for (const [dx, dy, ws] of space){
+      const xx = x + dx, yy = y + dy;
+      if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+      const j = yy * w + xx;
+      if (!isPhoto[j]) continue;
+      const v = src[j], k = ws * range[Math.min(255, Math.abs(v - c) | 0)];
+      sum += v * k; wt += k;
+    }
+    lum[i] = sum / wt;
+  }
+}
 function dither(lum, isPhoto, ditherArt, w, h, threshold, mode){
+  if (mode === 'silk'){
+    /* serpentine Floyd-Steinberg: keeps all the error so tones stay smooth,
+       a light ordered jitter breaks up worm lines into a fine, even grain */
+    for (let y = 0; y < h; y++){
+      const right = (y & 1) === 0;
+      for (let k = 0; k < w; k++){
+        const x = right ? k : w - 1 - k, i = y * w + x;
+        const diffuse = isPhoto[i] || ditherArt;
+        const old = lum[i];
+        if (!diffuse){ lum[i] = old < threshold ? 0 : 255; continue; }
+        const t = 128 + (CLUSTER[(y & 7) * 8 + (x & 7)] / 63 - .5) * 36;
+        const val = old < t ? 0 : 255;
+        lum[i] = val;
+        const err = clamp(old - val, -160, 160) / 16;
+        if (!err) continue;
+        const dir = right ? 1 : -1;
+        const push = (nx, ny, f) => {
+          if (nx < 0 || nx >= w || ny >= h) return;
+          const ni = ny * w + nx;
+          if (isPhoto[ni] || ditherArt) lum[ni] += err * f;
+        };
+        push(x + dir, y, 7); push(x - dir, y + 1, 3); push(x, y + 1, 5); push(x + dir, y + 1, 1);
+      }
+    }
+    return;
+  }
   if (mode === 'smooth'){
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
       const i = y * w + x;
@@ -3157,10 +3206,12 @@ function binarize(canvas, maskCanvas, profile){
   }
   const ditherArt = art > 0 && mids / art > .22;
 
+  const silk = settings.printDots === 'silk';
   medianFilter(lum, isPhoto, w, h, p.despeckle);
+  if (silk) smoothSkin(lum, isPhoto, w, h, 16);
   autoLevel(lum, isPhoto, p.autolevel);
   for (let px = 0; px < n; px++) if (isPhoto[px] || ditherArt) lum[px] = curve[clamp(Math.round(lum[px]), 0, 255)];
-  unsharp(lum, isPhoto, w, h, p.sharpen);
+  unsharp(lum, isPhoto, w, h, silk ? p.sharpen * 1.3 : p.sharpen);
   for (let px = 0; px < n; px++){
     if (!(isPhoto[px] || ditherArt)) continue;
     if (lum[px] >= p.snapW) lum[px] = 255; else if (lum[px] <= p.snapB) lum[px] = 0;
@@ -3341,7 +3392,7 @@ const Printing = {
   setPaper(id){ settings.paperSize = id; save(); Printing.paint(); },
   setWidth(w){ settings.printWidth = Number(w) || 576; save(); Printing.paint(); },
   setDarkness(t){ settings.printDarkness = t; save(); Printing.paint(); Printing.tonePreview(); Booth.clearStrips(); },
-  setDots(d){ settings.printDots = d === 'fine' ? 'fine' : 'smooth'; save(); Printing.paint(); Printing.tonePreview(); },
+  setDots(d){ settings.printDots = ['fine', 'smooth', 'silk'].includes(d) ? d : 'silk'; save(); Printing.paint(); Printing.tonePreview(); },
 
   paint(){
     const thermal = settings.printEngine === 'thermal';
@@ -3351,7 +3402,7 @@ const Printing = {
     document.querySelectorAll('#paper-seg button').forEach(b => b.classList.toggle('on', b.dataset.paper === settings.paperSize));
     document.querySelectorAll('#width-seg button').forEach(b => b.classList.toggle('on', Number(b.dataset.width) === Number(settings.printWidth)));
     document.querySelectorAll('#dark-seg button').forEach(b => b.classList.toggle('on', b.dataset.tone === settings.printDarkness));
-    document.querySelectorAll('#dots-seg button').forEach(b => b.classList.toggle('on', b.dataset.dots === (settings.printDots === 'fine' ? 'fine' : 'smooth')));
+    document.querySelectorAll('#dots-seg button').forEach(b => b.classList.toggle('on', b.dataset.dots === settings.printDots));
     Printing.paintBt();
   },
 
