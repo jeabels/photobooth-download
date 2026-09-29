@@ -1266,6 +1266,20 @@ body.framing #frame-bar{display:flex}
             </div>
           </details>
           <button class="ghost" onclick="Cloud.test()">Test digital copies</button>
+          <span class="label">Keep photos online for</span>
+          <div class="seg" id="keep-seg">
+            <button data-keep="1" onclick="Cloud.setKeep(1)">1 hour</button>
+            <button data-keep="24" onclick="Cloud.setKeep(24)">1 day</button>
+            <button data-keep="72" onclick="Cloud.setKeep(72)">3 days</button>
+            <button data-keep="168" onclick="Cloud.setKeep(168)">7 days</button>
+          </div>
+          <p class="set-sub">Older photos are deleted from the cloud by themselves, so a free Supabase project never fills up. Guests see how long their link works. Photos taken without internet wait on the tablet and upload when it's back.</p>
+        </div>
+        <div class="set">
+          <div class="set-icon">🗂️</div>
+          <div class="set-text"><div class="set-title">Save a copy on this tablet</div>
+            <div class="set-sub">Every strip, full size, in Pictures › Snaps Photobooth. Nothing is lost if the internet fails or a link expires.</div></div>
+          <button class="switch" id="sw-local" onclick="Admin.toggle('keepLocalCopy',this)"></button>
         </div>
 
         <div class="set col" id="kiosk-row" style="display:none">
@@ -1509,7 +1523,8 @@ function textToBase64(text){ return bytesToBase64(new TextEncoder().encode(text)
 function dataUrlBase64(dataUrl){ const i = String(dataUrl).indexOf(','); return i < 0 ? '' : dataUrl.slice(i + 1); }
 
 /* ============================ 1. SETTINGS ================================= */
-const KEY = { settings:'snaps_settings', designs:'snaps_designs', sales:'snaps_sales' };
+const KEY = { settings:'snaps_settings', designs:'snaps_designs', sales:'snaps_sales',
+              uploads:'snaps_uploads', cleanup:'snaps_cleanup' };
 
 /* The guest download page (docs/index.html in the repository, hosted on
    GitHub Pages). One page serves every booth, because each QR link names the
@@ -1539,6 +1554,7 @@ const DEFAULTS = {
   gcashZoom:100, gcashX:50, gcashY:50,
 
   cloudRef:'', cloudKey:'', cloudBucket:'photos', cloudPage:DOWNLOAD_PAGE,
+  cloudKeepHours:72, keepLocalCopy:true,
   activationSkipped:false
 };
 
@@ -2219,7 +2235,7 @@ const Cloud = {
       the photo itself, which a guest can long-press to save. */
   pageUrl(id, variant){
     const page = Cloud.page();
-    if (!page || Cloud.pageLive !== true) return Cloud.publicUrl('p/' + id + '-' + variant + '.jpg');
+    if (!page || Cloud.pageLive === false) return Cloud.publicUrl('p/' + id + '-' + variant + '.jpg');
     /* The page dresses itself in the booth's branding from these few values,
        so it always matches Theme & branding with no setup. */
     const brand = {
@@ -2234,6 +2250,7 @@ const Cloud = {
     const defaults = { f: 0, t: 'studio', k: 'pill' };
     const q = new URLSearchParams({ r: Cloud.ref(), id, v: variant });
     if (Cloud.bucket() !== 'photos') q.set('b', Cloud.bucket());
+    if (Cloud.keepHours() !== 72) q.set('e', Cloud.keepHours());
     Object.keys(brand).forEach(k => {
       if (brand[k] === '' || brand[k] == null || defaults[k] === brand[k]) return;
       q.set(k, brand[k]);
@@ -2273,24 +2290,82 @@ const Cloud = {
     return stamp + '-' + rand;
   },
 
-  /** Uploads both versions, retrying a dropped connection before giving up. */
-  async publish(colorUrl, bwUrl, onRetry){
-    const id = Cloud.newId();
-    const files = [['p/' + id + '-c.jpg', colorUrl], ['p/' + id + '-b.jpg', bwUrl]];
-    for (const [path, url] of files){
-      for (let attempt = 1; ; attempt++){
-        try{ await Cloud.put(path, Cloud.toBlob(url)); break; }
-        catch(e){
-          /* 409 = already uploaded by an earlier attempt whose reply was lost */
-          if (/\(409\)|duplicate|already exists/i.test(e.message)) break;
-          if (attempt >= 3 || /\((400|401|403|404|413|415)\)/.test(e.message)) throw e;
-          if (onRetry) onRetry(attempt);
-          await sleep(1500 * attempt);
-        }
+  /** Uploads one file, retrying a dropped connection before giving up. */
+  async putWithRetry(path, blob){
+    for (let attempt = 1; ; attempt++){
+      try{ return await Cloud.put(path, blob); }
+      catch(e){
+        /* 409 = already uploaded by an earlier attempt whose reply was lost */
+        if (/\(409\)|duplicate|already exists/i.test(e.message)) return path;
+        if (attempt >= 3 || /\((400|401|403|404|413|415)\)/.test(e.message)) throw e;
+        await sleep(1500 * attempt);
       }
     }
-    await Cloud.checkPage();
-    return { id, color: Cloud.pageUrl(id, 'c'), bw: Cloud.pageUrl(id, 'b') };
+  },
+
+  /* ---- Keep photos online for… ----
+     Photos older than this are deleted from the cloud by the booth itself,
+     so a free Supabase project never fills up. setup.sql only lets the booth
+     see and delete photos that are over an hour old, so a fresh guest photo
+     can never be removed, and recent guests' photos can never be listed. */
+  keepHours(){
+    const h = Number(settings.cloudKeepHours);
+    return [1, 24, 72, 168].includes(h) ? h : 72;
+  },
+  keepLabel(){
+    const h = Cloud.keepHours();
+    return h === 1 ? '1 hour' : h === 24 ? '24 hours' : (h / 24) + ' days';
+  },
+  setKeep(h){ settings.cloudKeepHours = h; save(); Cloud.paintKeep(); },
+  paintKeep(){
+    document.querySelectorAll('#keep-seg button').forEach(b => b.classList.toggle('on', Number(b.dataset.keep) === Cloud.keepHours()));
+  },
+
+  async cleanup(force){
+    if (DEMO || !Cloud.ready() || navigator.onLine === false) return 0;
+    let last = 0;
+    try{ last = Number(localStorage.getItem(KEY.cleanup)) || 0; }catch(e){}
+    if (!force && Date.now() - last < 30 * 60000) return 0;
+    try{ localStorage.setItem(KEY.cleanup, String(Date.now())); }catch(e){}
+    const cutoff = Date.now() - Cloud.keepHours() * 3600000;
+    const bucket = encodeURIComponent(Cloud.bucket());
+    let removed = 0;
+    try{
+      for (let round = 0; round < 20; round++){
+        const res = await fetch(Cloud.base() + '/storage/v1/object/list/' + bucket, {
+          method:'POST',
+          headers: Cloud.headers({ 'Content-Type':'application/json' }),
+          body: JSON.stringify({ prefix:'p', limit:100, offset:0, sortBy:{ column:'created_at', order:'asc' } })
+        });
+        if (!res.ok) break;
+        const list = await res.json().catch(() => []);
+        const old = (Array.isArray(list) ? list : [])
+          .filter(o => o && o.id && o.name && new Date(o.created_at).getTime() < cutoff);
+        if (!old.length) break;
+        const del = await fetch(Cloud.base() + '/storage/v1/object/' + bucket, {
+          method:'DELETE',
+          headers: Cloud.headers({ 'Content-Type':'application/json' }),
+          body: JSON.stringify({ prefixes: old.map(o => 'p/' + o.name) })
+        });
+        if (!del.ok) break;
+        const gone = await del.json().catch(() => []);
+        if (!Array.isArray(gone) || !gone.length) break;
+        removed += gone.length;
+      }
+    }catch(e){ console.warn('Cloud clean-up skipped:', e.message); }
+    return removed;
+  },
+
+  /** A small database call that keeps a free Supabase project from being
+      paused between events. Answers the HTTP status, or 0 when unreachable. */
+  async ping(){
+    if (DEMO || !Cloud.ready()) return 0;
+    try{
+      const res = await fetch(Cloud.base() + '/rest/v1/rpc/snaps_ping', {
+        method:'POST', headers: Cloud.headers({ 'Content-Type':'application/json' }), body:'{}'
+      });
+      return res.status;
+    }catch(e){ return 0; }
   },
 
   /* ---- Connect with the download code ----
@@ -2377,14 +2452,81 @@ const Cloud = {
       const res = await fetch(Cloud.publicUrl(path) + '?t=' + Date.now(), { cache:'no-store' });
       if (!res.ok) throw new Error('Uploaded, but the file is not publicly readable (' + res.status + '). Set the bucket to public.');
       const live = await Cloud.checkPage(true);
-      report('ok', !Cloud.page() ? 'Working — the QR opens the photo directly'
+      const ping = await Cloud.ping();
+      if (ping === 200) Cloud.cleanup(true);
+      const keep = ping === 200 ? ' · photos auto-delete after ' + Cloud.keepLabel()
+        : ' · run the latest setup.sql in Supabase to switch on auto-delete and keep-awake';
+      report(ping === 200 ? 'ok' : '', (!Cloud.page() ? 'Working — the QR opens the photo directly'
         : live ? 'Working — guests get your download page'
-        : 'Storage works, but the download page is not online yet — the QR opens the photo directly for now');
+        : 'Storage works, but the download page is not online yet — the QR opens the photo directly for now') + keep);
       toast('Digital copies are live.');
     }catch(e){
       report('bad', e.message);
       toast(e.message, true);
     }
+  }
+};
+
+/* ========================= 6b. UPLOAD QUEUE ============================== */
+/* Every strip is saved on the tablet first and uploaded from there, so a
+   dropped connection never loses a guest's digital copy: the QR shows at
+   once, and the download page waits for the photo to arrive. Anything still
+   waiting is sent when the internet comes back, even after a restart. */
+const Uploads = {
+  pass:null, timer:null,
+
+  list(){
+    try{ const l = JSON.parse(localStorage.getItem(KEY.uploads) || '[]'); return Array.isArray(l) ? l : []; }
+    catch(e){ return []; }
+  },
+  write(l){ try{ localStorage.setItem(KEY.uploads, JSON.stringify(l)); }catch(e){} },
+  has(id){ return Uploads.list().some(x => x.id === id); },
+
+  async add(id, colorUrl, bwUrl){
+    await Media.tx('readwrite', s => s.put(Cloud.toBlob(colorUrl), 'up/' + id + '-c'));
+    await Media.tx('readwrite', s => s.put(Cloud.toBlob(bwUrl), 'up/' + id + '-b'));
+    const l = Uploads.list();
+    l.push({ id, t:Date.now() });
+    Uploads.write(l);
+  },
+
+  async drop(id){
+    Uploads.write(Uploads.list().filter(x => x.id !== id));
+    for (const v of ['c', 'b']){ try{ await Media.tx('readwrite', s => s.delete('up/' + id + '-' + v)); }catch(e){} }
+  },
+
+  /** One pass over the queue, oldest first. */
+  run(){
+    if (Uploads.pass) return Uploads.pass;
+    Uploads.pass = (async () => {
+      for (const item of Uploads.list()){
+        /* past its online life already: no guest could use it */
+        if (Date.now() - item.t > Cloud.keepHours() * 3600000){ await Uploads.drop(item.id); continue; }
+        if (!Cloud.ready() || navigator.onLine === false) break;
+        try{
+          for (const v of ['c', 'b']){
+            const blob = await Media.tx('readonly', s => s.get('up/' + item.id + '-' + v));
+            if (blob) await Cloud.putWithRetry('p/' + item.id + '-' + v + '.jpg', blob);
+          }
+          await Uploads.drop(item.id);
+        }catch(e){
+          console.warn('Upload waiting for a connection:', e.message);
+          break;
+        }
+      }
+    })().finally(() => { Uploads.pass = null; Uploads.schedule(); });
+    return Uploads.pass;
+  },
+
+  /** Sends this strip (and anything queued before it). True once it is online. */
+  async send(id){
+    for (let i = 0; i < 2 && Uploads.has(id); i++) await Uploads.run();
+    return !Uploads.has(id);
+  },
+
+  schedule(){
+    clearTimeout(Uploads.timer);
+    if (Uploads.list().length) Uploads.timer = setTimeout(() => Uploads.run(), 60000);
   }
 };
 
@@ -3010,14 +3152,14 @@ function demoWatermark(canvas){
 async function shrinkForUpload(dataUrl){
   const img = await loadImage(dataUrl);
   if (!img) return dataUrl;
-  const k = Math.min(1, 1080 / (img.naturalWidth || 1080));
+  const k = Math.min(1, 1600 / (img.naturalWidth || 1600));
   const c = document.createElement('canvas');
   c.width = Math.round(img.naturalWidth * k);
   c.height = Math.round(img.naturalHeight * k);
   const ctx = c.getContext('2d');
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(prescale(img, c.width, c.height), 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', .86);
+  return c.toDataURL('image/jpeg', .88);
 }
 
 async function renderStrip(filter, targetW, quality){
@@ -3996,28 +4138,45 @@ const Booth = {
       return Booth.localTiles();
     }
     const session = Booth.state.shots;          // ignore the result if the guest moved on
-    color.innerHTML = bw.innerHTML = '<span class="qr-note">Uploading…</span>';
+    color.innerHTML = bw.innerHTML = '<span class="qr-note">Preparing…</span>';
     hint.textContent = 'Getting your digital copy ready…';
+    let id;
     try{
       if (!window.QRCode) throw new Error('The QR library did not load.');
       const pair = await Promise.all([Booth.strip('color'), Booth.strip('bw')]);
       if (!pair[0] || !pair[1]) throw new Error('The strip could not be built.');
+      Booth.keepLocal(pair[0]);
       const small = await Promise.all(pair.map(url => shrinkForUpload(url)));
-      const out = await Cloud.publish(small[0], small[1], () => {
-        if (session === Booth.state.shots) hint.textContent = 'Slow connection — still uploading…';
-      });
-      if (session !== Booth.state.shots) return;
-      Booth.qr(color, out.color);
-      Booth.qr(bw, out.bw);
-      hint.textContent = 'Scan with your phone camera to download';
+      id = Cloud.newId();
+      await Uploads.add(id, small[0], small[1]);
     }catch(e){
       console.warn('Digital copies unavailable:', e);
       if (session !== Booth.state.shots) return;
-      hint.textContent = navigator.onLine === false
-        ? 'No internet, so there is no digital copy for this strip'
-        : 'The upload failed, so there is no digital copy for this strip';
+      hint.textContent = 'This strip could not be prepared for download';
       Booth.localTiles();
+      return;
     }
+    await Cloud.checkPage();
+    if (session !== Booth.state.shots){ Uploads.run(); return; }
+    /* The link is known before the upload finishes, so guests can scan now. */
+    Booth.qr(color, Cloud.pageUrl(id, 'c'));
+    Booth.qr(bw, Cloud.pageUrl(id, 'b'));
+    hint.textContent = 'Uploading… you can scan already';
+    const online = await Uploads.send(id);
+    if (session !== Booth.state.shots) return;
+    hint.textContent = online
+      ? 'Scan with your phone camera · link works for ' + Cloud.keepLabel()
+      : 'No internet right now. Scan anyway — your photo appears as soon as the booth is back online';
+  },
+
+  /** A full-size copy in the tablet's Pictures folder, so no photo is ever
+      lost to a bad connection or an expired link. Android app only. */
+  keepLocal(strip){
+    if (!settings.keepLocalCopy || !Native.has('saveFile')) return;
+    const d = new Date(), pad = v => String(v).padStart(2, '0');
+    const name = 'snaps-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' +
+                 pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '.jpg';
+    Native.call('saveFile', dataUrlBase64(strip), name, 'image/jpeg').catch(e => console.warn('Local copy not saved:', e));
   },
 
   async localTiles(){
@@ -4867,6 +5026,8 @@ const Admin = {
     Admin.paintSwitch('sw-cash', settings.acceptCash);
     Admin.paintSwitch('sw-gcash', settings.acceptGcash);
     Admin.paintSwitch('sw-mirror', settings.mirrorLock);
+    Admin.paintSwitch('sw-local', settings.keepLocalCopy);
+    Cloud.paintKeep();
     Gcash.paint();
     $('act-code').value = '';
     $('kiosk-row').style.display = Kiosk.available() ? '' : 'none';
@@ -5134,8 +5295,17 @@ window.addEventListener('DOMContentLoaded', async () => {
     const at = Number(p.dataset.step) || 1;
     Array.from(p.children).forEach((dot, i) => dot.className = i + 1 < at ? 'done' : i + 1 === at ? 'on' : '');
   });
-  if (Cloud.ready()) Cloud.checkPage();
+  if (Cloud.ready()){
+    Cloud.checkPage();
+    Uploads.run();
+    Cloud.ping();
+    setTimeout(() => Cloud.cleanup(), 20000);
+  }
   else if (!DEMO && !settings.activationSkipped && (Native.on() || /[?&]connect\b/.test(location.search))) open_('activate-modal');
+
+  window.addEventListener('online', () => { if (Cloud.ready()) Uploads.run(); });
+  setInterval(() => { if (Cloud.ready()) Cloud.cleanup(); }, 30 * 60000);
+  setInterval(() => { if (Cloud.ready()) Cloud.ping(); }, 6 * 3600000);
 
   document.body.classList.add('at-start');
   if (DEMO) await Demo.setup();
