@@ -72,7 +72,7 @@ To give a buyer their **own** project instead of sharing yours, create a project
 1. Turn the printer on. In **Android Settings → Bluetooth**, pair it. The PIN is usually `0000` or `1234`.
 2. In the booth: **Printer → Receipt printer → Choose printer**, then tap your printer.
 3. Tap **Print test strip**. If faces come out as dark blobs, lower **Darkness**.
-4. **Texture**: **Fine** scatters tiny dots for the sharpest detail; **Smooth** uses an even dot pattern for softer skin and cleaner backgrounds. Try both on your paper.
+4. **Texture**: **Silk** (default) removes camera grain and prints a fine, even texture with crisp outlines, like a classic receipt photobooth; **Fine** scatters tiny dots for the sharpest detail; **Smooth** uses an even dot pattern for softer skin and cleaner backgrounds. Try them on your paper.
 
 The app uses classic Bluetooth first and switches to Bluetooth LE automatically for printers that need it. RawBT and other helper apps aren't needed.
 
