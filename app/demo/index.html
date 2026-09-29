@@ -4,13 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Snaps Photobooth</title>
-<meta name="theme-color" content="#1B1712">
+<meta name="theme-color" content="#111111">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 
+<!-- Typefaces load in four groups, so one family that fails never takes the rest down. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Bodoni+Moda:opsz,wght@6..96,600;6..96,700&family=Cormorant+Garamond:wght@600;700&family=DM+Serif+Display&family=Instrument+Serif&family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Sora:wght@400;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Playfair+Display:wght@700;800&family=Unbounded:wght@500;600;700&family=Cinzel:wght@600;700&family=Bricolage+Grotesque:wght@700;800&family=Bebas+Neue&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Italiana&family=Yeseva+One&family=Anton&family=Righteous&family=Shrikhand&family=Monoton&family=Special+Elite&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Pinyon+Script&family=Allura&family=Parisienne&family=Dancing+Script:wght@700&family=Sacramento&family=Caveat:wght@700&family=Pacifico&family=Lobster&display=swap" rel="stylesheet">
 
 <!-- QR codes are drawn by a bundled library, so they work with no internet. -->
 <script>window.SNAPS_DEMO = true;</script>
@@ -19,32 +23,37 @@
 <style>
 /* =============================================================================
    SNAPS PHOTOBOOTH — kiosk shell
-   Everything the owner can rebrand lives in CSS variables written by Theme.apply().
-   --u is one design unit: the UI is drawn against a 420 x 672 grid (10:16), so
-   sizes scale with the tablet instead of being pinned to fixed pixels.
+   Everything the owner can rebrand is a CSS variable written by Theme.apply().
+   --u is one design unit: the UI is drawn on a 420 x 672 grid (10:16), so every
+   size follows the tablet instead of being pinned to pixels.
    ========================================================================== */
 :root{
   --u: min(calc(100vw / 420), calc(100dvh / 672), 2.4px);
 
-  --accent:#1B1712; --accent-2:#000000; --on-accent:#ffffff;
-  --paper:#F2EDE5; --card:#ffffff; --line:rgba(0,0,0,.09);
-  --glass:#f5f2ec; --track:#e7e2d9;
-  --text:#14110f; --sub:#6b6560;
-  --shadow:0 calc(var(--u)*6) calc(var(--u)*18) rgba(0,0,0,.07);
-  --radius:calc(var(--u)*16);
-  --btn-radius:999px;
-  --font-head:'Bodoni Moda', Georgia, serif;
+  --accent:#111111; --accent-2:#3a3a3a; --on-accent:#ffffff;
+  --paper:#F4F3EF; --card:#ffffff; --line:rgba(17,17,17,.10); --line-2:rgba(17,17,17,.18);
+  --glass:rgba(17,17,17,.04); --track:rgba(17,17,17,.08);
+  --text:#121212; --sub:#6d6a64; --start-ink:var(--accent);
+  --shadow:0 calc(var(--u)*1) calc(var(--u)*2) rgba(0,0,0,.04), 0 calc(var(--u)*8) calc(var(--u)*24) rgba(0,0,0,.06);
+  --radius:calc(var(--u)*8);
+  --btn-radius:999px; --btn-case:none; --btn-track:calc(var(--u)*.3); --btn-font:var(--font-body);
+  --font-head:'Fraunces', Georgia, serif;
   --font-body:'Manrope', system-ui, sans-serif;
   --font-mono:'Space Mono', ui-monospace, monospace;
+  --head-weight:700;
   --header-size:1;
   --header-color:var(--accent);
-  --screen-bg:#F2EDE5;
+  --header-font:var(--font-head);
+  --header-weight:700;
+  --screen-bg:var(--paper);
 }
 body.theme-dark{
-  --card:#17161a; --line:rgba(255,255,255,.14); --glass:rgba(255,255,255,.06);
-  --track:rgba(255,255,255,.18); --text:#f5f4f2; --sub:#a3a09c;
-  --shadow:0 calc(var(--u)*6) calc(var(--u)*20) rgba(0,0,0,.45);
+  --card:#18171c; --line:rgba(255,255,255,.12); --line-2:rgba(255,255,255,.22);
+  --glass:rgba(255,255,255,.05); --track:rgba(255,255,255,.12);
+  --text:#f4f2ee; --sub:#a29e98; --start-ink:#ffffff;
+  --shadow:0 calc(var(--u)*10) calc(var(--u)*28) rgba(0,0,0,.45);
 }
+body.wall-media{--start-ink:#ffffff}
 
 *{box-sizing:border-box;margin:0;padding:0;font-family:var(--font-body);-webkit-tap-highlight-color:transparent}
 body{background:var(--paper);color:var(--text);min-height:100dvh;display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -57,157 +66,255 @@ button{font-family:inherit;color:inherit}
 #wall{position:fixed;inset:0;z-index:-2;background-repeat:no-repeat;background-color:var(--paper)}
 #wall-video{position:fixed;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover;display:none}
 #wall-tint{position:fixed;inset:0;z-index:-1;background:#000;opacity:0;pointer-events:none}
-body.has-media .screen:not(#screen-start){background:var(--screen-bg)}
+.screen:not(#screen-start){background:var(--paper)}
 
 /* ---------- frame + screens ---------- */
-/* Upright tablets of any shape (16:10, 4:3, 5:3, 3:2…) are filled edge to edge;
-   --u keeps every size in proportion. Landscape screens — a laptop showing the
-   demo, or a tablet on its side — get the booth as a centred portrait panel. */
+/* Upright tablets of any shape (16:10, 4:3, 5:3, 3:2…) are filled edge to edge.
+   Landscape screens — a laptop showing the demo, or a tablet on its side — get
+   the booth as a centred portrait panel. */
 .frame{width:100vw;height:100vh;height:100dvh;position:relative;display:flex;flex-direction:column;overflow:hidden}
 @media (min-aspect-ratio: 4/5){
-  .frame{width:min(100vw,100dvh*.625);height:min(100dvh,100vw/.625)}
+  .frame{width:min(100vw,100dvh*.625);height:min(100dvh,100vw/.625);box-shadow:0 0 0 1px var(--line)}
 }
-.screen{display:none;flex-direction:column;align-items:center;height:100%;width:100%;
-  padding:calc(var(--u)*18) calc(var(--u)*18);gap:calc(var(--u)*7);text-align:center;
-  overflow-y:auto;overflow-x:hidden;animation:rise .25s ease-out}
+.screen{display:none;flex-direction:column;height:100%;width:100%;
+  padding:calc(var(--u)*14) calc(var(--u)*20) calc(var(--u)*18);gap:calc(var(--u)*12);
+  overflow-y:auto;overflow-x:hidden;animation:enter .32s cubic-bezier(.2,.7,.2,1)}
 .screen.active{display:flex}
-@keyframes rise{from{opacity:0;transform:translateY(calc(var(--u)*6))}to{opacity:1;transform:none}}
+@keyframes enter{from{opacity:0;transform:translateY(calc(var(--u)*8))}to{opacity:1;transform:none}}
 
-/* ---------- brand header ---------- */
-.brand{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*3);width:100%;flex-shrink:0;margin:calc(var(--u)*2) 0 calc(var(--u)*4)}
-.brand-1{font-family:var(--font-head);color:var(--header-color);line-height:1;
-  font-size:calc(var(--u)*24*var(--header-size));letter-spacing:calc(var(--u)*1.6);font-weight:700}
-.brand-2{color:var(--header-color);opacity:.72;font-weight:600;line-height:1.1;
-  font-size:calc(var(--u)*9*var(--header-size));letter-spacing:calc(var(--u)*2)}
-#screen-camera .brand{display:none}
+/* ---------- app bar: back · wordmark · progress ---------- */
+.appbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:calc(var(--u)*8);
+  min-height:calc(var(--u)*34);flex-shrink:0;padding-right:calc(var(--u)*30)}
+.back{justify-self:start;display:inline-flex;align-items:center;gap:calc(var(--u)*6);background:none;border:none;cursor:pointer;
+  font-size:calc(var(--u)*11.5);font-weight:700;color:var(--sub);padding:calc(var(--u)*6) 0}
+.back svg{width:calc(var(--u)*16);height:calc(var(--u)*16)}
+.wordmark{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*2);min-width:0;text-align:center}
+.wordmark b{font-family:var(--header-font);font-weight:var(--header-weight);color:var(--header-color);line-height:1;
+  font-size:calc(var(--u)*17*var(--header-size));letter-spacing:calc(var(--u)*.8);white-space:nowrap}
+.wordmark small{font-size:calc(var(--u)*7.5*var(--header-size));font-weight:700;letter-spacing:calc(var(--u)*1.8);
+  color:var(--header-color);opacity:.7;white-space:nowrap;font-family:var(--header-font)}
+.wordmark small:empty,.wordmark b:empty{display:none}
+.progress{justify-self:end;display:flex;gap:calc(var(--u)*4)}
+.progress i{width:calc(var(--u)*14);height:calc(var(--u)*3);border-radius:999px;background:var(--track)}
+.progress i.on{background:var(--accent)}
+.progress i.done{background:var(--accent);opacity:.35}
+
+.head{display:flex;flex-direction:column;gap:calc(var(--u)*5);flex-shrink:0}
+.head.row{flex-direction:row;align-items:flex-end;justify-content:space-between;gap:calc(var(--u)*10)}
+.eyebrow{font-size:calc(var(--u)*9.5);font-weight:800;letter-spacing:calc(var(--u)*1.6);text-transform:uppercase;color:var(--accent)}
+body.theme-dark .eyebrow{color:var(--accent)}
+.eyebrow.live{display:inline-flex;align-self:flex-start;background:var(--accent);color:var(--on-accent);
+  padding:calc(var(--u)*3) calc(var(--u)*9);border-radius:999px}
+.h1{font-family:var(--font-head);font-weight:var(--head-weight);font-size:calc(var(--u)*27);line-height:1.05;
+  letter-spacing:calc(var(--u)*-.2);color:var(--text)}
+.h1.sm{font-size:calc(var(--u)*21)}
+.lede{font-size:calc(var(--u)*11.5);color:var(--sub);line-height:1.45}
+.hint{font-size:calc(var(--u)*11);color:var(--sub);line-height:1.45;text-align:center}
+
+/* ---------- owner button (quiet on purpose) ---------- */
+.gear{position:absolute;top:calc(var(--u)*14);right:calc(var(--u)*12);z-index:90;background:transparent;
+  border:1px solid var(--line);width:calc(var(--u)*26);height:calc(var(--u)*26);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--sub);
+  font-size:calc(var(--u)*13);opacity:.7}
+body.at-start .gear{background:rgba(0,0,0,.18);border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.8);opacity:.55}
 
 /* ---------- buttons ---------- */
 .btn{width:100%;background:var(--accent);color:var(--on-accent);border:none;cursor:pointer;
-  font-weight:700;font-size:calc(var(--u)*14);letter-spacing:calc(var(--u)*.4);
-  padding:calc(var(--u)*14);border-radius:var(--btn-radius);transition:transform .12s ease,filter .2s;flex-shrink:0}
+  font-family:var(--btn-font);font-weight:700;font-size:calc(var(--u)*14);letter-spacing:var(--btn-track);
+  text-transform:var(--btn-case);min-height:calc(var(--u)*50);padding:calc(var(--u)*12) calc(var(--u)*16);
+  border-radius:var(--btn-radius);transition:transform .12s ease,filter .2s,box-shadow .2s;flex-shrink:0;
+  display:inline-flex;align-items:center;justify-content:center;gap:calc(var(--u)*8)}
 .btn:active{transform:scale(.985);filter:brightness(.92)}
 .btn:disabled{opacity:.5}
-.btn.quiet{background:var(--glass);color:var(--text);border:1px solid var(--line)}
-.btn.danger{background:#fdecec;color:#b32020;border:1px solid #f6d5d5}
-body.theme-dark .btn.danger{background:rgba(255,80,80,.14);color:#ff9b9b;border-color:rgba(255,120,120,.3)}
-
-/* start-button personalities — one of these is the first thing a guest sees */
-.start-btn{max-width:calc(var(--u)*220);font-size:calc(var(--u)*12.5);font-weight:600;
-  padding:calc(var(--u)*15) calc(var(--u)*22);letter-spacing:calc(var(--u)*1.4)}
-
-/* Pill — soft and modern */
-.start-pill .start-btn{border-radius:999px;box-shadow:0 calc(var(--u)*8) calc(var(--u)*20) rgba(0,0,0,.22)}
-
-/* Editorial — squared, wide tracking, in the theme's display face */
-.start-block .start-btn{border-radius:calc(var(--u)*2);font-family:var(--font-head);font-weight:700;
-  letter-spacing:calc(var(--u)*3.4);text-transform:uppercase;padding:calc(var(--u)*16) calc(var(--u)*24)}
-
-/* Outline — quiet, lets the wallpaper lead */
-.start-outline .start-btn{background:transparent;color:var(--accent);border:calc(var(--u)*1.4) solid var(--accent);
-  border-radius:999px;box-shadow:none;font-weight:700}
-body.theme-dark.start-outline .start-btn{color:#fff;border-color:rgba(255,255,255,.85)}
-
-/* Glass — frosted, made for photo and video backgrounds */
-.start-glass .start-btn{background:rgba(255,255,255,.2);color:#fff;backdrop-filter:blur(14px);
-  -webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.55);border-radius:calc(var(--u)*16);
-  text-shadow:0 1px 8px rgba(0,0,0,.35);box-shadow:0 calc(var(--u)*8) calc(var(--u)*22) rgba(0,0,0,.25)}
-
-/* Marquee — cinema hairline frame */
-.start-marquee .start-btn{border-radius:calc(var(--u)*2);background:transparent;color:var(--accent);
-  font-family:var(--font-head);font-weight:700;text-transform:uppercase;letter-spacing:calc(var(--u)*4);
-  border:1px solid currentColor;outline:1px solid currentColor;outline-offset:calc(var(--u)*3);box-shadow:none}
-body.theme-dark.start-marquee .start-btn{color:#fff}
+.btn.quiet{background:transparent;color:var(--text);box-shadow:inset 0 0 0 1px var(--line-2)}
+.btn.small{min-height:calc(var(--u)*40);font-size:calc(var(--u)*12.5);padding:calc(var(--u)*9) calc(var(--u)*12)}
+.btn .count-tag{font-family:var(--font-mono);font-size:.8em;opacity:.75;letter-spacing:0;text-transform:none}
+body.btn-gradient .btn:not(.quiet){background:linear-gradient(120deg,var(--accent),var(--accent-2))}
+body.btn-retro .btn:not(.quiet){box-shadow:calc(var(--u)*3) calc(var(--u)*3) 0 var(--text)}
+body.btn-retro .btn:not(.quiet):active{transform:translate(calc(var(--u)*2),calc(var(--u)*2));box-shadow:calc(var(--u)*1) calc(var(--u)*1) 0 var(--text)}
+body.btn-neon .btn:not(.quiet){box-shadow:0 0 calc(var(--u)*14) color-mix(in srgb,var(--accent) 55%,transparent)}
 
 .ghost{background:var(--glass);border:1px solid var(--line);color:var(--text);cursor:pointer;
   padding:calc(var(--u)*9) calc(var(--u)*12);border-radius:calc(var(--u)*10);font-size:calc(var(--u)*11.5);font-weight:700}
+.ghost.wide{width:100%}
 .ghost.danger{background:#fdecec;border-color:#f6d5d5;color:#b32020}
-.link{background:none;border:none;cursor:pointer;font-size:calc(var(--u)*13);font-weight:700;color:var(--sub)}
+body.theme-dark .ghost.danger{background:rgba(255,80,80,.12);color:#ff9b9b;border-color:rgba(255,120,120,.28)}
+.link{background:none;border:none;cursor:pointer;font-size:calc(var(--u)*12);font-weight:700;color:var(--sub)}
 .link.accent{color:var(--accent)}
 
-.topbar{width:100%;display:flex;justify-content:space-between;align-items:center;gap:calc(var(--u)*8);
-  flex-shrink:0;min-height:calc(var(--u)*32);padding-right:calc(var(--u)*40)}
-.pill{background:var(--glass);border:1px solid var(--line);padding:calc(var(--u)*5) calc(var(--u)*12);
-  border-radius:999px;font-size:calc(var(--u)*11);font-weight:700;white-space:nowrap}
-.pill.live{background:var(--accent);color:var(--on-accent);border-color:transparent}
-.title{font-family:var(--font-head);font-size:calc(var(--u)*19);font-weight:700;letter-spacing:calc(var(--u)*.2)}
-.hint{font-size:calc(var(--u)*11);color:var(--sub);line-height:1.45}
-
-.gear{position:absolute;top:calc(var(--u)*10);right:calc(var(--u)*10);z-index:90;background:var(--card);
-  border:1px solid var(--line);width:calc(var(--u)*28);height:calc(var(--u)*28);border-radius:50%;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--sub);
-  font-size:calc(var(--u)*15);box-shadow:var(--shadow)}
-
 /* ---------- start ---------- */
-#screen-start{justify-content:flex-end;padding-bottom:calc(var(--u)*70);gap:calc(var(--u)*14)}
+#screen-start{justify-content:flex-end;align-items:center;padding-bottom:calc(var(--u)*64)}
+
+/* Start-button designs. Each is a class on the button itself, so the settings
+   tiles can show a live miniature of every design. */
+.start-btn{position:relative;border:none;cursor:pointer;background:var(--accent);color:var(--on-accent);
+  font-family:var(--font-body);font-weight:700;font-size:calc(var(--u)*13);letter-spacing:calc(var(--u)*1.6);
+  padding:calc(var(--u)*16) calc(var(--u)*30);min-width:calc(var(--u)*190);border-radius:999px;
+  transition:transform .15s ease;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
+.start-btn:active{transform:scale(.97)}
+
+.sb-pill{border-radius:999px;box-shadow:0 calc(var(--u)*10) calc(var(--u)*26) rgba(0,0,0,.25)}
+
+.sb-block{border-radius:calc(var(--u)*2);font-family:var(--font-head);font-weight:var(--head-weight);
+  letter-spacing:calc(var(--u)*3.6);text-transform:uppercase;padding:calc(var(--u)*18) calc(var(--u)*34)}
+
+.sb-outline{background:transparent;color:var(--start-ink);box-shadow:inset 0 0 0 calc(var(--u)*1.5) currentColor}
+
+.sb-glass{background:rgba(255,255,255,.22);color:var(--start-ink);border-radius:calc(var(--u)*18);
+  backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),0 calc(var(--u)*10) calc(var(--u)*26) rgba(0,0,0,.25);
+  text-shadow:0 1px 8px rgba(0,0,0,.35)}
+
+.sb-marquee{background:transparent;color:var(--start-ink);border-radius:0;font-family:var(--font-head);
+  font-weight:var(--head-weight);text-transform:uppercase;letter-spacing:calc(var(--u)*4.4);
+  box-shadow:inset 0 0 0 1px currentColor;outline:1px solid currentColor;outline-offset:calc(var(--u)*4)}
+
+.sb-neon{background:rgba(0,0,0,.45);color:#fff;border-radius:calc(var(--u)*12);
+  box-shadow:inset 0 0 0 calc(var(--u)*1.5) var(--accent),0 0 calc(var(--u)*12) var(--accent),0 0 calc(var(--u)*34) var(--accent);
+  text-shadow:0 0 calc(var(--u)*6) var(--accent),0 0 calc(var(--u)*16) var(--accent);animation:neon 2.4s ease-in-out infinite}
+@keyframes neon{50%{box-shadow:inset 0 0 0 calc(var(--u)*1.5) var(--accent),0 0 calc(var(--u)*6) var(--accent),0 0 calc(var(--u)*18) var(--accent)}}
+
+.sb-gradient{background:linear-gradient(110deg,var(--accent) 0%,var(--accent-2) 40%,color-mix(in srgb,var(--accent) 60%,#fff) 50%,var(--accent-2) 60%,var(--accent) 100%);
+  background-size:260% 100%;animation:sheen 3.6s linear infinite;box-shadow:0 calc(var(--u)*10) calc(var(--u)*24) rgba(0,0,0,.25)}
+@keyframes sheen{from{background-position:100% 0}to{background-position:-160% 0}}
+
+.sb-retro{border-radius:calc(var(--u)*6);text-transform:uppercase;letter-spacing:calc(var(--u)*2.2);font-weight:800;
+  box-shadow:inset 0 0 0 calc(var(--u)*2) #111,calc(var(--u)*5) calc(var(--u)*5) 0 #111}
+.sb-retro:active{transform:translate(calc(var(--u)*3),calc(var(--u)*3));box-shadow:inset 0 0 0 calc(var(--u)*2) #111,calc(var(--u)*2) calc(var(--u)*2) 0 #111}
+
+.sb-ticket{border-radius:calc(var(--u)*6);text-transform:uppercase;letter-spacing:calc(var(--u)*2.8);
+  padding:calc(var(--u)*17) calc(var(--u)*40);
+  -webkit-mask:radial-gradient(circle at 0 50%,transparent calc(var(--u)*9),#000 calc(var(--u)*9.5)) left/51% 100% no-repeat,
+               radial-gradient(circle at 100% 50%,transparent calc(var(--u)*9),#000 calc(var(--u)*9.5)) right/51% 100% no-repeat;
+          mask:radial-gradient(circle at 0 50%,transparent calc(var(--u)*9),#000 calc(var(--u)*9.5)) left/51% 100% no-repeat,
+               radial-gradient(circle at 100% 50%,transparent calc(var(--u)*9),#000 calc(var(--u)*9.5)) right/51% 100% no-repeat}
+.sb-ticket::before{content:'';position:absolute;inset:calc(var(--u)*5) calc(var(--u)*16);border:1px dashed currentColor;opacity:.55;border-radius:calc(var(--u)*3)}
+
+.sb-halo{width:calc(var(--u)*132);height:calc(var(--u)*132);min-width:0;padding:calc(var(--u)*14);border-radius:50%;
+  white-space:normal;line-height:1.25;text-align:center;text-transform:uppercase;letter-spacing:calc(var(--u)*1.8);
+  font-size:calc(var(--u)*12);box-shadow:0 calc(var(--u)*12) calc(var(--u)*30) rgba(0,0,0,.28)}
+.sb-halo::before,.sb-halo::after{content:'';position:absolute;inset:calc(var(--u)*-8);border-radius:50%;
+  border:1px solid var(--start-ink);opacity:.6;animation:halo 2.6s ease-out infinite;pointer-events:none}
+.sb-halo::after{animation-delay:1.3s}
+@keyframes halo{from{transform:scale(.94);opacity:.7}to{transform:scale(1.35);opacity:0}}
+
+.sb-minimal{background:transparent;color:var(--start-ink);padding:calc(var(--u)*10) calc(var(--u)*6);min-width:0;
+  font-family:var(--font-head);font-weight:var(--head-weight);font-size:calc(var(--u)*22);letter-spacing:calc(var(--u)*.6);
+  text-shadow:0 1px 10px rgba(0,0,0,.18)}
+.sb-minimal::after{content:'';position:absolute;left:10%;right:10%;bottom:calc(var(--u)*2);height:calc(var(--u)*2);
+  background:currentColor;transform-origin:left;animation:underline 2.4s ease-in-out infinite}
+@keyframes underline{0%{transform:scaleX(0)}45%,70%{transform:scaleX(1)}100%{transform:scaleX(1);opacity:0}}
+
+.sb-stamp{background:transparent;color:var(--start-ink);border-radius:calc(var(--u)*6);text-transform:uppercase;
+  font-weight:800;letter-spacing:calc(var(--u)*3);box-shadow:inset 0 0 0 calc(var(--u)*2.5) currentColor;transform:rotate(-3deg);
+  font-family:var(--font-head)}
+.sb-stamp::before{content:'';position:absolute;inset:calc(var(--u)*5);border:1px dashed currentColor;border-radius:calc(var(--u)*3);opacity:.7}
+.sb-stamp:active{transform:rotate(-3deg) scale(.97)}
 
 /* ---------- layout picker ---------- */
-.picker{width:100%;flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;
-  gap:calc(var(--u)*10);padding:calc(var(--u)*4) calc(var(--u)*2)}
-.group{font-size:calc(var(--u)*12);font-weight:700;color:var(--sub);text-align:left;font-family:var(--font-head);
-  letter-spacing:calc(var(--u)*.2)}
-.grid{display:grid;width:100%;gap:calc(var(--u)*9);grid-template-columns:repeat(auto-fill,minmax(calc(var(--u)*118),1fr))}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  padding:calc(var(--u)*8) calc(var(--u)*8) calc(var(--u)*11);cursor:pointer;display:flex;flex-direction:column;
-  align-items:center;box-shadow:var(--shadow);transition:transform .15s,border-color .15s}
-.card:active{transform:scale(.98);border-color:var(--accent)}
-.thumb{width:100%;height:calc(var(--u)*104);background:var(--glass);border:1px solid var(--line);
-  border-radius:calc(var(--u)*9);margin-bottom:calc(var(--u)*8);display:flex;padding:calc(var(--u)*8);
-  justify-content:center;align-items:center;overflow:hidden}
+.picker{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:calc(var(--u)*10);
+  margin:0 calc(var(--u)*-4);padding:calc(var(--u)*2) calc(var(--u)*4) calc(var(--u)*8)}
+.group{display:flex;align-items:center;gap:calc(var(--u)*10);font-size:calc(var(--u)*9.5);font-weight:800;
+  letter-spacing:calc(var(--u)*1.4);text-transform:uppercase;color:var(--sub)}
+.group::after{content:'';flex:1;height:1px;background:var(--line)}
+.grid{display:grid;width:100%;gap:calc(var(--u)*10);grid-template-columns:repeat(auto-fill,minmax(calc(var(--u)*150),1fr))}
+.card{position:relative;background:var(--card);border-radius:var(--radius);cursor:pointer;display:flex;flex-direction:column;
+  overflow:hidden;text-align:left;box-shadow:var(--shadow),inset 0 0 0 1px var(--line);transition:transform .15s,box-shadow .15s}
+.card:active{transform:scale(.98);box-shadow:var(--shadow),inset 0 0 0 calc(var(--u)*1.5) var(--accent)}
+.thumb{aspect-ratio:5/4;background:var(--glass);display:flex;justify-content:center;align-items:center;overflow:hidden;
+  padding:calc(var(--u)*12);border-bottom:1px solid var(--line)}
 .thumb img{width:100%;height:100%;object-fit:contain}
-.t-solo{width:74%;height:88%;background:var(--accent);border-radius:calc(var(--u)*2)}
-.t-4{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:calc(var(--u)*3);width:80%;height:88%}
-.t-3{display:grid;grid-template-rows:repeat(3,1fr);gap:calc(var(--u)*3);width:62%;height:92%}
-.t-6{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:calc(var(--u)*2.5);width:80%;height:92%}
-.t-4 div,.t-3 div,.t-6 div{background:var(--accent);border-radius:calc(var(--u)*1.5);min-height:calc(var(--u)*6)}
-.card-name{font-size:calc(var(--u)*12.5);font-weight:700}
-.card-meta{font-size:calc(var(--u)*10);color:var(--sub);margin-top:calc(var(--u)*2)}
-.price{background:var(--accent);color:var(--on-accent);font-size:calc(var(--u)*11);font-weight:700;
-  padding:calc(var(--u)*3) calc(var(--u)*10);border-radius:calc(var(--u)*6);margin-top:calc(var(--u)*6)}
-.empty{font-size:calc(var(--u)*11);color:var(--sub);padding:calc(var(--u)*8);text-align:left}
+.mini{background:#fff;box-shadow:0 calc(var(--u)*2) calc(var(--u)*8) rgba(0,0,0,.14);padding:calc(var(--u)*5);height:100%;
+  display:grid;gap:calc(var(--u)*3);aspect-ratio:4/7}
+.mini div{background:var(--accent);opacity:.88;border-radius:calc(var(--u)*1)}
+.mini.solo{grid-template-rows:1fr auto;aspect-ratio:3/4}
+.mini.solo::after{content:'';height:calc(var(--u)*4)}
+.mini.c4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;aspect-ratio:4/5}
+.mini.trio{grid-template-rows:repeat(3,1fr)}
+.mini.m6{grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);aspect-ratio:8/15}
+.card-body{padding:calc(var(--u)*9) calc(var(--u)*11) calc(var(--u)*11);display:flex;align-items:flex-end;justify-content:space-between;gap:calc(var(--u)*6)}
+.card-name{font-family:var(--font-head);font-weight:var(--head-weight);font-size:calc(var(--u)*15);line-height:1.1}
+.card-meta{font-size:calc(var(--u)*9.5);color:var(--sub);margin-top:calc(var(--u)*3);font-weight:600}
+.price{font-family:var(--font-mono);background:var(--accent);color:var(--on-accent);font-size:calc(var(--u)*10.5);font-weight:700;
+  padding:calc(var(--u)*3) calc(var(--u)*8);border-radius:999px;white-space:nowrap}
+.empty{font-size:calc(var(--u)*11);color:var(--sub);padding:calc(var(--u)*6) 0}
 
 /* ---------- payment ---------- */
-#screen-payment{justify-content:flex-start}
-.bill{width:100%;background:var(--card);border:1px solid var(--line);border-radius:calc(var(--u)*20);
-  padding:calc(var(--u)*20) calc(var(--u)*18);box-shadow:var(--shadow);flex-shrink:0}
-.bill-label{font-size:calc(var(--u)*10.5);font-weight:700;color:var(--sub)}
-.bill-total{font-family:var(--font-head);font-size:calc(var(--u)*44);font-weight:700;color:var(--accent);
-  line-height:1;margin-top:calc(var(--u)*8)}
-.bill-layout{display:inline-block;margin-top:calc(var(--u)*8);padding:calc(var(--u)*4) calc(var(--u)*13);
-  background:var(--glass);border:1px solid var(--line);border-radius:999px;font-size:calc(var(--u)*12.5);font-weight:700}
-.bill-row{display:flex;align-items:center;justify-content:space-between;text-align:left;
-  margin-top:calc(var(--u)*14);padding-top:calc(var(--u)*14);border-top:1px solid var(--line)}
-.pay-opts{width:100%;display:flex;flex-direction:column;gap:calc(var(--u)*10);flex-shrink:0}
-.pay-opt{width:100%;background:var(--card);border:1.5px solid var(--line);border-radius:calc(var(--u)*16);
-  padding:calc(var(--u)*14) calc(var(--u)*15);cursor:pointer;display:flex;align-items:center;
-  gap:calc(var(--u)*13);box-shadow:var(--shadow);text-align:left;transition:border-color .15s,transform .1s}
-.pay-opt:active{border-color:var(--accent);transform:scale(.985)}
-.pay-icon{width:calc(var(--u)*44);height:calc(var(--u)*44);border-radius:calc(var(--u)*13);flex-shrink:0;
-  display:flex;align-items:center;justify-content:center}
-.pay-icon svg{width:calc(var(--u)*22);height:calc(var(--u)*22)}
+.summary{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow),inset 0 0 0 1px var(--line);flex-shrink:0;overflow:hidden}
+.sum-row{display:flex;align-items:center;gap:calc(var(--u)*12);padding:calc(var(--u)*14)}
+.sum-thumb{width:calc(var(--u)*52);height:calc(var(--u)*64);background:var(--glass);border-radius:calc(var(--u)*6);
+  display:flex;align-items:center;justify-content:center;padding:calc(var(--u)*6);flex-shrink:0;overflow:hidden}
+.sum-thumb img{width:100%;height:100%;object-fit:contain}
+.sum-name{font-family:var(--font-head);font-weight:var(--head-weight);font-size:calc(var(--u)*17);line-height:1.1}
+.sum-sub{font-size:calc(var(--u)*10.5);color:var(--sub);margin-top:calc(var(--u)*3)}
+.sum-total{display:flex;align-items:baseline;justify-content:space-between;padding:calc(var(--u)*14);
+  border-top:1px dashed var(--line-2);background:var(--glass)}
+.sum-total .label{font-size:calc(var(--u)*10);font-weight:800;letter-spacing:calc(var(--u)*1.4);text-transform:uppercase;color:var(--sub)}
+.total{font-family:var(--font-head);font-weight:var(--head-weight);font-size:calc(var(--u)*38);line-height:1;color:var(--accent)}
+.divider{display:flex;align-items:center;gap:calc(var(--u)*10);width:100%;color:var(--sub);flex-shrink:0;
+  font-size:calc(var(--u)*9.5);font-weight:800;letter-spacing:calc(var(--u)*1.4);text-transform:uppercase}
+.divider::after{content:'';flex:1;height:1px;background:var(--line)}
+.pay-opts{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u)*10);flex-shrink:0}
+.pay-opt{background:var(--card);border:none;border-radius:var(--radius);padding:calc(var(--u)*16) calc(var(--u)*14);cursor:pointer;
+  display:flex;flex-direction:column;align-items:flex-start;gap:calc(var(--u)*10);text-align:left;
+  box-shadow:var(--shadow),inset 0 0 0 1px var(--line);transition:transform .1s,box-shadow .15s}
+.pay-opt:only-child{grid-column:1/-1}
+.pay-opt:active{transform:scale(.98);box-shadow:var(--shadow),inset 0 0 0 calc(var(--u)*1.5) var(--accent)}
+.pay-icon{width:calc(var(--u)*40);height:calc(var(--u)*40);border-radius:calc(var(--u)*12);display:flex;align-items:center;justify-content:center}
+.pay-icon svg{width:calc(var(--u)*21);height:calc(var(--u)*21)}
 .pay-icon.cash{background:rgba(22,163,74,.12)}
 .pay-icon.gcash{background:rgba(0,114,206,.12)}
-.pay-title{font-size:calc(var(--u)*15);font-weight:700}
-.pay-sub{font-size:calc(var(--u)*11);color:var(--sub);margin-top:calc(var(--u)*2);line-height:1.4}
-.divider{display:flex;align-items:center;gap:calc(var(--u)*10);width:100%;color:var(--sub);
-  font-size:calc(var(--u)*10.5);font-weight:700;margin:calc(var(--u)*2) 0;flex-shrink:0}
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--line)}
+.pay-title{font-size:calc(var(--u)*15);font-weight:800}
+.pay-sub{font-size:calc(var(--u)*10.5);color:var(--sub);margin-top:calc(var(--u)*2);line-height:1.4}
+.pay-go{margin-top:auto;font-size:calc(var(--u)*11);font-weight:800;color:var(--accent)}
+
+.stepper{display:flex;align-items:center;gap:calc(var(--u)*6);background:var(--glass);border-radius:999px;padding:calc(var(--u)*3)}
+.stepper button{width:calc(var(--u)*30);height:calc(var(--u)*30);border-radius:50%;border:none;
+  background:var(--card);box-shadow:inset 0 0 0 1px var(--line);font-weight:700;font-size:calc(var(--u)*15);cursor:pointer;line-height:1}
+.count-val{font-family:var(--font-mono);font-size:calc(var(--u)*13);font-weight:700;min-width:calc(var(--u)*18);text-align:center}
+.step-label{font-size:calc(var(--u)*10.5);font-weight:700;color:var(--sub);padding-left:calc(var(--u)*6)}
 
 /* ---------- camera ---------- */
-#screen-camera{padding:calc(var(--u)*10);gap:calc(var(--u)*6)}
-.viewfinder{width:min(97%,calc(var(--u)*400));aspect-ratio:3/4;background:#0d0d0d;border-radius:calc(var(--u)*18);
-  position:relative;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);margin:auto 0;flex-shrink:0}
+#screen-camera{padding:calc(var(--u)*12);gap:calc(var(--u)*10);align-items:center;background:#0b0b0c!important}
+.viewfinder{width:100%;flex:1;min-height:0;background:#000;border-radius:calc(var(--u)*14);position:relative;overflow:hidden}
+.viewfinder::before{content:'';position:absolute;inset:calc(var(--u)*14);z-index:2;pointer-events:none;
+  background:
+    linear-gradient(#fff,#fff) top left/calc(var(--u)*18) 1.5px,linear-gradient(#fff,#fff) top left/1.5px calc(var(--u)*18),
+    linear-gradient(#fff,#fff) top right/calc(var(--u)*18) 1.5px,linear-gradient(#fff,#fff) top right/1.5px calc(var(--u)*18),
+    linear-gradient(#fff,#fff) bottom left/calc(var(--u)*18) 1.5px,linear-gradient(#fff,#fff) bottom left/1.5px calc(var(--u)*18),
+    linear-gradient(#fff,#fff) bottom right/calc(var(--u)*18) 1.5px,linear-gradient(#fff,#fff) bottom right/1.5px calc(var(--u)*18);
+  background-repeat:no-repeat;opacity:.7}
 video#webcam{width:100%;height:100%;object-fit:cover;display:block}
 video#webcam.mirror{transform:scaleX(-1)}
+.vf-top{position:absolute;top:calc(var(--u)*22);left:calc(var(--u)*22);right:calc(var(--u)*22);z-index:3;
+  display:flex;justify-content:space-between;align-items:center}
+.chip{background:rgba(0,0,0,.5);color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  padding:calc(var(--u)*5) calc(var(--u)*11);border-radius:999px;font-size:calc(var(--u)*10.5);font-weight:800;letter-spacing:calc(var(--u)*.6)}
+.chip.rec::before{content:'';display:inline-block;width:calc(var(--u)*6);height:calc(var(--u)*6);border-radius:50%;
+  background:#ff3b30;margin-right:calc(var(--u)*6);vertical-align:middle;animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+.vf-dots{position:absolute;bottom:calc(var(--u)*22);left:0;right:0;z-index:3;display:flex;justify-content:center;gap:calc(var(--u)*6)}
+.vf-dots i{width:calc(var(--u)*22);height:calc(var(--u)*4);border-radius:999px;background:rgba(255,255,255,.35)}
+.vf-dots i.on{background:#fff}
 .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:5}
 .flash.go{animation:flash .35s ease-out forwards}
 @keyframes flash{0%{opacity:0}20%{opacity:.95}100%{opacity:0}}
 .count{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-head);
-  font-size:calc(var(--u)*120);font-weight:700;color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.6);z-index:6;line-height:1}
+  font-size:calc(var(--u)*130);font-weight:var(--head-weight);color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.55);z-index:6;line-height:1}
+.count:not(:empty){animation:tick 1s ease-out infinite}
+@keyframes tick{from{transform:translate(-50%,-50%) scale(1.25);opacity:.4}25%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+#screen-camera .hint{color:rgba(255,255,255,.65)}
+.shutter{width:calc(var(--u)*78);height:calc(var(--u)*78);border-radius:50%;border:none;cursor:pointer;flex-shrink:0;
+  background:var(--accent);color:var(--on-accent);box-shadow:0 0 0 calc(var(--u)*4) #0b0b0c,0 0 0 calc(var(--u)*6) rgba(255,255,255,.9);
+  font-weight:800;font-size:calc(var(--u)*11.5);letter-spacing:calc(var(--u)*1.2);text-transform:uppercase;
+  margin:calc(var(--u)*6) 0 calc(var(--u)*4)}
+.shutter:active{transform:scale(.95)}
+body.theme-dark .shutter{background:#fff;color:#111}
 
 /* ---------- review ---------- */
 .stage-wrap{width:100%;flex:1;min-height:calc(var(--u)*120);display:flex;align-items:center;justify-content:center;overflow:hidden}
-#stage{position:relative;width:calc(var(--u)*200);background:#fff;border-radius:calc(var(--u)*10);
-  overflow:hidden;box-shadow:var(--shadow);margin:0 auto;flex-shrink:0}
+#stage{position:relative;width:calc(var(--u)*200);background:#fff;border-radius:calc(var(--u)*4);
+  overflow:hidden;box-shadow:0 calc(var(--u)*14) calc(var(--u)*34) rgba(0,0,0,.18);margin:0 auto;flex-shrink:0}
 #stage-bg{width:100%;display:block;pointer-events:none}
 .zone{position:absolute;overflow:hidden;cursor:grab;background:#eee;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
 .zone.sel{box-shadow:0 0 0 2px #fff,0 0 0 calc(var(--u)*4) var(--accent)}
@@ -217,7 +324,6 @@ video#webcam.mirror{transform:scaleX(-1)}
   border-radius:999px;pointer-events:none}
 .zone-empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#9a9a9a;font-size:calc(var(--u)*10);background:#f3f3f4}
 
-/* stickers and words a guest drops on a shot */
 .ov{position:absolute;line-height:1;white-space:nowrap;cursor:grab;touch-action:none;
   user-select:none;-webkit-user-select:none;transform-origin:center;
   text-shadow:0 calc(var(--u)*1) calc(var(--u)*4) rgba(0,0,0,.4)}
@@ -229,57 +335,64 @@ video#webcam.mirror{transform:scaleX(-1)}
   box-shadow:0 calc(var(--u)*2) calc(var(--u)*6) rgba(0,0,0,.35)}
 .ov.sel .ov-x{display:flex}
 
-.panel{width:100%;background:var(--glass);border:1px solid var(--line);border-radius:calc(var(--u)*12);
+.panel{width:100%;background:var(--card);box-shadow:inset 0 0 0 1px var(--line);border-radius:var(--radius);
   padding:calc(var(--u)*10) calc(var(--u)*12);display:flex;flex-direction:column;gap:calc(var(--u)*8);flex-shrink:0}
 .panel-name{font-size:calc(var(--u)*12.5);font-weight:800}
-.tools{width:100%;display:flex;gap:calc(var(--u)*4);flex-shrink:0;background:var(--track);
-  padding:calc(var(--u)*3);border-radius:999px}
-.tool{flex:1;border:none;background:transparent;padding:calc(var(--u)*8) calc(var(--u)*6);border-radius:999px;
-  font-size:calc(var(--u)*11.5);font-weight:700;color:var(--sub);cursor:pointer}
-.tool.on{background:var(--card);color:var(--text);box-shadow:0 2px 5px rgba(0,0,0,.12)}
+.tools{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u)*6);flex-shrink:0}
+.tool{border:none;background:var(--card);box-shadow:inset 0 0 0 1px var(--line);padding:calc(var(--u)*8) calc(var(--u)*6);
+  border-radius:calc(var(--u)*10);font-size:calc(var(--u)*11);font-weight:800;color:var(--sub);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*3)}
+.tool svg{width:calc(var(--u)*17);height:calc(var(--u)*17)}
+.tool.on{background:var(--accent);color:var(--on-accent);box-shadow:none}
 .sticker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(calc(var(--u)*40),1fr));gap:calc(var(--u)*6)}
-.sticker-grid button{height:calc(var(--u)*38);border:1px solid var(--line);background:var(--card);
+.sticker-grid button{height:calc(var(--u)*38);border:1px solid var(--line);background:var(--glass);
   border-radius:calc(var(--u)*10);font-size:calc(var(--u)*18);cursor:pointer;line-height:1;padding:0;
   display:flex;align-items:center;justify-content:center}
 .sticker-grid button:active{border-color:var(--accent);transform:scale(.94)}
+.font-chips{display:flex;gap:calc(var(--u)*6);overflow-x:auto;padding-bottom:calc(var(--u)*2);scrollbar-width:none}
+.font-chips::-webkit-scrollbar{display:none}
+.font-chips button{flex-shrink:0;border:1px solid var(--line);background:var(--glass);border-radius:calc(var(--u)*10);
+  padding:calc(var(--u)*6) calc(var(--u)*10);font-size:calc(var(--u)*15);cursor:pointer;min-width:calc(var(--u)*46);line-height:1.2}
+.font-chips button.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--card)}
+.swatch-row{display:flex;gap:calc(var(--u)*7);align-items:center;flex-wrap:wrap}
+.swatch-row button{width:calc(var(--u)*24);height:calc(var(--u)*24);border-radius:50%;cursor:pointer;
+  border:2px solid var(--card);box-shadow:0 0 0 1px var(--line-2)}
+.swatch-row button.on{box-shadow:0 0 0 2px var(--accent)}
+.swatch-row input[type=color]{width:calc(var(--u)*30);height:calc(var(--u)*26);border:none;background:none;padding:0}
 .row{display:flex;align-items:center;justify-content:space-between;gap:calc(var(--u)*8)}
 .actions{width:100%;display:flex;gap:calc(var(--u)*10);flex-shrink:0}
 
-/* ---------- result ---------- */
-.scroller{width:100%;flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:row;align-items:center;
-  justify-content:center;gap:calc(var(--u)*14);padding:calc(var(--u)*4) 0}
-.strip{max-width:52%;box-shadow:var(--shadow);border-radius:calc(var(--u)*4);
-  overflow:hidden;background:#fff;line-height:0;flex-shrink:1}
-.strip img{width:auto;max-width:100%;max-height:calc(var(--u)*430);height:auto;display:block}
-.strip-wait{width:calc(var(--u)*170);aspect-ratio:4/7;display:flex;align-items:center;justify-content:center;
-  font-size:calc(var(--u)*12);color:var(--sub);background:var(--glass);line-height:1.4;padding:calc(var(--u)*10)}
-.qr-card{max-width:46%;display:flex;flex-direction:column;align-items:center;
-  background:#fff;color:#111;border:1px solid rgba(0,0,0,.08);border-radius:calc(var(--u)*14);
-  padding:calc(var(--u)*12) calc(var(--u)*10);flex-shrink:0}
-.qr-pair{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*10);width:100%;margin-top:calc(var(--u)*6)}
-.qr-slot{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*5);cursor:pointer;min-width:0}
-.qr-box{width:calc(var(--u)*120);height:calc(var(--u)*120);max-width:100%;display:flex;align-items:center;
-  justify-content:center;background:#fff;border:1px solid #ececf0;border-radius:calc(var(--u)*8);overflow:hidden;padding:calc(var(--u)*4)}
+.toggle{display:flex;background:var(--track);padding:calc(var(--u)*3);border-radius:999px;flex-shrink:0}
+.toggle button{border:none;background:transparent;padding:calc(var(--u)*6) calc(var(--u)*12);font-size:calc(var(--u)*10.5);
+  font-weight:800;border-radius:999px;cursor:pointer;color:var(--sub)}
+.toggle button.on{background:var(--card);color:var(--text);box-shadow:0 2px 5px rgba(0,0,0,.12)}
+
+/* ---------- result: strip on top, the two QR codes underneath ---------- */
+.result-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:calc(var(--u)*12)}
+.strip-stage{flex:1;min-height:calc(var(--u)*150);display:flex;align-items:center;justify-content:center;
+  background:var(--glass);border-radius:var(--radius);padding:calc(var(--u)*12);overflow:hidden}
+.strip{height:100%;display:flex;align-items:center;justify-content:center;min-width:0;max-width:100%}
+.strip img{max-height:100%;max-width:100%;width:auto;height:auto;display:block;border-radius:calc(var(--u)*2);
+  box-shadow:0 calc(var(--u)*12) calc(var(--u)*30) rgba(0,0,0,.2)}
+.strip-wait{width:calc(var(--u)*150);aspect-ratio:4/7;display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--u)*11.5);color:var(--sub);background:var(--card);line-height:1.4;padding:calc(var(--u)*10);text-align:center;
+  border-radius:calc(var(--u)*4)}
+.qr-card{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*8);flex-shrink:0;
+  background:#fff;color:#111;border-radius:var(--radius);padding:calc(var(--u)*12) calc(var(--u)*14) calc(var(--u)*10);
+  box-shadow:var(--shadow),inset 0 0 0 1px rgba(0,0,0,.06)}
+.qr-pair{display:flex;justify-content:center;gap:calc(var(--u)*22);width:100%}
+.qr-slot{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*6);cursor:pointer;min-width:0}
+.qr-box{width:calc(var(--u)*100);height:calc(var(--u)*100);display:flex;align-items:center;
+  justify-content:center;background:#fff;border:1px solid #e8e8ec;border-radius:calc(var(--u)*8);overflow:hidden;padding:calc(var(--u)*4)}
 .qr-box img,.qr-box canvas{display:block;width:100%!important;height:100%!important}
-.qr-label{font-family:var(--font-mono);font-size:calc(var(--u)*9.5);font-weight:700;color:#111;text-align:center;line-height:1.25}
+.qr-label{font-size:calc(var(--u)*9);font-weight:800;letter-spacing:calc(var(--u)*1.2);color:#111;text-align:center;text-transform:uppercase}
 .qr-note{font-size:calc(var(--u)*9);color:#9ca3af;text-align:center;padding:calc(var(--u)*4);line-height:1.35}
-.qr-hint{font-family:var(--font-mono);font-size:calc(var(--u)*9.5);font-weight:700;color:#6b7280;
-  margin-top:calc(var(--u)*10);text-align:center;line-height:1.4}
-.bar{width:100%;background:var(--glass);border:1px solid var(--line);border-radius:calc(var(--u)*12);
-  padding:calc(var(--u)*9) calc(var(--u)*12);display:flex;justify-content:space-between;align-items:center;
-  gap:calc(var(--u)*8);flex-shrink:0}
-.toggle{display:flex;background:var(--track);padding:calc(var(--u)*3);border-radius:999px}
-.toggle button{border:none;background:transparent;padding:calc(var(--u)*6) calc(var(--u)*13);font-size:calc(var(--u)*11);
-  font-weight:700;border-radius:999px;cursor:pointer;color:var(--sub)}
-.toggle button.on{background:var(--card);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,.12)}
-.stepper{display:flex;align-items:center;gap:calc(var(--u)*7)}
-.stepper button{width:calc(var(--u)*28);height:calc(var(--u)*28);border-radius:50%;border:1px solid var(--line);
-  background:var(--card);font-weight:700;font-size:calc(var(--u)*14);cursor:pointer;line-height:1}
-.count-val{font-family:var(--font-mono);font-size:calc(var(--u)*13);font-weight:700;min-width:calc(var(--u)*14)}
-.step-label{font-size:calc(var(--u)*11);font-weight:700;color:var(--sub)}
+.qr-hint{font-size:calc(var(--u)*10.5);font-weight:700;color:#555;text-align:center;line-height:1.4}
+.qr-meta{display:flex;justify-content:space-between;width:100%;font-family:var(--font-mono);font-size:calc(var(--u)*8.5);color:#8a8a8a;
+  border-top:1px dashed #e3e3e6;padding-top:calc(var(--u)*7)}
 
 /* ---------- demo badge (sales-page preview only) ---------- */
-.demo-badge{position:fixed;left:50%;bottom:calc(var(--u)*10);transform:translateX(-50%);z-index:95;
+.demo-badge{position:fixed;left:50%;bottom:calc(var(--u)*12);transform:translateX(-50%);z-index:95;
   display:flex;align-items:center;gap:calc(var(--u)*8);background:rgba(20,18,22,.88);color:#fff;
   padding:calc(var(--u)*6) calc(var(--u)*6) calc(var(--u)*6) calc(var(--u)*12);border-radius:999px;
   font-size:calc(var(--u)*10.5);font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.25);white-space:nowrap}
@@ -289,21 +402,24 @@ body.framing .demo-badge,body:not(.at-start) .demo-badge{display:none}
 /* ---------- toast ---------- */
 #toast{position:fixed;left:50%;bottom:calc(var(--u)*26);transform:translateX(-50%);background:#16151a;color:#fff;
   padding:calc(var(--u)*11) calc(var(--u)*18);border-radius:999px;font-size:calc(var(--u)*12);font-weight:700;
-  z-index:3000;max-width:86vw;text-align:center;display:none;box-shadow:0 8px 24px rgba(0,0,0,.3);
-  pointer-events:none}
-#toast.show{display:block}
+  z-index:3000;max-width:86vw;text-align:center;display:none;box-shadow:0 8px 24px rgba(0,0,0,.3);pointer-events:none}
+#toast.show{display:block;animation:enter .2s ease-out}
 #toast.bad{background:#a32020}
 
 /* ---------- modals ---------- */
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:1000;align-items:center;
-  justify-content:center;padding:calc(var(--u)*14)}
+.modal{display:none;position:fixed;inset:0;background:rgba(10,10,12,.66);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+  z-index:1000;align-items:center;justify-content:center;padding:calc(var(--u)*14)}
 .modal.open{display:flex}
 body.framing .modal{display:none!important}
-.sheet{background:var(--card);color:var(--text);border-radius:calc(var(--u)*18);padding:calc(var(--u)*18);
-  max-width:calc(var(--u)*400);width:100%;max-height:92dvh;overflow-y:auto;text-align:center}
+.sheet{background:var(--card);color:var(--text);border-radius:calc(var(--u)*18);padding:calc(var(--u)*20);
+  max-width:calc(var(--u)*400);width:100%;max-height:92dvh;overflow-y:auto;text-align:center;animation:enter .22s ease-out}
 .sheet.wide{max-width:calc(var(--u)*620);height:92dvh;display:flex;flex-direction:column;text-align:left}
-.sheet-title{font-family:var(--font-head);font-size:calc(var(--u)*18);font-weight:700;color:var(--accent)}
-.sheet-sub{font-size:calc(var(--u)*11.5);color:var(--sub);margin-top:calc(var(--u)*3);line-height:1.45}
+.sheet-title{font-family:var(--font-head);font-weight:var(--head-weight);font-size:calc(var(--u)*20);color:var(--text)}
+.sheet-sub{font-size:calc(var(--u)*11.5);color:var(--sub);margin-top:calc(var(--u)*4);line-height:1.5}
+.pay-sheet{display:flex;flex-direction:column;align-items:stretch;gap:calc(var(--u)*10)}
+.pay-sheet .eyebrow{text-align:center}
+.amount-row{display:flex;align-items:baseline;justify-content:center;gap:calc(var(--u)*10)}
+.amount-row b{font-family:var(--font-head);font-weight:var(--head-weight);font-size:calc(var(--u)*30);color:var(--accent)}
 
 /* ---------- admin ---------- */
 .sheet.admin{display:flex;flex-direction:column;padding:0;overflow:hidden;text-align:left;
@@ -317,7 +433,7 @@ body.framing .modal{display:none!important}
 .adm-body{flex:1;min-height:0;overflow-y:auto;padding:calc(var(--u)*12) calc(var(--u)*16)}
 .adm-foot{flex-shrink:0;display:flex;gap:calc(var(--u)*8);padding:calc(var(--u)*12) calc(var(--u)*16);
   border-top:1px solid var(--line)}
-.adm-foot .btn{padding:calc(var(--u)*11);font-size:calc(var(--u)*13);box-shadow:none}
+.adm-foot .btn{min-height:calc(var(--u)*42);font-size:calc(var(--u)*13);box-shadow:none}
 .home{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u)*8)}
 .admin.in-section .home{display:none}
 .tile{display:flex;flex-direction:column;gap:calc(var(--u)*6);padding:calc(var(--u)*11);background:var(--card);
@@ -330,11 +446,11 @@ body.framing .modal{display:none!important}
 .tile-name{font-size:calc(var(--u)*12.5);font-weight:800;line-height:1.2;min-width:0}
 .tile-chev{margin-left:auto;color:var(--sub);font-size:calc(var(--u)*16);font-weight:700}
 .tile-stat{font-size:calc(var(--u)*10.5);color:var(--sub);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile-amt{font-family:var(--font-head);font-size:calc(var(--u)*22);font-weight:700;color:var(--accent);margin-left:auto;line-height:1}
+.tile-amt{font-family:var(--font-head);font-size:calc(var(--u)*22);font-weight:var(--head-weight);color:var(--accent);margin-left:auto;line-height:1}
 .tile-stack{display:flex;flex-direction:column;gap:calc(var(--u)*2);min-width:0;flex:1}
 
 .section{display:none}
-.section.on{display:block;animation:rise .18s ease-out}
+.section.on{display:block;animation:enter .18s ease-out}
 .set{display:flex;align-items:center;gap:calc(var(--u)*12);background:var(--card);border:1px solid var(--line);
   border-radius:calc(var(--u)*14);padding:calc(var(--u)*11) calc(var(--u)*12);margin-bottom:calc(var(--u)*9);text-align:left}
 .set.col{flex-direction:column;align-items:stretch;gap:calc(var(--u)*9)}
@@ -345,11 +461,12 @@ body.framing .modal{display:none!important}
 .set-title{font-size:calc(var(--u)*12.5);font-weight:700}
 .set-sub{font-size:calc(var(--u)*10.5);color:var(--sub);margin-top:calc(var(--u)*2);line-height:1.45}
 .label{font-size:calc(var(--u)*10.5);font-weight:700;color:var(--sub)}
-.input{width:100%;padding:calc(var(--u)*10) calc(var(--u)*11);border-radius:calc(var(--u)*8);border:1px solid var(--line);
+.input{width:100%;padding:calc(var(--u)*10) calc(var(--u)*11);border-radius:calc(var(--u)*8);border:1px solid var(--line-2);
   font-size:calc(var(--u)*12.5);background:var(--card);color:var(--text)}
+.input.code{font-family:var(--font-mono);font-size:calc(var(--u)*22);letter-spacing:calc(var(--u)*6);text-align:center}
 .fields{display:grid;grid-template-columns:repeat(2,1fr);gap:calc(var(--u)*7)}
 .field{display:flex;flex-direction:column;gap:calc(var(--u)*4)}
-.field input,.field select{width:100%;padding:calc(var(--u)*8) calc(var(--u)*9);border:1px solid var(--line);
+.field input,.field select{width:100%;padding:calc(var(--u)*8) calc(var(--u)*9);border:1px solid var(--line-2);
   border-radius:calc(var(--u)*8);font-size:calc(var(--u)*12.5);background:var(--card);color:var(--text)}
 .seg{display:flex;background:var(--glass);border-radius:999px;padding:calc(var(--u)*3);gap:calc(var(--u)*3)}
 .seg button{flex:1;border:none;background:transparent;padding:calc(var(--u)*9) calc(var(--u)*4);border-radius:999px;
@@ -366,13 +483,41 @@ body.framing .modal{display:none!important}
 .slider .val{font-family:var(--font-mono);font-size:calc(var(--u)*11.5);width:calc(var(--u)*46);text-align:right}
 .dot{width:calc(var(--u)*8);height:calc(var(--u)*8);border-radius:50%;background:var(--sub);display:inline-block;margin-right:calc(var(--u)*6)}
 .dot.ok{background:#16a34a}.dot.bad{background:#dc2626}
+details.more summary{cursor:pointer;font-size:calc(var(--u)*11);font-weight:700;color:var(--sub);padding:calc(var(--u)*4) 0}
+details.more[open] summary{margin-bottom:calc(var(--u)*8)}
+details.more > div{display:flex;flex-direction:column;gap:calc(var(--u)*8)}
 
-.swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u)*8)}
-.swatch{border:2px solid transparent;border-radius:calc(var(--u)*12);cursor:pointer;overflow:hidden;
-  background:var(--card);box-shadow:inset 0 0 0 1px var(--line);padding:0}
-.swatch.on{border-color:var(--accent)}
-.swatch-top{height:calc(var(--u)*46);display:flex;align-items:center;justify-content:center;font-size:calc(var(--u)*17)}
-.swatch-name{font-size:calc(var(--u)*10);font-weight:700;padding:calc(var(--u)*5) calc(var(--u)*3);text-align:center;color:var(--text)}
+/* Theme, typeface and button pickers: every tile is a live preview. */
+.swatches{display:grid;grid-template-columns:repeat(2,1fr);gap:calc(var(--u)*8)}
+.swatch{border:none;border-radius:calc(var(--u)*12);cursor:pointer;overflow:hidden;background:var(--card);padding:0;text-align:left;
+  box-shadow:inset 0 0 0 1px var(--line)}
+.swatch.on{box-shadow:inset 0 0 0 calc(var(--u)*2) var(--accent)}
+.swatch-top{height:calc(var(--u)*72);padding:calc(var(--u)*9);display:flex;flex-direction:column;justify-content:space-between}
+.swatch-top .t{font-size:calc(var(--u)*18);line-height:1}
+.swatch-top .b{align-self:flex-start;font-size:calc(var(--u)*8.5);font-weight:800;padding:calc(var(--u)*4) calc(var(--u)*9);letter-spacing:calc(var(--u)*.8)}
+.swatch-top .dots{display:flex;gap:calc(var(--u)*3)}
+.swatch-top .dots i{width:calc(var(--u)*9);height:calc(var(--u)*9);border-radius:50%}
+.swatch-name{font-size:calc(var(--u)*10);font-weight:800;padding:calc(var(--u)*6) calc(var(--u)*9);color:var(--text);display:flex;justify-content:space-between}
+.swatch-name span{color:var(--sub);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:calc(var(--u)*6)}
+.chips{display:flex;gap:calc(var(--u)*5);flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:var(--glass);border-radius:999px;padding:calc(var(--u)*5) calc(var(--u)*10);
+  font-size:calc(var(--u)*10);font-weight:800;color:var(--sub);cursor:pointer}
+.chips button.on{background:var(--accent);color:var(--on-accent);border-color:transparent}
+.font-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u)*7);max-height:calc(var(--u)*260);overflow-y:auto;padding:calc(var(--u)*1)}
+.font-tile{border:none;background:var(--glass);border-radius:calc(var(--u)*10);cursor:pointer;padding:calc(var(--u)*9) calc(var(--u)*6) calc(var(--u)*7);
+  display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*5);box-shadow:inset 0 0 0 1px var(--line);min-width:0}
+.font-tile.on{box-shadow:inset 0 0 0 calc(var(--u)*2) var(--accent);background:var(--card)}
+.font-tile .s{font-size:calc(var(--u)*19);line-height:1.15;color:var(--text);white-space:nowrap;overflow:hidden;max-width:100%}
+.font-tile .n{font-size:calc(var(--u)*8.5);font-weight:700;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.btn-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:calc(var(--u)*8)}
+.btn-tile{border:none;border-radius:calc(var(--u)*12);cursor:pointer;padding:0;overflow:hidden;background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column}
+.btn-tile.on{box-shadow:inset 0 0 0 calc(var(--u)*2) var(--accent)}
+.btn-tile .stage{height:calc(var(--u)*78);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.btn-tile .start-btn{transform:scale(.62);pointer-events:none;animation-play-state:running}
+.btn-tile .start-btn.sb-halo{transform:scale(.42)}
+.btn-tile .start-btn.sb-stamp{transform:scale(.62) rotate(-3deg)}
+.btn-tile .swatch-name{border-top:1px solid var(--line)}
 .wall-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:calc(var(--u)*8)}
 .wall-sw{aspect-ratio:1;border-radius:calc(var(--u)*12);border:2px solid transparent;cursor:pointer;position:relative;
   background-size:cover;background-position:center;box-shadow:inset 0 0 0 1px var(--line)}
@@ -385,8 +530,8 @@ body.framing .modal{display:none!important}
   border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;
   color:var(--sub);font-size:calc(var(--u)*11);overflow:hidden}
 .qr-frame img{width:100%;height:100%;object-fit:cover;display:block}
-.qr-big{width:calc(var(--u)*250);height:calc(var(--u)*250);max-width:100%;margin:0 auto;border-radius:calc(var(--u)*16);
-  border:1px solid var(--line);background:#fff;overflow:hidden;box-shadow:var(--shadow)}
+.qr-big{width:calc(var(--u)*240);height:calc(var(--u)*240);max-width:100%;margin:0 auto;border-radius:calc(var(--u)*14);
+  background:#fff;overflow:hidden;box-shadow:inset 0 0 0 1px var(--line)}
 .qr-big img{width:100%;height:100%;object-fit:cover;display:block}
 
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u)*7)}
@@ -394,7 +539,7 @@ body.framing .modal{display:none!important}
 .stat.hero{grid-column:1/-1}
 .stat-l{font-size:calc(var(--u)*10);font-weight:800;color:var(--sub)}
 .stat-v{font-size:calc(var(--u)*17);font-weight:800;margin-top:calc(var(--u)*4);line-height:1}
-.stat-v.big{font-family:var(--font-head);font-size:calc(var(--u)*34);font-weight:700;color:var(--accent)}
+.stat-v.big{font-family:var(--font-head);font-size:calc(var(--u)*34);font-weight:var(--head-weight);color:var(--accent)}
 .stat-n{font-size:calc(var(--u)*10);color:var(--sub);margin-top:calc(var(--u)*4)}
 .split{display:flex;height:calc(var(--u)*10);border-radius:999px;overflow:hidden;background:var(--track);margin-top:calc(var(--u)*10)}
 .split .cash{background:#16a34a}.split .gcash{background:#0072ce}
@@ -411,6 +556,8 @@ body.framing .modal{display:none!important}
 .tag.cash{background:rgba(22,163,74,.14);color:#16a34a}
 .tag.gcash{background:rgba(0,114,206,.14);color:#0072ce}
 .tag.event{background:var(--glass);color:var(--sub)}
+.pill{background:var(--glass);border:1px solid var(--line);padding:calc(var(--u)*4) calc(var(--u)*10);
+  border-radius:999px;font-size:calc(var(--u)*10.5);font-weight:700;white-space:nowrap}
 
 .dots{display:flex;gap:calc(var(--u)*8);justify-content:center;margin:calc(var(--u)*10) 0 calc(var(--u)*5)}
 .dots div{width:calc(var(--u)*10);height:calc(var(--u)*10);border-radius:50%;background:var(--track)}
@@ -497,6 +644,7 @@ body.framing #frame-bar{display:flex}
 }
 </style>
 </head>
+
 <body>
 
 <div id="wall"></div>
@@ -510,106 +658,103 @@ body.framing #frame-bar{display:flex}
        No name here on purpose: the uploaded wallpaper or live video carries
        the branding, and a second wordmark on top of it fights with it. -->
   <section id="screen-start" class="screen active">
-    <button class="btn start-btn" onclick="Booth.begin()" id="start-btn">TAP TO START</button>
+    <button class="start-btn sb-pill" onclick="Booth.begin()" id="start-btn">TAP TO START</button>
   </section>
 
-  <!-- ========================= LAYOUT ========================= -->
+  <!-- ========================= 1 · LAYOUT ========================= -->
   <section id="screen-layout" class="screen">
-    <div class="topbar">
-      <button class="link" onclick="go('screen-start')">← Back</button>
-      <span class="pill mono" id="mode-badge">Choose a layout</span>
+    <header class="appbar">
+      <button class="back" onclick="go('screen-start')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Back</button>
+      <div class="wordmark"><b data-brand1></b><small data-brand2></small></div>
+      <div class="progress" data-step="1"><i></i><i></i><i></i><i></i></div>
+    </header>
+    <div class="head">
+      <p class="eyebrow" id="mode-badge">Step 1 of 4</p>
+      <h1 class="h1">Choose your layout</h1>
     </div>
-    <div class="brand"><div class="brand-1" data-brand1></div><div class="brand-2" data-brand2></div></div>
-    <h2 class="title">Choose your photo layout</h2>
     <div class="picker">
-      <div class="group">Strips</div>
+      <div class="group">Classic strips</div>
       <div class="grid" id="basic-grid"></div>
-      <div class="group">Your designs</div>
+      <div class="group" id="design-group">Signature designs</div>
       <div class="grid" id="design-grid"></div>
     </div>
   </section>
 
-  <!-- ========================= PAYMENT ========================= -->
+  <!-- ========================= 2 · PAYMENT ========================= -->
   <section id="screen-payment" class="screen">
-    <div class="topbar">
-      <button class="link" onclick="go('screen-layout')">← Back</button>
-      <span class="pill mono">Payment</span>
+    <header class="appbar">
+      <button class="back" onclick="go('screen-layout')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Layouts</button>
+      <div class="wordmark"><b data-brand1></b><small data-brand2></small></div>
+      <div class="progress" data-step="2"><i></i><i></i><i></i><i></i></div>
+    </header>
+    <div class="head">
+      <p class="eyebrow">Step 2 of 4</p>
+      <h1 class="h1">Your order</h1>
     </div>
-    <div class="brand"><div class="brand-1" data-brand1></div><div class="brand-2" data-brand2></div></div>
 
-    <div class="bill">
-      <div class="bill-label">Total to pay</div>
-      <div class="bill-total" id="pay-total">₱0</div>
-      <div class="bill-layout" id="pay-layout">Layout</div>
-      <div class="bill-row">
-        <div>
-          <div style="font-size:calc(var(--u)*13);font-weight:800">Copies</div>
-          <div class="hint" id="pay-each">₱0 each</div>
+    <div class="summary">
+      <div class="sum-row">
+        <div class="sum-thumb" id="pay-thumb"></div>
+        <div style="flex:1;min-width:0">
+          <div class="sum-name" id="pay-layout">Layout</div>
+          <div class="sum-sub" id="pay-each">₱0 each</div>
         </div>
-        <div class="stepper">
-          <button onclick="Booth.copiesDelta(-1)">−</button>
+        <div class="stepper" aria-label="Copies">
+          <button onclick="Booth.copiesDelta(-1)" aria-label="Fewer copies">−</button>
           <span class="count-val" id="pay-copies">1</span>
-          <button onclick="Booth.copiesDelta(1)">+</button>
+          <button onclick="Booth.copiesDelta(1)" aria-label="More copies">+</button>
         </div>
+      </div>
+      <div class="sum-total">
+        <span class="label">Total</span>
+        <span class="total" id="pay-total">₱0</span>
       </div>
     </div>
 
-    <div class="divider">How would you like to pay?</div>
+    <div class="divider">Pay with</div>
 
     <div class="pay-opts">
-      <div class="pay-opt" id="opt-cash" onclick="Booth.payCash()">
-        <div class="pay-icon cash">
-          <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="12" rx="2" stroke="#16a34a" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="#16a34a" stroke-width="1.8"/></svg>
-        </div>
-        <div style="flex:1;min-width:0">
-          <div class="pay-title">Cash</div>
-          <div class="pay-sub">Hand it to the attendant, then start shooting</div>
-        </div>
-        <div style="color:var(--sub);font-weight:700">›</div>
-      </div>
-
-      <div class="pay-opt" id="opt-gcash" onclick="Booth.payGcash()">
-        <div class="pay-icon gcash">
-          <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="#0072ce" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="#0072ce" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="#0072ce" stroke-width="1.8"/><rect x="14" y="14" width="3" height="3" fill="#0072ce"/><rect x="18" y="18" width="3" height="3" fill="#0072ce"/><rect x="14" y="18" width="3" height="3" fill="#0072ce"/><rect x="18" y="14" width="3" height="3" fill="#0072ce"/></svg>
-        </div>
-        <div style="flex:1;min-width:0">
-          <div class="pay-title">GCash</div>
-          <div class="pay-sub">Scan and pay — shooting starts by itself</div>
-        </div>
-        <div style="color:var(--sub);font-weight:700">›</div>
-      </div>
+      <button class="pay-opt" id="opt-cash" onclick="Booth.payCash()">
+        <span class="pay-icon cash"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="12" rx="2" stroke="#16a34a" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="#16a34a" stroke-width="1.8"/></svg></span>
+        <span><span class="pay-title">Cash</span><span class="pay-sub" style="display:block">Hand it to the attendant</span></span>
+        <span class="pay-go">Continue →</span>
+      </button>
+      <button class="pay-opt" id="opt-gcash" onclick="Booth.payGcash()">
+        <span class="pay-icon gcash"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="#0072ce" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="#0072ce" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="#0072ce" stroke-width="1.8"/><rect x="14" y="14" width="3" height="3" fill="#0072ce"/><rect x="18" y="18" width="3" height="3" fill="#0072ce"/><rect x="14" y="18" width="3" height="3" fill="#0072ce"/><rect x="18" y="14" width="3" height="3" fill="#0072ce"/></svg></span>
+        <span><span class="pay-title">GCash</span><span class="pay-sub" style="display:block">Scan the QR on screen</span></span>
+        <span class="pay-go">Show QR →</span>
+      </button>
     </div>
-
-    <p class="hint">Your shots begin the moment payment lands.</p>
   </section>
 
-  <!-- ========================= CAMERA ========================= -->
+  <!-- ========================= 3 · CAMERA ========================= -->
   <section id="screen-camera" class="screen">
-    <div class="topbar" style="padding-right:calc(var(--u)*40)">
-      <span class="pill mono" id="shot-progress">Ready</span>
-      <span class="pill live">● LIVE</span>
-    </div>
     <div class="viewfinder">
       <div class="flash" id="flash"></div>
       <video id="webcam" autoplay playsinline muted></video>
+      <div class="vf-top"><span class="chip" id="shot-progress">Ready</span><span class="chip rec">LIVE</span></div>
+      <div class="vf-dots" id="shot-dots"></div>
       <div class="count" id="countdown"></div>
     </div>
-    <p class="hint" id="camera-hint">Press the button when you're ready.</p>
-    <button class="btn" id="shoot-btn" onclick="Booth.startSequence()">START SHOTS</button>
+    <p class="hint" id="camera-hint">Press start when you're ready.</p>
+    <button class="shutter" id="shoot-btn" onclick="Booth.startSequence()">Start</button>
   </section>
 
-  <!-- ========================= REVIEW ========================= -->
+  <!-- ========================= 3 · REVIEW ========================= -->
   <section id="screen-review" class="screen">
-    <div class="topbar" style="padding-right:calc(var(--u)*40)">
-      <span class="title">Review</span>
-      <span class="pill" style="color:var(--accent)">Tap a photo to edit</span>
-    </div>
-
-    <div class="bar">
-      <span style="font-size:calc(var(--u)*12);font-weight:700">Mirror</span>
-      <div class="toggle">
+    <header class="appbar">
+      <button class="back" onclick="Booth.retakeAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Retake all</button>
+      <div class="wordmark"><b data-brand1></b><small data-brand2></small></div>
+      <div class="progress" data-step="3"><i></i><i></i><i></i><i></i></div>
+    </header>
+    <div class="head row">
+      <div class="head">
+        <p class="eyebrow">Step 3 of 4</p>
+        <h1 class="h1 sm">Make it yours</h1>
+      </div>
+      <div class="toggle" aria-label="Mirror">
         <button id="mir-off" class="on" onclick="Booth.setMirror(false)">Normal</button>
-        <button id="mir-on" onclick="Booth.setMirror(true)">Mirrored</button>
+        <button id="mir-on" onclick="Booth.setMirror(true)">Mirror</button>
       </div>
     </div>
 
@@ -618,9 +763,9 @@ body.framing #frame-bar{display:flex}
     </div>
 
     <div class="tools">
-      <button class="tool on" data-tool="frame" onclick="Review.tool('frame')">Frame</button>
-      <button class="tool" data-tool="sticker" onclick="Review.tool('sticker')">Stickers</button>
-      <button class="tool" data-tool="text" onclick="Review.tool('text')">Text</button>
+      <button class="tool on" data-tool="frame" onclick="Review.tool('frame')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>Frame</button>
+      <button class="tool" data-tool="sticker" onclick="Review.tool('sticker')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>Stickers</button>
+      <button class="tool" data-tool="text" onclick="Review.tool('text')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7V5h16v2"/><path d="M12 5v14"/><path d="M9 19h6"/></svg>Text</button>
     </div>
 
     <div class="panel" id="panel-frame" style="display:none">
@@ -640,19 +785,19 @@ body.framing #frame-bar{display:flex}
 
     <div class="panel" id="panel-sticker" style="display:none">
       <div class="sticker-grid" id="sticker-grid"></div>
-      <p class="hint">Tap one to drop it on the photo, then drag it. Tap it again and press × to delete.</p>
-      <button class="ghost danger" onclick="Review.clearShot()">Clear all stickers and text on this photo</button>
+      <div class="row">
+        <p class="hint" style="text-align:left">Tap to add, drag to move. Tap it again and press × to remove.</p>
+        <button class="ghost danger" onclick="Review.clearShot()">Clear</button>
+      </div>
     </div>
 
     <div class="panel" id="panel-text" style="display:none">
-      <input class="input" id="text-input" placeholder="Type a word or two" maxlength="28">
-      <div class="fields">
-        <div class="field"><span class="label">Font</span><select id="text-font"></select></div>
-        <div class="field"><span class="label">Colour</span>
-          <input type="color" id="text-color" value="#ffffff" style="height:calc(var(--u)*34);padding:calc(var(--u)*2)"></div>
+      <div class="row">
+        <input class="input" id="text-input" placeholder="Type a word or two" maxlength="28">
+        <button class="btn small" style="width:auto" onclick="Review.addText()">Add</button>
       </div>
-      <button class="btn" style="padding:calc(var(--u)*11);font-size:calc(var(--u)*12.5)" onclick="Review.addText()">Add to photo</button>
-      <button class="ghost danger" onclick="Review.clearShot()">Clear all stickers and text on this photo</button>
+      <div class="font-chips" id="text-fonts"></div>
+      <div class="swatch-row" id="text-colors"></div>
     </div>
 
     <div class="panel" id="panel-item" style="display:none">
@@ -675,49 +820,56 @@ body.framing #frame-bar{display:flex}
       </div>
     </div>
 
-    <p class="hint" id="review-hint">Tap a photo to frame it, sticker it, or write on it.</p>
+    <p class="hint" id="review-hint">Tap a photo to frame it, add stickers, or write on it.</p>
 
     <div class="actions">
-      <button class="btn quiet" style="flex:1" onclick="Booth.retakeAll()">Retake all</button>
-      <button class="btn" style="flex:1.5" onclick="Booth.confirm()">Looks good</button>
+      <button class="btn" onclick="Booth.confirm()">Looks good</button>
     </div>
   </section>
 
-  <!-- ========================= RESULT ========================= -->
+  <!-- ========================= 4 · RESULT ========================= -->
   <section id="screen-result" class="screen">
-    <div class="topbar" style="padding-right:calc(var(--u)*40)">
-      <button class="link accent" onclick="Booth.changeLayout()">← Change layout</button>
-      <span class="pill mono">Ready to print</span>
-    </div>
-
-    <div class="bar">
-      <div class="toggle">
+    <header class="appbar">
+      <button class="back" onclick="Booth.backToEdit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Edit</button>
+      <div class="wordmark"><b data-brand1></b><small data-brand2></small></div>
+      <div class="progress" data-step="4"><i></i><i></i><i></i><i></i></div>
+    </header>
+    <div class="head row">
+      <div class="head">
+        <p class="eyebrow">Step 4 of 4</p>
+        <h1 class="h1 sm">Ready to print</h1>
+      </div>
+      <div class="toggle" aria-label="Colour">
         <button id="f-color" class="on" onclick="Booth.setFilter('color')">Colour</button>
         <button id="f-bw" onclick="Booth.setFilter('bw')">B&amp;W</button>
       </div>
-      <div class="stepper" id="copies-box">
-        <span class="step-label" id="copies-label">Copies</span>
-        <button id="cp-minus" onclick="Booth.copiesDelta(-1,true)">−</button>
-        <span class="count-val" id="copies">1</span>
-        <button id="cp-plus" onclick="Booth.copiesDelta(1,true)">+</button>
-      </div>
     </div>
 
-    <div class="scroller">
-      <div class="strip" id="strip"><div class="strip-wait">Building your strip…</div></div>
+    <div class="result-body">
+      <div class="strip-stage">
+        <div class="strip" id="strip"><div class="strip-wait">Building your strip…</div></div>
+      </div>
 
       <div class="qr-card" id="qr-card">
-        <p class="mono" style="font-size:calc(var(--u)*10);color:#555" id="stamp"></p>
-        <div class="qr-pair">
-          <div class="qr-slot" onclick="Booth.preview('color')"><div class="qr-box" id="qr-color"></div><div class="qr-label">COLOUR COPY</div></div>
-          <div class="qr-slot" onclick="Booth.preview('bw')"><div class="qr-box" id="qr-bw"></div><div class="qr-label">BLACK &amp; WHITE</div></div>
-        </div>
         <p class="qr-hint" id="qr-hint">Scan to keep a digital copy</p>
-        <p class="mono" style="font-size:calc(var(--u)*9);color:#666;margin-top:calc(var(--u)*8);text-align:center" id="thanks"></p>
+        <div class="qr-pair">
+          <div class="qr-slot" onclick="Booth.preview('color')"><div class="qr-box" id="qr-color"></div><div class="qr-label">Colour</div></div>
+          <div class="qr-slot" onclick="Booth.preview('bw')"><div class="qr-box" id="qr-bw"></div><div class="qr-label">Black &amp; white</div></div>
+        </div>
+        <div class="qr-meta"><span id="stamp"></span><span id="thanks"></span></div>
       </div>
     </div>
 
-    <button class="btn" id="print-btn" onclick="Booth.printAndFinish()">PRINT &amp; FINISH</button>
+    <div class="row" id="copies-box" style="display:none">
+      <span class="step-label" id="copies-label">Copies</span>
+      <div class="stepper">
+        <button id="cp-minus" onclick="Booth.copiesDelta(-1,true)" aria-label="Fewer copies">−</button>
+        <span class="count-val" id="copies">1</span>
+        <button id="cp-plus" onclick="Booth.copiesDelta(1,true)" aria-label="More copies">+</button>
+      </div>
+    </div>
+
+    <button class="btn" id="print-btn" onclick="Booth.printAndFinish()">Print</button>
   </section>
 </div>
 
@@ -736,24 +888,33 @@ body.framing #frame-bar{display:flex}
   </div>
   <div class="frame-acts">
     <button class="ghost" onclick="Wallpaper.recentre()">Recentre</button>
-    <button class="btn" style="padding:calc(var(--u)*12);font-size:calc(var(--u)*13)" onclick="Wallpaper.endFraming()">Done</button>
+    <button class="btn small" onclick="Wallpaper.endFraming()">Done</button>
   </div>
 </div>
 
 <!-- ====================== GCASH ====================== -->
 <div class="modal" id="gcash-modal">
-  <div class="sheet">
+  <div class="sheet pay-sheet">
+    <p class="eyebrow">GCash</p>
     <div class="sheet-title">Scan to pay</div>
-    <p class="sheet-sub">Open GCash, scan this code, and send the exact amount. The booth starts your shots automatically.</p>
-    <div class="qr-big" id="gcash-qr" style="margin-top:calc(var(--u)*14)"></div>
-    <div style="display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*10);margin-top:calc(var(--u)*14)">
-      <span class="label">Amount</span>
-      <span style="font-size:calc(var(--u)*20);font-weight:800" id="gcash-amount">₱0</span>
-    </div>
-    <p class="sheet-sub" id="gcash-ref">Send the exact amount so the booth can match it.</p>
-    <p class="sheet-sub" id="gcash-status" style="margin-top:calc(var(--u)*12);font-weight:700;color:var(--accent)">Waiting for your payment…</p>
-    <button class="ghost" id="gcash-manual" style="width:100%;margin-top:calc(var(--u)*10);display:none" onclick="Booth.gcashAttendantConfirm()">Attendant: payment received</button>
-    <button class="ghost" style="width:100%;margin-top:calc(var(--u)*8)" onclick="Booth.gcashCancel()">Cancel</button>
+    <div class="qr-big" id="gcash-qr"></div>
+    <div class="amount-row"><span class="label">Amount</span><b id="gcash-amount">₱0</b></div>
+    <p class="sheet-sub" style="margin-top:0">Open GCash, scan this code and send the exact amount. Then tap <b>I've paid</b>.</p>
+    <button class="btn" id="gcash-paid" onclick="Booth.gcashPaid()">I've paid</button>
+    <button class="ghost wide" onclick="Booth.gcashCancel()">Cancel</button>
+  </div>
+</div>
+
+<!-- ====================== FIRST RUN: CONNECT ====================== -->
+<div class="modal" id="activate-modal">
+  <div class="sheet pay-sheet">
+    <p class="eyebrow">Welcome</p>
+    <div class="sheet-title">Connect your booth</div>
+    <p class="sheet-sub" style="margin-top:0">Enter the 6-digit code you used to download the app. It switches on digital copies, so guests can scan a QR and keep their photos.</p>
+    <input class="input code" id="act-first" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••••">
+    <p class="pin-err" id="act-first-err"></p>
+    <button class="btn" onclick="Cloud.activateFirst()">Connect</button>
+    <button class="ghost wide" onclick="Cloud.skipFirst()">Skip for now</button>
   </div>
 </div>
 
@@ -822,42 +983,40 @@ body.framing #frame-bar{display:flex}
       <section class="section" data-id="brand" data-title="Theme &amp; branding" data-sub="Make the booth look like your brand.">
         <div class="set col">
           <div class="set-head"><div class="set-icon">🎨</div><div class="set-text">
-            <div class="set-title">Theme</div><div class="set-sub">Colours and typefaces for every screen and printed strip</div></div></div>
+            <div class="set-title">Theme</div><div class="set-sub">Colours, typefaces and corner shapes for every screen</div></div></div>
           <div class="swatches" id="theme-grid"></div>
         </div>
 
         <div class="set col">
           <div class="set-head"><div class="set-icon">👆</div><div class="set-text">
-            <div class="set-title">Start button</div><div class="set-sub">The first thing a guest touches</div></div></div>
-          <div class="seg" id="btn-seg">
-            <button data-style="pill" onclick="Theme.setButton('pill')">Pill</button>
-            <button data-style="block" onclick="Theme.setButton('block')">Editorial</button>
-            <button data-style="outline" onclick="Theme.setButton('outline')">Outline</button>
-            <button data-style="glass" onclick="Theme.setButton('glass')">Glass</button>
-            <button data-style="marquee" onclick="Theme.setButton('marquee')">Marquee</button>
-          </div>
+            <div class="set-title">Start button</div><div class="set-sub">The first thing a guest touches. Tiles show your wallpaper colours.</div></div></div>
+          <div class="btn-grid" id="btn-grid"></div>
+          <span class="label">Button words</span>
           <input class="input" id="start-text" placeholder="TAP TO START" oninput="Theme.setStartText(this.value)">
+          <p class="set-sub">The shape also carries through to every button guests press.</p>
         </div>
 
         <div class="set col">
           <div class="set-head"><div class="set-icon">✒️</div><div class="set-text">
             <div class="set-title">Header</div>
-            <div class="set-sub">Your booth name. It shows on the layout and payment screens and prints on every strip — the start screen stays clear for your wallpaper.</div></div></div>
+            <div class="set-sub">Your booth name. It sits at the top of every guest screen, prints on every strip and brands the download page. The start screen stays clear for your wallpaper.</div></div></div>
           <div class="fields">
             <div class="field"><span class="label">Top line</span><input id="hdr1" oninput="Theme.header()"></div>
             <div class="field"><span class="label">Bottom line</span><input id="hdr2" oninput="Theme.header()"></div>
           </div>
+          <span class="label">Typeface</span>
+          <div class="chips" id="font-cats"></div>
+          <div class="font-grid" id="font-grid"></div>
           <div class="fields">
-            <div class="field"><span class="label">Typeface</span><select id="hdr-font" onchange="Theme.header()"></select></div>
             <div class="field"><span class="label">Colour</span>
               <input type="color" id="hdr-color" oninput="Theme.header()" style="height:calc(var(--u)*34);padding:calc(var(--u)*2)"></div>
+            <div class="field"><span class="label">&nbsp;</span><button class="ghost" onclick="Theme.headerUseAccent()">Match theme</button></div>
           </div>
           <div class="slider">
             <span class="label">Size</span>
             <input type="range" id="hdr-size" min="60" max="180" step="5" oninput="Theme.header()">
             <span class="val mono" id="hdr-size-val">100%</span>
           </div>
-          <button class="ghost" onclick="Theme.headerUseAccent()">Match the theme colour</button>
         </div>
 
         <div class="set col">
@@ -944,6 +1103,13 @@ body.framing #frame-bar{display:flex}
               <button data-tone="deep" onclick="Printing.setDarkness('deep')">Deep</button>
               <button data-tone="ultra" onclick="Printing.setDarkness('ultra')">Ultra</button>
             </div>
+            <span class="label">Texture</span>
+            <div class="seg" id="dots-seg">
+              <button data-dots="fine" onclick="Printing.setDots('fine')">Fine</button>
+              <button data-dots="smooth" onclick="Printing.setDots('smooth')">Smooth</button>
+              <button data-dots="silk" onclick="Printing.setDots('silk')">Silk</button>
+            </div>
+            <p class="set-sub"><b>Fine</b> scatters tiny dots for the sharpest detail and hair. <b>Smooth</b> uses an even dot pattern for softer skin and cleaner backgrounds. <b>Silk</b> (recommended) smooths out camera grain, keeps faces clear and prints a fine, even texture, like a classic receipt photobooth.</p>
             <canvas id="tone-preview" width="260" height="44" style="width:100%;height:calc(var(--u)*38);border-radius:calc(var(--u)*6);border:1px solid var(--line)"></canvas>
             <p class="set-sub">Top is the tone curve, bottom is the real dot pattern. Lower the darkness if faces print as black blobs.</p>
           </div>
@@ -951,7 +1117,7 @@ body.framing #frame-bar{display:flex}
       </section>
 
       <!-- ---------- PAYMENTS ---------- -->
-      <section class="section" data-id="payment" data-title="Payments" data-sub="How guests pay, and how the booth knows.">
+      <section class="section" data-id="payment" data-title="Payments" data-sub="Cash, GCash, or both.">
         <div class="set">
           <div class="set-icon">💵</div>
           <div class="set-text"><div class="set-title">Accept cash</div>
@@ -983,28 +1149,7 @@ body.framing #frame-bar{display:flex}
             <input type="range" id="gq-y" min="0" max="100" oninput="Gcash.pos('Y',this.value)"><span class="val"></span></div>
         </div>
 
-        <div class="set col">
-          <div class="set-head"><div class="set-icon">⚡</div><div class="set-text">
-            <div class="set-title">Automatic start after GCash</div>
-            <div class="set-sub">Shooting starts by itself the moment the money lands. Guests never tap "I've paid".</div></div></div>
-          <div class="set-sub" id="pay-local"><span class="dot"></span>Checking…</div>
-          <button class="ghost" id="pay-access-btn" onclick="Gcash.openAccess()">Let this app read GCash notifications</button>
-          <p class="set-sub" id="restricted-hint" style="display:none">If Android says "Restricted setting", open App info, tap ⋮ in the top corner, choose "Allow restricted settings", then try again.
-            <button class="link accent" style="font-size:inherit" onclick="Native.sync('openAppInfo')">Open app info</button></p>
-          <p class="set-sub">Simplest setup: log in to your GCash app on this tablet. When GCash shows "You have received", the booth sees it and starts the shots — no extra app, works offline.</p>
-          <div class="field"><span class="label">Show the attendant button after (seconds)</span><input id="pay-wait" type="number" min="10" max="180" step="5"></div>
-        </div>
-
-        <div class="set col">
-          <div class="set-head"><div class="set-icon">📡</div><div class="set-text">
-            <div class="set-title">GCash on a different phone</div>
-            <div class="set-sub">If GCash stays on your own phone, install this same app on that phone, add your Supabase details under Advanced, and switch this on there. It passes each payment to every booth.</div></div></div>
-          <div class="row"><span class="set-title">Send payments from this device</span><button class="switch" id="sw-relay" onclick="Gcash.toggleRelay(this)"></button></div>
-          <div class="field"><span class="label">Relay secret (shown at the end of setup.sql)</span><input id="relay-secret" class="mono" type="password" autocomplete="off"></div>
-          <div class="set-sub" id="watch-status"><span class="dot"></span>Not tested yet</div>
-          <button class="ghost" onclick="Gcash.testWatcher()">Test the payment link</button>
-          <p class="set-sub">Booths read payments with the Supabase details under Advanced. With neither setup, the attendant button still keeps the queue moving.</p>
-        </div>
+        <p class="set-sub" style="padding:0 calc(var(--u)*4)">GCash guests scan your QR, send the amount, then tap <b>I've paid</b> to start their shots. Keep your GCash app nearby to check payments as they come in.</p>
       </section>
 
       <!-- ---------- SALES ---------- -->
@@ -1093,14 +1238,26 @@ body.framing #frame-bar{display:flex}
         <div class="set col">
           <div class="set-head"><div class="set-icon">☁️</div><div class="set-text">
             <div class="set-title">Digital copies</div><div class="set-sub" id="cloud-status"><span class="dot"></span>Not tested yet</div></div></div>
-          <span class="label">Project reference</span><input class="input mono" id="c-ref">
-          <span class="label">Publishable key</span><input class="input mono" id="c-key">
+          <span class="label">Connect with your download code</span>
           <div class="fields">
-            <div class="field"><span class="label">Bucket</span><input class="mono" id="c-bucket"></div>
-            <div class="field"><span class="label">&nbsp;</span><button class="ghost" onclick="Cloud.test()">Test link</button></div>
+            <input class="input mono" id="act-code" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6-digit code">
+            <button class="ghost" onclick="Cloud.activate()">Connect</button>
           </div>
-          <span class="label">Download page</span><input class="input mono" id="c-page">
-          <p class="set-sub">Strips upload here so a guest's QR keeps working after the booth is packed away. Use the publishable (or anon) key, never the secret or service key. The download page comes filled in. If it is ever offline, the QR opens the photo directly instead.</p>
+          <p class="set-sub">The code you used to download the app fills everything in by itself. Guests then scan the QR on the last screen to keep their photos.</p>
+          <details class="more">
+            <summary>Enter the details by hand</summary>
+            <div>
+              <span class="label">Project reference</span><input class="input mono" id="c-ref">
+              <span class="label">Publishable key</span><input class="input mono" id="c-key">
+              <div class="fields">
+                <div class="field"><span class="label">Bucket</span><input class="mono" id="c-bucket"></div>
+                <div class="field"><span class="label">&nbsp;</span><button class="ghost" onclick="Cloud.test()">Test link</button></div>
+              </div>
+              <span class="label">Download page</span><input class="input mono" id="c-page">
+              <p class="set-sub">Use the publishable (or anon) key, never the secret or service key. If the download page is ever offline, the QR opens the photo directly instead.</p>
+            </div>
+          </details>
+          <button class="ghost" onclick="Cloud.test()">Test digital copies</button>
         </div>
 
         <div class="set col" id="kiosk-row" style="display:none">
@@ -1248,7 +1405,7 @@ body.framing #frame-bar{display:flex}
      3  theme + header             10  printing (photo + thermal)
      4  wallpaper                  11  camera
      5  PIN                        12  booth flow + review
-     6  cloud copies               13  payments (cash + auto GCash)
+     6  cloud copies               13  payments (cash + GCash QR)
      7  design store               14  sales, admin, boot
    ========================================================================== */
 
@@ -1288,8 +1445,7 @@ function busy(on, text){
 
 /* ======================= NATIVE BRIDGE (Android app) =====================
    Inside the Snaps Android app, window.NativeBooth is injected by the app and
-   handles Bluetooth printing, photo printing, saving files, GCash payment
-   notifications and kiosk lock. In a plain browser it is absent and every
+   handles Bluetooth printing, photo printing, saving files and kiosk lock. In a plain browser it is absent and every
    feature falls back to its web version.
    Async calls pass a callback id as the last argument; the app answers with
    window.__nativeReply(id, ok, data).
@@ -1355,27 +1511,34 @@ const DOWNLOAD_PAGE = 'https://jeabels.github.io/photobooth-download/';
 const DEFAULTS = {
   pin:'1234',
 
-  theme:'noir', buttonStyle:'pill', startText:'TAP TO START',
-  headerTop:'RESIBOOTH', headerBottom:'BY SNAPS STUDIO',
-  headerFont:'Bodoni Moda', headerSize:100, headerColor:'',
+  theme:'studio', buttonStyle:'pill', startText:'TAP TO START',
+  headerTop:'SNAPS', headerBottom:'PHOTO STUDIO',
+  headerFont:'Fraunces', headerSize:100, headerColor:'',
 
-  wallKind:'preset', wallPreset:'blush', wallFit:'cover',
+  wallKind:'preset', wallPreset:'theme', wallFit:'cover',
   wallZoom:100, wallX:50, wallY:50, wallTint:0, wallAvg:'#f7f5f3',
 
   countdown:3,
   basicPrices:{ solo:20, classic4:30, trio:30, mega6:30 },
 
   printEngine:'photo', paperSize:'4x6',
-  printWidth:576, printDarkness:'soft', printDots:'smooth',
+  printWidth:576, printDarkness:'soft', printDots:'silk',
   btName:'', btAddress:'', btChunk:180, btPacing:12, cutMode:'full', cutFeed:4,
 
   boothMode:'nonevent', eventEndsAt:0, eventHours:4,
 
   acceptCash:true, acceptGcash:true,
   gcashZoom:100, gcashX:50, gcashY:50,
-  payTable:'payments', payWait:30, relaySecret:'', relayOn:false,
 
-  cloudRef:'', cloudKey:'', cloudBucket:'photos', cloudPage:DOWNLOAD_PAGE
+  cloudRef:'', cloudKey:'', cloudBucket:'photos', cloudPage:DOWNLOAD_PAGE,
+  activationSkipped:false
+};
+
+/* The seller's download service. The code a buyer used to download the app
+   also connects their booth's digital copies (see Cloud.activate). */
+const SELLER = {
+  gate:'https://cucddnghxshhmudkwdcl.supabase.co/functions/v1/download-gate',
+  key:'sb_publishable_s5YJq6xkBafqakqGgealLw_0wmq2we-'
 };
 
 if (DEMO){
@@ -1389,6 +1552,9 @@ function loadSettings(){
     const raw = JSON.parse(localStorage.getItem(KEY.settings) || '{}');
     const s = Object.assign({}, DEFAULTS, raw);
     s.basicPrices = Object.assign({}, DEFAULTS.basicPrices, raw.basicPrices || {});
+    const alias = { noir:'studio', verdant:'sage', ember:'terracotta', gold:'champagne' };
+    if (alias[s.theme]) s.theme = alias[s.theme];
+    ['payTable','payWait','relaySecret','relayOn'].forEach(k => delete s[k]);
     return s;
   }catch(e){
     console.warn('Settings unreadable, using defaults.', e);
@@ -1459,86 +1625,155 @@ const Media = {
 };
 
 /* ========================== 3. THEME + HEADER ============================ */
+/* Ten looks. Each sets colours, the display and body typefaces, how heavy the
+   headings are, and how round the corners are, so they feel different — not
+   just recoloured. The download page keeps a mirror of this table. */
 const THEMES = [
-  { id:'noir',     name:'Atelier',   accent:'#1B1712', accent2:'#000000', onAccent:'#ffffff',
-    paper:'#F2EDE5', dark:false, head:"'Bodoni Moda', Georgia, serif",     body:"'Manrope', system-ui, sans-serif" },
-  { id:'verdant',  name:'Verdant',   accent:'#2F5D4A', accent2:'#204537', onAccent:'#ffffff',
-    paper:'#EFF3EE', dark:false, head:"'Cormorant Garamond', serif",       body:"'Outfit', system-ui, sans-serif" },
-  { id:'blush',    name:'Blush',     accent:'#B23A62', accent2:'#8C2A4B', onAccent:'#ffffff',
-    paper:'#FBF0F2', dark:false, head:"'Instrument Serif', serif",         body:"'Outfit', system-ui, sans-serif" },
-  { id:'ember',    name:'Ember',     accent:'#8B1E1E', accent2:'#661212', onAccent:'#ffffff',
-    paper:'#F7F2EF', dark:false, head:"'DM Serif Display', serif",         body:"'Manrope', system-ui, sans-serif" },
-  { id:'gold',     name:'Champagne', accent:'#8E6F30', accent2:'#6C521F', onAccent:'#ffffff',
-    paper:'#FAF5EA', dark:false, head:"'Cormorant Garamond', serif",       body:"'Archivo', system-ui, sans-serif" },
-  { id:'midnight', name:'Midnight',  accent:'#8E7CFF', accent2:'#6C59F0', onAccent:'#ffffff',
-    paper:'#0E0D13', dark:true,  head:"'Syne', system-ui, sans-serif",     body:"'Sora', system-ui, sans-serif" },
-  { id:'neon',     name:'Neon',      accent:'#FF3D7F', accent2:'#D62A67', onAccent:'#ffffff',
-    paper:'#0D0C12', dark:true,  head:"'Archivo', system-ui, sans-serif",  body:"'Sora', system-ui, sans-serif" }
+  { id:'studio',     name:'Studio',     note:'Ink on paper',  accent:'#111111', accent2:'#444444', onAccent:'#ffffff', paper:'#F4F3EF', card:'#ffffff', dark:false,
+    head:"'Fraunces', Georgia, serif",               body:"'Manrope', system-ui, sans-serif", weight:700, radius:8 },
+  { id:'porcelain',  name:'Porcelain',  note:'Cobalt blue',   accent:'#2446F5', accent2:'#1530C4', onAccent:'#ffffff', paper:'#F2F4F8', card:'#ffffff', dark:false,
+    head:"'Unbounded', system-ui, sans-serif",        body:"'Manrope', system-ui, sans-serif", weight:600, radius:14 },
+  { id:'terracotta', name:'Terracotta', note:'Warm clay',     accent:'#B4532F', accent2:'#8E3C1F', onAccent:'#ffffff', paper:'#F5EEE6', card:'#FFFCF8', dark:false,
+    head:"'Playfair Display', Georgia, serif",        body:"'Outfit', system-ui, sans-serif",  weight:700, radius:18 },
+  { id:'sage',       name:'Sage',       note:'Soft botanical',accent:'#3F5E4B', accent2:'#2C4436', onAccent:'#ffffff', paper:'#ECF0E8', card:'#FBFCF9', dark:false,
+    head:"'Cormorant Garamond', Georgia, serif",      body:"'Outfit', system-ui, sans-serif",  weight:700, radius:22 },
+  { id:'blush',      name:'Blush',      note:'Wedding rose',  accent:'#B23A62', accent2:'#8C2A4B', onAccent:'#ffffff', paper:'#FAF0F1', card:'#ffffff', dark:false,
+    head:"'Instrument Serif', Georgia, serif",        body:"'Outfit', system-ui, sans-serif",  weight:400, radius:26 },
+  { id:'citrus',     name:'Citrus',     note:'Bright & bold', accent:'#EE6A1C', accent2:'#C9500B', onAccent:'#ffffff', paper:'#FFF6E7', card:'#ffffff', dark:false,
+    head:"'Bricolage Grotesque', system-ui, sans-serif", body:"'Outfit', system-ui, sans-serif", weight:800, radius:20 },
+  { id:'mono',       name:'Monochrome', note:'Gallery white', accent:'#000000', accent2:'#2a2a2a', onAccent:'#ffffff', paper:'#FFFFFF', card:'#ffffff', dark:false,
+    head:"'Bebas Neue', Impact, sans-serif",          body:"'Archivo', system-ui, sans-serif", weight:400, radius:0 },
+  { id:'champagne',  name:'Champagne',  note:'Black tie',     accent:'#D9C4A3', accent2:'#B89C72', onAccent:'#16130F', paper:'#121110', card:'#1C1A17', dark:true,
+    head:"'Cinzel', Georgia, serif",                  body:"'Manrope', system-ui, sans-serif", weight:700, radius:4 },
+  { id:'midnight',   name:'Midnight',   note:'Deep navy',     accent:'#8FA3FF', accent2:'#6C82F0', onAccent:'#0B1022', paper:'#0C1022', card:'#151B33', dark:true,
+    head:"'Syne', system-ui, sans-serif",             body:"'Sora', system-ui, sans-serif",    weight:800, radius:16 },
+  { id:'neon',       name:'Neon',       note:'After dark',    accent:'#FF2E88', accent2:'#D61E6C', onAccent:'#ffffff', paper:'#0B0A10', card:'#16141D', dark:true,
+    head:"'Unbounded', system-ui, sans-serif",        body:"'Sora', system-ui, sans-serif",    weight:700, radius:12 }
 ];
+/* Earlier versions used other names; saved settings and old QR links still map. */
+const THEME_ALIASES = { noir:'studio', verdant:'sage', ember:'terracotta', gold:'champagne' };
 
+/* Header and text typefaces. The first ten keep their places: the download page
+   finds a booth's typeface by its number in this list. Add new ones at the end. */
 const HEADER_FONTS = [
-  { id:'Bodoni Moda',        css:"'Bodoni Moda', Georgia, serif" },
-  { id:'Instrument Serif',   css:"'Instrument Serif', Georgia, serif" },
-  { id:'Cormorant Garamond', css:"'Cormorant Garamond', Georgia, serif" },
-  { id:'DM Serif Display',   css:"'DM Serif Display', Georgia, serif" },
-  { id:'Syne',               css:"'Syne', sans-serif" },
-  { id:'Archivo',            css:"'Archivo', sans-serif" },
-  { id:'Outfit',             css:"'Outfit', sans-serif" },
-  { id:'Manrope',            css:"'Manrope', sans-serif" },
-  { id:'Sora',               css:"'Sora', sans-serif" },
-  { id:'Space Mono',         css:"'Space Mono', monospace" }
+  { id:'Bodoni Moda',         css:"'Bodoni Moda', Georgia, serif",            w:700, cat:'Serif' },
+  { id:'Instrument Serif',    css:"'Instrument Serif', Georgia, serif",       w:400, cat:'Serif' },
+  { id:'Cormorant Garamond',  css:"'Cormorant Garamond', Georgia, serif",     w:700, cat:'Serif' },
+  { id:'DM Serif Display',    css:"'DM Serif Display', Georgia, serif",       w:400, cat:'Serif' },
+  { id:'Syne',                css:"'Syne', sans-serif",                       w:800, cat:'Modern' },
+  { id:'Archivo',             css:"'Archivo', sans-serif",                    w:800, cat:'Modern' },
+  { id:'Outfit',              css:"'Outfit', sans-serif",                     w:700, cat:'Modern' },
+  { id:'Manrope',             css:"'Manrope', sans-serif",                    w:800, cat:'Modern' },
+  { id:'Sora',                css:"'Sora', sans-serif",                       w:700, cat:'Modern' },
+  { id:'Space Mono',          css:"'Space Mono', monospace",                  w:700, cat:'Retro' },
+  { id:'Playfair Display',    css:"'Playfair Display', Georgia, serif",       w:700, cat:'Serif' },
+  { id:'Fraunces',            css:"'Fraunces', Georgia, serif",               w:700, cat:'Serif' },
+  { id:'Abril Fatface',       css:"'Abril Fatface', Georgia, serif",          w:400, cat:'Display' },
+  { id:'Cinzel',              css:"'Cinzel', Georgia, serif",                 w:700, cat:'Display' },
+  { id:'Italiana',            css:"'Italiana', Georgia, serif",               w:400, cat:'Display' },
+  { id:'Yeseva One',          css:"'Yeseva One', Georgia, serif",             w:400, cat:'Display' },
+  { id:'Unbounded',           css:"'Unbounded', sans-serif",                  w:700, cat:'Modern' },
+  { id:'Bebas Neue',          css:"'Bebas Neue', Impact, sans-serif",         w:400, cat:'Display' },
+  { id:'Anton',               css:"'Anton', Impact, sans-serif",              w:400, cat:'Display' },
+  { id:'Montserrat',          css:"'Montserrat', sans-serif",                 w:800, cat:'Modern' },
+  { id:'Bricolage Grotesque', css:"'Bricolage Grotesque', sans-serif",        w:800, cat:'Modern' },
+  { id:'Righteous',           css:"'Righteous', sans-serif",                  w:400, cat:'Retro' },
+  { id:'Great Vibes',         css:"'Great Vibes', cursive",                   w:400, cat:'Script' },
+  { id:'Pinyon Script',       css:"'Pinyon Script', cursive",                 w:400, cat:'Script' },
+  { id:'Allura',              css:"'Allura', cursive",                        w:400, cat:'Script' },
+  { id:'Parisienne',          css:"'Parisienne', cursive",                    w:400, cat:'Script' },
+  { id:'Dancing Script',      css:"'Dancing Script', cursive",                w:700, cat:'Script' },
+  { id:'Sacramento',          css:"'Sacramento', cursive",                    w:400, cat:'Script' },
+  { id:'Caveat',              css:"'Caveat', cursive",                        w:700, cat:'Hand' },
+  { id:'Pacifico',            css:"'Pacifico', cursive",                      w:400, cat:'Retro' },
+  { id:'Lobster',             css:"'Lobster', cursive",                       w:400, cat:'Retro' },
+  { id:'Shrikhand',           css:"'Shrikhand', cursive",                     w:400, cat:'Retro' },
+  { id:'Monoton',             css:"'Monoton', cursive",                       w:400, cat:'Display' },
+  { id:'Special Elite',       css:"'Special Elite', monospace",               w:400, cat:'Hand' },
+  { id:'UnifrakturMaguntia',  css:"'UnifrakturMaguntia', serif",              w:400, cat:'Display' }
 ];
-const BUTTON_STYLES = ['pill','block','outline','glass','marquee'];
+const FONT_CATS = ['All','Serif','Modern','Display','Script','Retro','Hand'];
+
+/* Start-button designs. The shape also carries through to the other buttons. */
+const BUTTON_STYLES = [
+  { id:'pill',     name:'Pill',      note:'Soft & modern' },
+  { id:'block',    name:'Editorial', note:'Square caps' },
+  { id:'outline',  name:'Outline',   note:'Light ring' },
+  { id:'glass',    name:'Glass',     note:'Frosted' },
+  { id:'marquee',  name:'Marquee',   note:'Double frame' },
+  { id:'neon',     name:'Neon',      note:'Glowing' },
+  { id:'gradient', name:'Gradient',  note:'Moving sheen' },
+  { id:'retro',    name:'Retro',     note:'Offset shadow' },
+  { id:'ticket',   name:'Ticket',    note:'Admit one' },
+  { id:'halo',     name:'Halo',      note:'Round, pulsing' },
+  { id:'minimal',  name:'Minimal',   note:'Words only' },
+  { id:'stamp',    name:'Stamp',     note:'Inked badge' }
+];
+/* How each design shapes the everyday buttons: corner radius (in design units,
+   999 = fully round), capitals, and whether they use the display typeface. */
+const BUTTON_SHAPES = {
+  pill:[999], block:[2,true,true], outline:[999], glass:[16], marquee:[0,true,true], neon:[12],
+  gradient:[999], retro:[6,true], ticket:[6,true], halo:[999], minimal:[12], stamp:[4,true,true]
+};
 
 const Theme = {
   current(){ return THEMES.find(t => t.id === settings.theme) || THEMES[0]; },
-  font(id){ const f = HEADER_FONTS.find(f => f.id === id); return f ? f.css : HEADER_FONTS[0].css; },
+  fontInfo(id){ return HEADER_FONTS.find(f => f.id === id) || HEADER_FONTS[11]; },
+  font(id){ return Theme.fontInfo(id).css; },
+  weight(id){ return Theme.fontInfo(id).w; },
+  fontCat:'All',
 
   apply(){
     const t = Theme.current();
     const r = document.documentElement.style;
+    const u = n => 'calc(var(--u)*' + n + ')';
     r.setProperty('--accent', t.accent);
     r.setProperty('--accent-2', t.accent2);
     r.setProperty('--on-accent', t.onAccent);
     r.setProperty('--paper', t.paper);
+    r.setProperty('--card', t.card);
     r.setProperty('--font-head', t.head);
     r.setProperty('--font-body', t.body);
+    r.setProperty('--head-weight', t.weight);
+    r.setProperty('--radius', u(t.radius));
     r.setProperty('--header-size', (Number(settings.headerSize) || 100) / 100);
     r.setProperty('--header-color', settings.headerColor || t.accent);
-    r.setProperty('--screen-bg', settings.wallAvg || t.paper);
+    r.setProperty('--header-font', Theme.font(settings.headerFont));
+    r.setProperty('--header-weight', Theme.weight(settings.headerFont));
+    r.setProperty('--screen-bg', t.paper);
     document.body.classList.toggle('theme-dark', !!t.dark);
 
-    BUTTON_STYLES.forEach(s => document.body.classList.toggle('start-' + s, settings.buttonStyle === s));
+    const style = BUTTON_STYLES.some(b => b.id === settings.buttonStyle) ? settings.buttonStyle : 'pill';
+    const shape = BUTTON_SHAPES[style];
+    r.setProperty('--btn-radius', shape[0] >= 999 ? '999px' : u(shape[0]));
+    r.setProperty('--btn-case', shape[1] ? 'uppercase' : 'none');
+    r.setProperty('--btn-track', shape[1] ? u(1.6) : u(.3));
+    r.setProperty('--btn-font', shape[2] ? 'var(--font-head)' : 'var(--font-body)');
+    BUTTON_STYLES.forEach(b => document.body.classList.toggle('btn-' + b.id, b.id === style));
+    $('start-btn').className = 'start-btn sb-' + style;
 
-    document.querySelectorAll('[data-brand1]').forEach(el => {
-      el.textContent = settings.headerTop;
-      el.style.fontFamily = Theme.font(settings.headerFont);
-    });
-    document.querySelectorAll('[data-brand2]').forEach(el => {
-      el.textContent = settings.headerBottom;
-      el.style.fontFamily = Theme.font(settings.headerFont);
-    });
+    document.querySelectorAll('[data-brand1]').forEach(el => el.textContent = settings.headerTop);
+    document.querySelectorAll('[data-brand2]').forEach(el => el.textContent = settings.headerBottom);
     $('start-btn').textContent = settings.startText || 'TAP TO START';
-    $('thanks').textContent = settings.headerBottom
-      ? 'THANK YOU — ' + settings.headerBottom.toUpperCase()
-      : 'THANK YOU FOR SNAPPING';
+    $('thanks').textContent = settings.headerTop ? 'THANK YOU · ' + settings.headerTop.toUpperCase() : 'THANK YOU';
     const meta = document.querySelector('meta[name=theme-color]');
-    if (meta) meta.setAttribute('content', t.accent);
+    if (meta) meta.setAttribute('content', t.paper);
   },
 
-  set(id){ settings.theme = id; save(); Theme.apply(); Theme.renderGrid(); Booth.clearStrips(); },
-  setButton(style){ settings.buttonStyle = style; save(); Theme.apply(); Theme.paintButtons(); },
-  setStartText(v){ settings.startText = v.slice(0, 28); save(); Theme.apply(); },
+  set(id){ settings.theme = id; save(); Theme.apply(); Theme.renderGrid(); Wallpaper.paint(); Wallpaper.renderGrid(); Booth.clearStrips(); },
+  setButton(style){ settings.buttonStyle = style; save(); Theme.apply(); Theme.renderButtons(); },
+  setStartText(v){ settings.startText = v.slice(0, 28); save(); Theme.apply(); Theme.renderButtons(); },
+  setFont(id){ settings.headerFont = id; save(); Theme.apply(); Theme.renderFonts(); Booth.clearStrips(); },
 
   header(){
     settings.headerTop = $('hdr1').value.slice(0, 26);
     settings.headerBottom = $('hdr2').value.slice(0, 34);
-    settings.headerFont = $('hdr-font').value;
     settings.headerSize = Number($('hdr-size').value) || 100;
     settings.headerColor = $('hdr-color').value;
     $('hdr-size-val').textContent = settings.headerSize + '%';
     save();
     Theme.apply();
+    Theme.renderFonts();
     Booth.clearStrips();
   },
 
@@ -1556,42 +1791,98 @@ const Theme = {
     grid.innerHTML = '';
     THEMES.forEach(t => {
       const b = document.createElement('button');
-      b.className = 'swatch' + (settings.theme === t.id ? ' on' : '');
+      b.className = 'swatch' + (Theme.current().id === t.id ? ' on' : '');
       b.innerHTML =
-        '<div class="swatch-top" style="background:' + t.paper + ';color:' + t.accent + ';font-family:' + t.head + '">Aa</div>' +
-        '<div class="swatch-name">' + t.name + '</div>';
+        '<div class="swatch-top" style="background:' + t.paper + '">' +
+          '<span class="t" style="font-family:' + t.head.replace(/"/g, "'") + ';font-weight:' + t.weight + ';color:' + (t.dark ? '#f4f2ee' : '#141414') + '">Say cheese</span>' +
+          '<span style="display:flex;justify-content:space-between;align-items:flex-end">' +
+            '<span class="b" style="background:' + t.accent + ';color:' + t.onAccent + ';border-radius:' + (t.radius > 14 ? '999px' : 'calc(var(--u)*' + t.radius / 2 + ')') + '">START</span>' +
+            '<span class="dots"><i style="background:' + t.accent + '"></i><i style="background:' + t.accent2 + '"></i><i style="background:' + t.card + ';box-shadow:inset 0 0 0 1px rgba(128,128,128,.4)"></i></span>' +
+          '</span>' +
+        '</div>' +
+        '<div class="swatch-name">' + t.name + '<span>' + t.note + '</span></div>';
       b.onclick = () => Theme.set(t.id);
       grid.appendChild(b);
     });
-    Theme.paintButtons();
+    Theme.renderButtons();
+    Theme.renderFonts();
   },
 
-  paintButtons(){
-    document.querySelectorAll('#btn-seg button').forEach(b =>
-      b.classList.toggle('on', b.dataset.style === settings.buttonStyle));
+  /* Each tile is a working miniature of the start button, on the start
+     screen's own background, so the owner sees exactly what guests will. */
+  renderButtons(){
+    const grid = $('btn-grid');
+    if (!grid) return;
+    const wall = Wallpaper.isMedia() ? (Media.url('wallpaper') && Wallpaper.isImage()
+      ? 'url("' + Media.url('wallpaper') + '") center/cover' : '#1c1c1f') : Wallpaper.preset().css;
+    const mediaWall = Wallpaper.isMedia() || Wallpaper.preset().dark;
+    grid.innerHTML = '';
+    BUTTON_STYLES.forEach(bs => {
+      const tile = document.createElement('button');
+      tile.className = 'btn-tile' + (settings.buttonStyle === bs.id ? ' on' : '');
+      tile.innerHTML = '<div class="stage" style="background:' + wall + (mediaWall ? ';--start-ink:#fff' : '') + '">' +
+        '<span class="start-btn sb-' + bs.id + '"></span></div>' +
+        '<div class="swatch-name">' + bs.name + '<span>' + bs.note + '</span></div>';
+      tile.querySelector('.start-btn').textContent = settings.startText || 'TAP TO START';
+      tile.onclick = () => Theme.setButton(bs.id);
+      grid.appendChild(tile);
+    });
+  },
+
+  renderFonts(){
+    const grid = $('font-grid'), cats = $('font-cats');
+    if (!grid) return;
+    cats.innerHTML = '';
+    FONT_CATS.forEach(c => {
+      const b = document.createElement('button');
+      b.textContent = c;
+      b.className = Theme.fontCat === c ? 'on' : '';
+      b.onclick = () => { Theme.fontCat = c; Theme.renderFonts(); };
+      cats.appendChild(b);
+    });
+    const sample = (settings.headerTop || 'Snaps').trim() || 'Snaps';
+    grid.innerHTML = '';
+    HEADER_FONTS.filter(f => Theme.fontCat === 'All' || f.cat === Theme.fontCat).forEach(f => {
+      const b = document.createElement('button');
+      b.className = 'font-tile' + (settings.headerFont === f.id ? ' on' : '');
+      b.innerHTML = '<span class="s"></span><span class="n"></span>';
+      const s = b.querySelector('.s');
+      s.textContent = sample.length > 9 ? sample.slice(0, 9) : sample;
+      s.style.fontFamily = f.css;
+      s.style.fontWeight = f.w;
+      s.style.color = settings.headerColor || Theme.current().accent;
+      b.querySelector('.n').textContent = f.id;
+      b.onclick = () => Theme.setFont(f.id);
+      grid.appendChild(b);
+    });
   },
 
   fillHeaderForm(){
-    const sel = $('hdr-font');
-    if (sel && !sel.options.length) {
-      HEADER_FONTS.forEach(f => {
-        const o = document.createElement('option');
-        o.value = f.id; o.textContent = f.id; o.style.fontFamily = f.css;
-        sel.appendChild(o);
-      });
-    }
     $('hdr1').value = settings.headerTop;
     $('hdr2').value = settings.headerBottom;
-    $('hdr-font').value = settings.headerFont;
     $('hdr-size').value = settings.headerSize;
     $('hdr-size-val').textContent = settings.headerSize + '%';
-    $('hdr-color').value = settings.headerColor || Theme.current().accent;
+    $('hdr-color').value = /^#[0-9a-f]{6}$/i.test(settings.headerColor) ? settings.headerColor : Theme.current().accent;
     $('start-text').value = settings.startText;
   }
 };
 
+/** Canvas text only uses a web font once it has finished loading, so make sure
+    the header and any text a guest added are ready before a strip is drawn. */
+async function ensureFonts(){
+  if (!document.fonts || !document.fonts.load) return;
+  const ids = new Set([settings.headerFont]);
+  (Booth.state.overlays || []).forEach(list => (list || []).forEach(o => { if (o.k === 't') ids.add(o.font); }));
+  const jobs = Array.from(ids).map(id => {
+    const f = Theme.fontInfo(id);
+    return document.fonts.load(f.w + ' 48px ' + f.css, 'Aa').catch(() => {});
+  });
+  await Promise.race([Promise.all(jobs), sleep(2500)]);
+}
+
 /* ============================= 4. WALLPAPER ============================== */
 const WALLPAPERS = [
+  { id:'theme',  name:'Theme',  css:'', dark:false, flat:'', follows:true },
   { id:'blush',  name:'Blush',  css:'radial-gradient(circle at top,#efe2e2 0%,#f5f4f6 100%)', dark:false, flat:'#f2eded' },
   { id:'ivory',  name:'Ivory',  css:'linear-gradient(165deg,#fdfbf7 0%,#efe7dc 100%)',        dark:false, flat:'#f6f1e9' },
   { id:'linen',  name:'Linen',  css:'linear-gradient(165deg,#f6f1ea 0%,#e3d9cc 100%)',        dark:false, flat:'#ece5db' },
@@ -1644,12 +1935,27 @@ const Wallpaper = {
     Wallpaper.renderGrid();
   },
 
-  preset(){ return WALLPAPERS.find(w => w.id === settings.wallPreset) || WALLPAPERS[0]; },
+  /** The "Theme" preset is drawn from the current theme's own colours. */
+  presetFor(w){
+    const keep = settings.wallPreset;
+    settings.wallPreset = w.id;
+    const out = Wallpaper.preset();
+    settings.wallPreset = keep;
+    return out;
+  },
+
+  preset(){
+    const w = WALLPAPERS.find(x => x.id === settings.wallPreset) || WALLPAPERS[0];
+    if (!w.follows) return w;
+    const t = Theme.current();
+    return Object.assign({}, w, { dark:t.dark, flat:t.paper,
+      css:'radial-gradient(120% 80% at 50% 0%,color-mix(in srgb,' + t.accent + ' 16%,' + t.paper + ') 0%,' + t.paper + ' 62%)' });
+  },
 
   usePreset(id){
     settings.wallPreset = id;
     settings.wallKind = 'preset';
-    settings.wallAvg = (WALLPAPERS.find(w => w.id === id) || WALLPAPERS[0]).flat;
+    settings.wallAvg = Wallpaper.preset().flat;
     save();
     Wallpaper.paint();
     Wallpaper.renderGrid();
@@ -1739,6 +2045,7 @@ const Wallpaper = {
     if (!grid) return;
     grid.innerHTML = '';
     WALLPAPERS.forEach(w => {
+      if (w.follows) w = Object.assign({}, w, { css:Wallpaper.presetFor(w).css, dark:Theme.current().dark });
       const b = document.createElement('button');
       b.className = 'wall-sw' + (settings.wallKind === 'preset' && settings.wallPreset === w.id ? ' on' : '') + (w.dark ? ' dark' : '');
       b.style.background = w.css;
@@ -1753,6 +2060,7 @@ const Wallpaper = {
       b.innerHTML = '<span>' + (Wallpaper.isVideo() ? 'Live' : 'Photo') + '</span>';
       grid.appendChild(b);
     }
+    Theme.renderButtons();
   },
 
   setFit(fit){ settings.wallFit = fit === 'contain' ? 'contain' : 'cover'; save(); Wallpaper.paint(); },
@@ -1915,7 +2223,7 @@ const Cloud = {
       k: settings.buttonStyle
     };
     /* Only what differs from the page's defaults goes in, to keep the QR small. */
-    const defaults = { f: 0, t: 'noir', k: 'pill' };
+    const defaults = { f: 0, t: 'studio', k: 'pill' };
     const q = new URLSearchParams({ r: Cloud.ref(), id, v: variant });
     if (Cloud.bucket() !== 'photos') q.set('b', Cloud.bucket());
     Object.keys(brand).forEach(k => {
@@ -1977,12 +2285,79 @@ const Cloud = {
     return { id, color: Cloud.pageUrl(id, 'c'), bw: Cloud.pageUrl(id, 'b') };
   },
 
+  /* ---- Connect with the download code ----
+     The seller's download service looks the code up and answers with the
+     project this booth should upload to — the buyer's own, when the seller
+     has set one for that code, or the seller's shared one. */
+  async redeem(code){
+    code = String(code || '').replace(/\D/g, '');
+    if (code.length !== 6) throw new Error('The code is 6 digits.');
+    let res;
+    try{
+      res = await fetch(SELLER.gate, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', apikey:SELLER.key },
+        body: JSON.stringify({ action:'activate', code })
+      });
+    }catch(e){ throw new Error('No internet connection. Connect to Wi-Fi and try again.'); }
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.ref || !body.key) throw new Error(body.error || 'That code could not be used (' + res.status + ').');
+    settings.cloudRef = body.ref;
+    settings.cloudKey = body.key;
+    settings.cloudBucket = body.bucket || 'photos';
+    if (!settings.cloudPage) settings.cloudPage = DOWNLOAD_PAGE;
+    if (body.booth && settings.headerTop === DEFAULTS.headerTop) settings.headerTop = String(body.booth).toUpperCase().slice(0, 26);
+    settings.activationSkipped = true;
+    save();
+    Theme.apply();
+    Cloud.checkPage(true);
+    return body;
+  },
+
+  async activate(){
+    const el = $('cloud-status');
+    el.innerHTML = '<span class="dot"></span>Connecting…';
+    try{
+      await Cloud.redeem($('act-code').value);
+      $('c-ref').value = settings.cloudRef;
+      $('c-key').value = settings.cloudKey;
+      $('c-bucket').value = settings.cloudBucket;
+      $('c-page').value = settings.cloudPage;
+      $('act-code').value = '';
+      el.innerHTML = '<span class="dot ok"></span>Connected — guests can scan to keep their photos';
+      toast('Digital copies connected.');
+      Admin.paintHome();
+    }catch(e){
+      el.innerHTML = '<span class="dot bad"></span>' + e.message;
+      toast(e.message, true);
+    }
+  },
+
+  async activateFirst(){
+    const err = $('act-first-err');
+    err.textContent = '';
+    busy(true, 'Connecting…');
+    try{
+      await Cloud.redeem($('act-first').value);
+      close_('activate-modal');
+      toast('Connected. Digital copies are on.');
+    }catch(e){ err.textContent = e.message; }
+    finally{ busy(false); }
+  },
+
+  skipFirst(){
+    settings.activationSkipped = true;
+    save();
+    close_('activate-modal');
+    toast('You can connect later: Settings, Advanced, Digital copies.');
+  },
+
   async test(){
     Admin.fields();
     const el = $('cloud-status');
     const report = (dot, text) => el.innerHTML = '<span class="dot ' + dot + '"></span>' + text;
     report('', 'Testing…');
-    if (!Cloud.ref() || !Cloud.key()) { report('bad', 'Add the project reference and key first'); return; }
+    if (!Cloud.ref() || !Cloud.key()) { report('bad', 'Not connected yet — enter your download code above'); return; }
     try{
       const c = document.createElement('canvas');
       c.width = c.height = 8;
@@ -2304,10 +2679,10 @@ $('ed-file').addEventListener('change', e => {
 
 /* ========================= 9. STRIP COMPOSITOR =========================== */
 const BASIC = [
-  { id:'solo',     name:'Solo',      shots:1, thumb:'<div class="t-solo"></div>' },
-  { id:'classic4', name:'Classic 4', shots:4, thumb:'<div class="t-4"><div></div><div></div><div></div><div></div></div>' },
-  { id:'trio',     name:'Trio',      shots:3, thumb:'<div class="t-3"><div></div><div></div><div></div></div>' },
-  { id:'mega6',    name:'Twin strip',shots:6, thumb:'<div class="t-6"><div></div><div></div><div></div><div></div><div></div><div></div></div>' }
+  { id:'solo',     name:'Solo',      shots:1, thumb:'<div class="mini solo"><div></div></div>' },
+  { id:'classic4', name:'Classic 4', shots:4, thumb:'<div class="mini c4"><div></div><div></div><div></div><div></div></div>' },
+  { id:'trio',     name:'Trio',      shots:3, thumb:'<div class="mini trio"><div></div><div></div><div></div></div>' },
+  { id:'mega6',    name:'Twin strip',shots:6, thumb:'<div class="mini m6"><div></div><div></div><div></div><div></div><div></div><div></div></div>' }
 ];
 
 /** Photo grid for a basic strip, in fractions of the strip. Shared by the
@@ -2423,7 +2798,7 @@ function drawOverlays(ctx, list, w, h){
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     if (o.k === 't'){
-      ctx.font = '700 ' + Math.round(size) + 'px ' + Theme.font(o.font);
+      ctx.font = Theme.weight(o.font) + ' ' + Math.round(size) + 'px ' + Theme.font(o.font);
       ctx.lineJoin = 'round';
       ctx.lineWidth = Math.max(2, size * .13);
       ctx.strokeStyle = 'rgba(0,0,0,.4)';
@@ -2555,14 +2930,16 @@ async function composeBasic(filter, targetW, maskCanvas){
 
   /* header — the owner's own words, typeface and colour */
   const headColor = filter === 'color' ? (settings.headerColor || theme.accent) : '#000000';
-  const headFont = Theme.font(settings.headerFont).replace(/'/g, '');
+  const headFont = Theme.font(settings.headerFont), hw = Theme.weight(settings.headerFont);
   const scale = (Number(settings.headerSize) || 100) / 100;
   ctx.fillStyle = headColor;
   ctx.textAlign = 'center';
-  ctx.font = '700 ' + Math.round(46 * k * scale) + 'px ' + headFont;
-  ctx.fillText(settings.headerTop || '', W / 2, 78 * k);
-  ctx.font = '800 ' + Math.round(18 * k * scale) + 'px ' + headFont;
-  ctx.fillText(settings.headerBottom || '', W / 2, 108 * k);
+  ctx.font = hw + ' ' + Math.round(46 * k * scale) + 'px ' + headFont;
+  ctx.fillText(settings.headerTop || '', W / 2, 78 * k, W - 60 * k);
+  if ('letterSpacing' in ctx) ctx.letterSpacing = Math.round(3 * k) + 'px';
+  ctx.font = hw + ' ' + Math.round(17 * k * scale) + 'px ' + headFont;
+  ctx.fillText(settings.headerBottom || '', W / 2, 110 * k, W - 60 * k);
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
 
   const photos = await Promise.all(shots.map(loadImage));
   photos.forEach((img, i) => {
@@ -2590,6 +2967,7 @@ async function composeBasic(filter, targetW, maskCanvas){
 
 async function compose(filter, targetW, maskCanvas){
   try{ await document.fonts.ready; }catch(e){}
+  await ensureFonts();
   let canvas;
   if (Booth.state.layout === 'custom_design'){
     const design = designs.find(d => d.id === Booth.state.designId);
@@ -2617,6 +2995,21 @@ function demoWatermark(canvas){
     ctx.fillText('DEMO', 0, y);
   }
   ctx.restore();
+}
+
+/** Phone-sized copy for the QR download: sharp on any phone screen, and about
+    a third of the print file, so shared storage lasts much longer. */
+async function shrinkForUpload(dataUrl){
+  const img = await loadImage(dataUrl);
+  if (!img) return dataUrl;
+  const k = Math.min(1, 1080 / (img.naturalWidth || 1080));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.naturalWidth * k);
+  c.height = Math.round(img.naturalHeight * k);
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(prescale(img, c.width, c.height), 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', .86);
 }
 
 async function renderStrip(filter, targetW, quality){
@@ -2712,7 +3105,81 @@ function unsharp(lum, isPhoto, w, h, amount){
     lum[i] = clamp(src[i] + (src[i] - sum / n) * amount, 0, 255);
   }
 }
+function smoothSkin(lum, isPhoto, w, h, sigma){
+  /* edge-preserving (bilateral) blur: melts camera grain on skin and walls,
+     keeps eyes, hair and outlines crisp */
+  const R = 2, src = Float32Array.from(lum), range = new Float32Array(256), space = [];
+  for (let d = 0; d < 256; d++) range[d] = Math.exp(-(d * d) / (2 * sigma * sigma));
+  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) space.push([dx, dy, Math.exp(-(dx * dx + dy * dy) / 4.5)]);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+    const i = y * w + x;
+    if (!isPhoto[i]) continue;
+    const c = src[i];
+    let sum = 0, wt = 0;
+    for (const [dx, dy, ws] of space){
+      const xx = x + dx, yy = y + dy;
+      if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+      const j = yy * w + xx;
+      if (!isPhoto[j]) continue;
+      const v = src[j], k = ws * range[Math.min(255, Math.abs(v - c) | 0)];
+      sum += v * k; wt += k;
+    }
+    lum[i] = sum / wt;
+  }
+}
+function boxBlur(src, w, h, r){
+  const tmp = new Float32Array(src.length), out = new Float32Array(src.length), d = 2 * r + 1;
+  for (let y = 0; y < h; y++){
+    let acc = 0;
+    for (let k = -r; k <= r; k++) acc += src[y * w + clamp(k, 0, w - 1)];
+    for (let x = 0; x < w; x++){
+      tmp[y * w + x] = acc / d;
+      acc += src[y * w + Math.min(w - 1, x + r + 1)] - src[y * w + Math.max(0, x - r)];
+    }
+  }
+  for (let x = 0; x < w; x++){
+    let acc = 0;
+    for (let k = -r; k <= r; k++) acc += tmp[clamp(k, 0, h - 1) * w + x];
+    for (let y = 0; y < h; y++){
+      out[y * w + x] = acc / d;
+      acc += tmp[Math.min(h - 1, y + r + 1) * w + x] - tmp[Math.max(0, y - r) * w + x];
+    }
+  }
+  return out;
+}
+function clarity(lum, isPhoto, w, h, radius, amount){
+  /* local contrast: draws soft pencil-like outlines around eyes, glasses,
+     mouth and hair so faces stay readable on light skin */
+  const b = boxBlur(boxBlur(lum, w, h, radius), w, h, radius);
+  for (let i = 0; i < lum.length; i++) if (isPhoto[i]) lum[i] = clamp(lum[i] + (lum[i] - b[i]) * amount, 0, 255);
+}
 function dither(lum, isPhoto, ditherArt, w, h, threshold, mode){
+  if (mode === 'silk'){
+    /* serpentine Floyd-Steinberg: keeps all the error so tones stay smooth,
+       a light ordered jitter breaks up worm lines into a fine, even grain */
+    for (let y = 0; y < h; y++){
+      const right = (y & 1) === 0;
+      for (let k = 0; k < w; k++){
+        const x = right ? k : w - 1 - k, i = y * w + x;
+        const diffuse = isPhoto[i] || ditherArt;
+        const old = lum[i];
+        if (!diffuse){ lum[i] = old < threshold ? 0 : 255; continue; }
+        const t = 128 + (CLUSTER[(y & 7) * 8 + (x & 7)] / 63 - .5) * 12;
+        const val = old < t ? 0 : 255;
+        lum[i] = val;
+        const err = clamp(old - val, -160, 160) / 16;
+        if (!err) continue;
+        const dir = right ? 1 : -1;
+        const push = (nx, ny, f) => {
+          if (nx < 0 || nx >= w || ny >= h) return;
+          const ni = ny * w + nx;
+          if (isPhoto[ni] || ditherArt) lum[ni] += err * f;
+        };
+        push(x + dir, y, 7); push(x - dir, y + 1, 3); push(x, y + 1, 5); push(x + dir, y + 1, 1);
+      }
+    }
+    return;
+  }
   if (mode === 'smooth'){
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
       const i = y * w + x;
@@ -2766,8 +3233,11 @@ function binarize(canvas, maskCanvas, profile){
   }
   const ditherArt = art > 0 && mids / art > .22;
 
+  const silk = settings.printDots === 'silk';
   medianFilter(lum, isPhoto, w, h, p.despeckle);
+  if (silk) smoothSkin(lum, isPhoto, w, h, 12);
   autoLevel(lum, isPhoto, p.autolevel);
+  if (silk) clarity(lum, isPhoto, w, h, 4, .8);
   for (let px = 0; px < n; px++) if (isPhoto[px] || ditherArt) lum[px] = curve[clamp(Math.round(lum[px]), 0, 255)];
   unsharp(lum, isPhoto, w, h, p.sharpen);
   for (let px = 0; px < n; px++){
@@ -2950,6 +3420,7 @@ const Printing = {
   setPaper(id){ settings.paperSize = id; save(); Printing.paint(); },
   setWidth(w){ settings.printWidth = Number(w) || 576; save(); Printing.paint(); },
   setDarkness(t){ settings.printDarkness = t; save(); Printing.paint(); Printing.tonePreview(); Booth.clearStrips(); },
+  setDots(d){ settings.printDots = ['fine', 'smooth', 'silk'].includes(d) ? d : 'silk'; save(); Printing.paint(); Printing.tonePreview(); },
 
   paint(){
     const thermal = settings.printEngine === 'thermal';
@@ -2959,6 +3430,7 @@ const Printing = {
     document.querySelectorAll('#paper-seg button').forEach(b => b.classList.toggle('on', b.dataset.paper === settings.paperSize));
     document.querySelectorAll('#width-seg button').forEach(b => b.classList.toggle('on', Number(b.dataset.width) === Number(settings.printWidth)));
     document.querySelectorAll('#dark-seg button').forEach(b => b.classList.toggle('on', b.dataset.tone === settings.printDarkness));
+    document.querySelectorAll('#dots-seg button').forEach(b => b.classList.toggle('on', b.dataset.dots === settings.printDots));
     Printing.paintBt();
   },
 
@@ -3076,7 +3548,8 @@ const Printing = {
     ctx.fillStyle = t.accent; ctx.fillRect(0, 0, 800, 220);
     ctx.fillStyle = t.onAccent;
     ctx.textAlign = 'center';
-    ctx.font = '700 60px ' + Theme.font(settings.headerFont).replace(/'/g, '');
+    await ensureFonts();
+    ctx.font = Theme.weight(settings.headerFont) + ' 60px ' + Theme.font(settings.headerFont);
     ctx.fillText(settings.headerTop || 'SNAPS', 400, 120);
     ctx.font = '600 24px sans-serif';
     ctx.fillText(settings.headerBottom || '', 400, 165);
@@ -3101,7 +3574,8 @@ const Printing = {
     const ctx = c.getContext('2d', { willReadFrequently:true });
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
     ctx.fillStyle = '#000'; ctx.textAlign = 'center';
-    ctx.font = '700 ' + Math.round(W * .075) + 'px ' + Theme.font(settings.headerFont).replace(/'/g, '');
+    await ensureFonts();
+    ctx.font = Theme.weight(settings.headerFont) + ' ' + Math.round(W * .075) + 'px ' + Theme.font(settings.headerFont);
     ctx.fillText(settings.headerTop || 'TEST', W / 2, W * .11);
     const top = Math.round(W * .22), band = Math.round(W * .16);
     const grad = ctx.createLinearGradient(0, 0, W, 0);
@@ -3223,10 +3697,10 @@ const Booth = {
     const el = $('mode-badge');
     if (!el) return;
     if (EventMode.isEvent()){
-      el.textContent = EventMode.running() ? 'Event — ' + remaining(settings.eventEndsAt - Date.now()) + ' left' : 'Event mode';
+      el.textContent = EventMode.running() ? 'Event · ' + remaining(settings.eventEndsAt - Date.now()) + ' left' : 'Event mode';
       el.classList.add('live');
     } else {
-      el.textContent = 'Choose a layout';
+      el.textContent = 'Step 1 of 4';
       el.classList.remove('live');
     }
   },
@@ -3264,12 +3738,23 @@ const Booth = {
     if (EventMode.isEvent()){ Booth.startSession(); return; }
     Booth.state.copies = 1;
     $('pay-layout').textContent = Booth.layoutName();
+    $('pay-thumb').innerHTML = Booth.thumb();
     $('pay-each').textContent = peso(Booth.state.price) + ' each';
     $('opt-cash').style.display = settings.acceptCash ? 'flex' : 'none';
     $('opt-gcash').style.display = settings.acceptGcash ? 'flex' : 'none';
     Booth.refreshTotal();
     if (!settings.acceptCash && !settings.acceptGcash){ Booth.startSession(); return; }
     go('screen-payment');
+  },
+
+  /** A small picture of the chosen layout, for the order summary. */
+  thumb(){
+    if (Booth.state.layout === 'custom_design'){
+      const d = designs.find(x => x.id === Booth.state.designId);
+      return d ? '<img src="' + d.dataUrl + '" alt="">' : '';
+    }
+    const b = BASIC.find(l => l.id === Booth.state.layout);
+    return b ? b.thumb : '';
   },
 
   total(){ return Booth.state.price * Booth.state.copies; },
@@ -3279,7 +3764,7 @@ const Booth = {
   },
   copiesDelta(d, onResult){
     Booth.state.copies = clamp(Booth.state.copies + d, 1, 10);
-    if (onResult) $('copies').textContent = Booth.state.copies;
+    if (onResult) Booth.paintCopies();
     else Booth.refreshTotal();
   },
 
@@ -3291,7 +3776,7 @@ const Booth = {
 
   payGcash(){ Gcash.startPayment(); },
   gcashCancel(){ Gcash.cancel(); close_('gcash-modal'); },
-  gcashAttendantConfirm(){ Gcash.settle('attendant'); },
+  gcashPaid(){ Gcash.paid(); },
 
   clearStrips(){
     Booth.state.strips = { color:'', bw:'' };
@@ -3314,7 +3799,7 @@ const Booth = {
     Booth.openCamera();
   },
 
-  changeLayout(){ Booth.clearStrips(); go('screen-layout'); },
+  backToEdit(){ Review.sel = -1; Review.render(); go('screen-review'); },
 
   async openCamera(){
     go('screen-camera');
@@ -3324,9 +3809,17 @@ const Booth = {
       ? 'Retaking photo ' + (Booth.state.retake + 1)
       : 'Shot 1 of ' + Booth.state.needed;
     $('camera-hint').textContent = 'Each shot counts down from ' + settings.countdown + ' seconds.';
+    Booth.dots(Booth.state.retake !== null ? Booth.state.retake : Booth.state.shots.length);
     const video = $('webcam');
     video.classList.toggle('mirror', Booth.state.mirrored);
     if (await Camera.open()) video.srcObject = Booth.state.stream;
+  },
+
+  /** One bar per shot along the bottom of the viewfinder. */
+  dots(current){
+    const n = Booth.state.retake !== null ? 1 : Booth.state.needed;
+    $('shot-dots').innerHTML = n < 2 ? '' : Array.from({ length:n },
+      (_, i) => '<i class="' + (i <= current ? 'on' : '') + '"></i>').join('');
   },
 
   startSequence(){
@@ -3338,6 +3831,7 @@ const Booth = {
     let n = settings.countdown;
     const el = $('countdown');
     $('shot-progress').textContent = 'Shot ' + (index + 1) + ' of ' + Booth.state.needed;
+    Booth.dots(index);
     el.textContent = n;
     const timer = setInterval(() => {
       n--;
@@ -3420,20 +3914,19 @@ const Booth = {
     Booth.renderResult();
   },
 
-  /* Pay-per-print guests already paid for their copies, so the count is shown
-     but not editable here. Event rentals can still add one. */
+  /* Pay-per-print guests chose and paid for their copies already, so the
+     print button just says how many. Event rentals can still change it here. */
   paintCopies(){
     $('copies').textContent = Booth.state.copies;
-    const locked = !EventMode.isEvent();
-    $('cp-minus').style.display = locked ? 'none' : '';
-    $('cp-plus').style.display = locked ? 'none' : '';
-    $('copies-label').textContent = locked ? 'Copies paid' : 'Copies';
+    $('copies-box').style.display = EventMode.isEvent() ? 'flex' : 'none';
+    const n = Booth.state.copies;
+    $('print-btn').innerHTML = 'Print <span class="count-tag">' + n + ' cop' + (n === 1 ? 'y' : 'ies') + '</span>';
   },
 
   async renderResult(){
     const holder = $('strip');
     const now = new Date();
-    $('stamp').textContent = now.toLocaleDateString() + ' · ' + now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    $('stamp').textContent = now.toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' }) + ' · ' + now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
     holder.innerHTML = '<div class="strip-wait">Building your strip…</div>';
     const url = await Booth.strip(Booth.state.filter);
     holder.innerHTML = url ? '<img src="' + url + '" alt="Your photo strip">'
@@ -3474,7 +3967,8 @@ const Booth = {
       if (!window.QRCode) throw new Error('The QR library did not load.');
       const pair = await Promise.all([Booth.strip('color'), Booth.strip('bw')]);
       if (!pair[0] || !pair[1]) throw new Error('The strip could not be built.');
-      const out = await Cloud.publish(pair[0], pair[1], () => {
+      const small = await Promise.all(pair.map(url => shrinkForUpload(url)));
+      const out = await Cloud.publish(small[0], small[1], () => {
         if (session === Booth.state.shots) hint.textContent = 'Slow connection — still uploading…';
       });
       if (session !== Booth.state.shots) return;
@@ -3546,15 +4040,15 @@ const Booth = {
       setTimeout(() => Booth.reset(), 1800);
       return;
     }
-    const btn = $('print-btn'), label = btn.textContent;
+    const btn = $('print-btn');
     btn.disabled = true;
-    btn.textContent = 'PRINTING…';
+    btn.textContent = 'Printing…';
     try{
       if (settings.printEngine === 'thermal'){
         if (!BT.supported()) throw new Error('this browser has no Web Bluetooth');
         const canvas = await Printing.thermalCanvas();
         if (!canvas) throw new Error('the strip could not be built');
-        await BT.send(BT.job(canvas, Booth.state.copies), p => btn.textContent = 'PRINTING… ' + Math.round(p * 100) + '%');
+        await BT.send(BT.job(canvas, Booth.state.copies), p => btn.textContent = 'Printing… ' + Math.round(p * 100) + '%');
         toast(Booth.state.copies > 1 ? 'Printed ' + Booth.state.copies + ' copies.' : 'Printed.');
       } else {
         const url = await Booth.strip(Booth.state.filter);
@@ -3575,7 +4069,7 @@ const Booth = {
       toast('Print failed — ' + (err.message || 'unknown error') + '.', true);
     }finally{
       btn.disabled = false;
-      btn.textContent = label;
+      Booth.paintCopies();
     }
   },
 
@@ -3604,6 +4098,7 @@ const STICKERS = ['❤️','✨','⭐','🎉','🥳','😎','😍','😂','👑'
 
 const Review = {
   sel:-1, item:-1, adjusting:false, itemTapAt:0, activeTool:'frame', drag:null, idrag:null,
+  textFont:'', textColor:'#ffffff',
 
   info(){
     if (Booth.state.layout === 'custom_design'){
@@ -3654,7 +4149,7 @@ const Review = {
           el.textContent = o.text;
           el.style.fontFamily = Theme.font(o.font);
           el.style.color = o.color;
-          el.style.fontWeight = '700';
+          el.style.fontWeight = Theme.weight(o.font);
         } else {
           el.textContent = o.ch;
           el.style.fontFamily = 'system-ui, sans-serif';
@@ -3805,7 +4300,7 @@ const Review = {
     const input = $('text-input');
     const text = input.value.trim();
     if (!text){ toast('Type something first.'); return; }
-    Review.place({ k:'t', text, font:$('text-font').value, color:$('text-color').value, x:50, y:72, size:15, rot:0 });
+    Review.place({ k:'t', text, font:Review.textFont || settings.headerFont, color:Review.textColor || '#ffffff', x:50, y:72, size:15, rot:0 });
     input.value = '';
   },
 
@@ -3962,18 +4457,12 @@ const Review = {
   }
 };
 
-/* ===================== 13. GCASH — QR + AUTO CONFIRM =====================
-   GCash has no public feed for a personal QR, so the booth watches a table in
-   the owner's own storage. Anything that can post a row when money lands (an
-   SMS or notification forwarder on the attendant's phone, or the owner's own
-   script) drives it. A row needs a reference and an amount; the booth matches
-   on either the reference it showed the guest or an unclaimed payment for the
-   exact amount raised after the QR appeared.
+/* ============================ 13. GCASH ==================================
+   The guest scans the owner's GCash QR, sends the amount, and taps "I've
+   paid" to start shooting. The sale is logged the moment they tap.
    ======================================================================== */
-const USED_KEY = 'snaps_used_payments';
-
 const Gcash = {
-  timer:null, waitTimer:null, since:0, amount:0, active:false,
+  amount:0, active:false,
 
   async restore(){ await Media.load('gcash'); Gcash.paint(); },
 
@@ -4015,188 +4504,34 @@ const Gcash = {
       return;
     }
     Gcash.amount = Booth.total();
-    Gcash.since = Date.now();
     Gcash.active = true;
     Gcash.drawInto($('gcash-qr'));
     $('gcash-amount').textContent = peso(Gcash.amount);
-    $('gcash-status').textContent = 'Waiting for your payment…';
-    $('gcash-manual').style.display = 'none';
     open_('gcash-modal');
-    Gcash.watch();
-    if (DEMO){
-      $('gcash-status').textContent = 'Demo: the real app starts by itself when GCash confirms the payment.';
-      $('gcash-manual').textContent = 'Simulate a GCash payment';
-      $('gcash-manual').style.display = 'block';
-    }
   },
 
-  /** Is anything able to confirm a payment by itself? */
-  watching(){ return !!(Cloud.ref() && Cloud.key()) || Gcash.localOn(); },
-  cloudOn(){ return !!(Cloud.ref() && Cloud.key()); },
-  localOn(){ return Native.has('paymentAccess') && Native.sync('paymentAccess') === true; },
-
-  watch(){
-    Gcash.stopWatching();
-    const wait = clamp(Number(settings.payWait) || 30, 10, 180) * 1000;
-    Gcash.waitTimer = setTimeout(() => {
-      $('gcash-manual').style.display = 'block';
-      $('gcash-status').textContent = Gcash.watching()
-        ? 'Still waiting. If your payment went through, ask the attendant to release it.'
-        : 'Show your payment to the attendant to continue.';
-    }, wait);
-    if (!Gcash.cloudOn()) return;
-    Gcash.timer = setInterval(() => Gcash.poll().catch(() => {}), 3000);
-    Gcash.poll().catch(() => {});
-  },
-
-  stopWatching(){
-    clearInterval(Gcash.timer); Gcash.timer = null;
-    clearTimeout(Gcash.waitTimer); Gcash.waitTimer = null;
-  },
-
-  cancel(){ Gcash.active = false; Gcash.stopWatching(); },
-
-  /* A payment row or notification can only start one session. */
-  used(){
-    try{ const v = JSON.parse(localStorage.getItem(USED_KEY) || '[]'); return Array.isArray(v) ? v : []; }
-    catch(e){ return []; }
-  },
-  markUsed(id){
-    if (!id) return;
-    const list = Gcash.used();
-    list.push(String(id));
-    try{ localStorage.setItem(USED_KEY, JSON.stringify(list.slice(-300))); }catch(e){}
-  },
-  isUsed(id){ return !!id && Gcash.used().includes(String(id)); },
-  amountMatches(amount){ return Math.abs(Number(amount) - Number(Gcash.amount)) < 0.005; },
-
-  /** Called by the Android app when GCash on this tablet shows a received payment. */
-  onLocal(amount, ref){
-    if (!Gcash.active || !Gcash.amountMatches(amount)) return;
-    const key = 'local:' + (ref || (amount + '@' + Math.floor(Date.now() / 60000)));
-    if (Gcash.isUsed(key)) return;
-    Gcash.markUsed(key);
-    if (ref) Gcash.markUsed('ref:' + ref);
-    Gcash.settle('gcash');
-  },
-
-  table(){ return String(settings.payTable || 'payments').trim(); },
-
-  async query(params){
-    const res = await fetch(Cloud.base() + '/rest/v1/' + encodeURIComponent(Gcash.table()) + '?' + params, {
-      headers: Cloud.headers({ Accept:'application/json' }), cache:'no-store'
-    });
-    if (!res.ok) throw new Error('Payments table replied ' + res.status);
-    return res.json();
-  },
-
-  /** Matches the oldest unclaimed payment of the exact amount made after the
-      QR appeared. Each payment starts one session only. */
-  async poll(){
-    if (!Gcash.active) return;
-    const iso = new Date(Gcash.since - 30000).toISOString();
-    const rows = await Gcash.query('select=id,amount,ref,created_at&amount=eq.' + Gcash.amount +
-      '&created_at=gte.' + encodeURIComponent(iso) + '&order=created_at.asc&limit=20');
-    const hit = rows.find(r => !Gcash.isUsed('row:' + r.id) && !(r.ref && Gcash.isUsed('ref:' + r.ref)));
-    if (!hit || !Gcash.active) return;
-    Gcash.markUsed('row:' + hit.id);
-    if (hit.ref) Gcash.markUsed('ref:' + hit.ref);
-    Gcash.settle('gcash');
-  },
-
-  settle(source){
+  paid(){
     if (!Gcash.active) return;
     Gcash.active = false;
-    Gcash.stopWatching();
-    $('gcash-status').textContent = 'Payment received. Get ready…';
     Sales.record({ mode:'nonevent', method:'gcash', layout:Booth.layoutName(),
       copies:Booth.state.copies, unit:Booth.state.price, amount:Booth.total() });
-    setTimeout(() => {
-      close_('gcash-modal');
-      toast(source === 'attendant' ? 'Released by the attendant.' : 'GCash payment received.');
-      Booth.startSession();
-    }, 700);
+    close_('gcash-modal');
+    Booth.startSession();
   },
 
-  async testWatcher(){
-    Admin.fields();
-    const el = $('watch-status');
-    const report = (dot, text) => el.innerHTML = '<span class="dot ' + dot + '"></span>' + text;
-    report('', 'Testing…');
-    if (!Cloud.ref() || !Cloud.key()){ report('bad', 'Add your Supabase details under Advanced first'); return; }
-    try{
-      await Gcash.query('select=id&limit=1');
-      if (settings.relayOn || settings.relaySecret){
-        const res = await fetch(Cloud.base() + '/rest/v1/rpc/check_relay_secret', {
-          method:'POST', headers: Cloud.headers({ 'Content-Type':'application/json' }),
-          body: JSON.stringify({ p_secret: settings.relaySecret || '' })
-        });
-        if (!res.ok) throw new Error('Supabase replied ' + res.status + ' — run setup.sql again');
-        if (await res.json() !== true) throw new Error('Booth reads payments, but the relay secret is wrong');
-        report('ok', 'Booth reads payments and the relay secret is correct');
-      } else {
-        report('ok', 'Booth reads payments from Supabase');
-      }
-      toast('Payment link works.');
-    }catch(e){
-      report('bad', e.message);
-      toast(e.message, true);
-    }
-  },
-
-  /* ---- Android app: GCash notifications on this device ---- */
-  openAccess(){
-    if (!Native.has('openPaymentAccess')){ toast('This works inside the Snaps Android app.'); return; }
-    Native.sync('openPaymentAccess');
-    toast('Switch on "Snaps Photobooth", then come back.');
-  },
-
-  paintLocal(){
-    const el = $('pay-local'), btn = $('pay-access-btn');
-    if (!el) return;
-    const dot = (d, t) => el.innerHTML = '<span class="dot ' + d + '"></span>' + t;
-    if (!Native.has('paymentAccess')){ dot('', 'Available in the Snaps Android app'); if (btn) btn.style.display = 'none'; return; }
-    if (btn) btn.style.display = '';
-    const hint = $('restricted-hint');
-    if (hint) hint.style.display = Gcash.localOn() ? 'none' : '';
-    if (Gcash.localOn()){ dot('ok', 'On — GCash payments on this device start the shots'); if (btn) btn.textContent = 'Notification access settings'; }
-    else { dot('bad', 'Off — tap below and switch on Snaps Photobooth'); if (btn) btn.textContent = 'Let this app read GCash notifications'; }
-    const sw = $('sw-relay');
-    if (sw) sw.classList.toggle('on', !!settings.relayOn);
-  },
-
-  toggleRelay(el){
-    if (!Native.has('setRelay')){ toast('Sending payments works inside the Snaps Android app.'); return; }
-    settings.relaySecret = ($('relay-secret').value || '').trim();
-    if (!settings.relayOn && (!Cloud.ref() || !Cloud.key() || !settings.relaySecret)){
-      toast('Add your Supabase details under Advanced and the relay secret first.', true);
-      return;
-    }
-    settings.relayOn = !settings.relayOn;
-    el.classList.toggle('on', settings.relayOn);
-    save();
-    Gcash.syncRelay();
-    if (settings.relayOn && !Gcash.localOn()) toast('Now allow notification access so this phone can see GCash.');
-  },
-
-  /** Hands the relay details to the Android app, which keeps them for its
-      background notification listener. */
-  syncRelay(){
-    Native.sync('setRelay', settings.relayOn ? Cloud.ref() : '', settings.relayOn ? Cloud.key() : '', settings.relayOn ? (settings.relaySecret || '') : '');
-  }
+  cancel(){ Gcash.active = false; }
 };
-
-window.onNativePayment = (amount, ref) => Gcash.onLocal(Number(amount), ref ? String(ref) : '');
 
 /** Android Back button: closes the top dialog instead of leaving the booth. */
 window.onNativeBack = () => {
   if (document.body.classList.contains('framing')){ Wallpaper.endFraming(); return; }
-  const order = ['bt-modal','hd-modal','editor-modal','pin-modal','gcash-modal','admin-modal'];
+  const order = ['bt-modal','hd-modal','editor-modal','pin-modal','gcash-modal','activate-modal','admin-modal'];
   const open = order.find(id => $(id).classList.contains('open'));
   if (!open) return;
   if (open === 'admin-modal'){ if (Admin.current) Admin.home(); else Admin.close(); }
   else if (open === 'gcash-modal') Booth.gcashCancel();
   else if (open === 'pin-modal') Pin.cancel();
+  else if (open === 'activate-modal') Cloud.skipFirst();
   else close_(open);
 };
 
@@ -4411,9 +4746,9 @@ function renderBasicCards(){
     card.className = 'card';
     card.onclick = () => Booth.pickBasic(l.id);
     card.innerHTML = '<div class="thumb">' + l.thumb + '</div>' +
-      '<div class="card-name">' + l.name + '</div>' +
-      '<div class="card-meta">' + l.shots + ' shot' + (l.shots === 1 ? '' : 's') + '</div>' +
-      (EventMode.isEvent() ? '' : '<div class="price mono">' + peso(settings.basicPrices[l.id]) + '</div>');
+      '<div class="card-body"><div><div class="card-name">' + l.name + '</div>' +
+      '<div class="card-meta">' + l.shots + ' shot' + (l.shots === 1 ? '' : 's') + '</div></div>' +
+      (EventMode.isEvent() ? '' : '<span class="price">' + peso(settings.basicPrices[l.id]) + '</span>') + '</div>';
     row.appendChild(card);
   });
 }
@@ -4421,18 +4756,17 @@ function renderBasicCards(){
 function renderDesignCards(){
   const row = $('design-grid');
   row.innerHTML = '';
-  if (!designs.length){
-    row.innerHTML = '<p class="empty">No design layouts yet. Add one in Settings.</p>';
-    return;
-  }
+  $('design-group').style.display = row.style.display = designs.length ? '' : 'none';
+  if (!designs.length) return;
   designs.forEach(d => {
     const card = document.createElement('div');
     card.className = 'card';
     card.onclick = () => Booth.pickDesign(d.id);
-    card.innerHTML = '<div class="thumb"><img src="' + d.dataUrl + '" alt="' + d.name + '"></div>' +
-      '<div class="card-name">' + d.name + '</div>' +
-      '<div class="card-meta">' + d.zones.length + ' photo space' + (d.zones.length === 1 ? '' : 's') + '</div>' +
-      (EventMode.isEvent() ? '' : '<div class="price mono">' + peso(d.price) + '</div>');
+    card.innerHTML = '<div class="thumb"><img src="' + d.dataUrl + '" alt=""></div>' +
+      '<div class="card-body"><div><div class="card-name"></div>' +
+      '<div class="card-meta">' + d.zones.length + ' photo' + (d.zones.length === 1 ? '' : 's') + '</div></div>' +
+      (EventMode.isEvent() ? '' : '<span class="price">' + peso(d.price) + '</span>') + '</div>';
+    card.querySelector('.card-name').textContent = d.name;
     row.appendChild(card);
   });
 }
@@ -4487,9 +4821,7 @@ const Admin = {
     Admin.paintSwitch('sw-cash', settings.acceptCash);
     Admin.paintSwitch('sw-gcash', settings.acceptGcash);
     Gcash.paint();
-    $('pay-wait').value = settings.payWait;
-    $('relay-secret').value = settings.relaySecret || '';
-    Gcash.paintLocal();
+    $('act-code').value = '';
     $('kiosk-row').style.display = Kiosk.available() ? '' : 'none';
     $('c-ref').value = settings.cloudRef;
     $('c-key').value = settings.cloudKey;
@@ -4519,7 +4851,7 @@ const Admin = {
     if (id === 'printer'){ Printing.paint(); Printing.tonePreview(); }
     if (id === 'sales') Sales.render();
     if (id === 'advanced') Admin.cameraStatus();
-    if (id === 'payment'){ Gcash.paint(); Gcash.paintLocal(); }
+    if (id === 'payment') Gcash.paint();
     if (id === 'brand'){ Theme.renderGrid(); Wallpaper.renderGrid(); }
     $('adm-body').scrollTop = 0;
   },
@@ -4553,8 +4885,7 @@ const Admin = {
     }
 
     const ways = [settings.acceptCash ? 'Cash' : null, settings.acceptGcash ? 'GCash' : null].filter(Boolean);
-    set('st-payment', (ways.join(' + ') || 'Free') + (Media.url('gcash') ? ' · QR ready' : '') +
-      (Gcash.watching() ? ' · auto' : ''));
+    set('st-payment', (ways.join(' + ') || 'Free') + (settings.acceptGcash ? (Media.url('gcash') ? ' · QR ready' : ' · no QR yet') : ''));
 
     const today = Sales.summary('day');
     set('st-sales-amt', peso(today.revenue));
@@ -4608,12 +4939,7 @@ const Admin = {
       settings.cloudBucket = $('c-bucket').value.trim() || 'photos';
       settings.cloudPage = $('c-page').value.trim();
     }
-    if ($('pay-wait')) {
-      settings.payWait = clamp(parseInt($('pay-wait').value, 10) || 30, 10, 180);
-      settings.relaySecret = ($('relay-secret').value || '').trim();
-    }
     save();
-    Gcash.syncRelay();
   },
 
   async cameraStatus(){
@@ -4646,7 +4972,7 @@ const Admin = {
       cloudBucket: settings.cloudBucket, cloudPage: settings.cloudPage };
     settings = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), keep);
     save();
-    Theme.apply(); Theme.renderGrid(); Theme.fillHeaderForm();
+    Theme.apply(); Theme.renderGrid(); Theme.fillHeaderForm(); Wallpaper.paint();
     Wallpaper.paint(); Wallpaper.renderGrid();
     Printing.paint(); EventMode.paint(); renderBasicCards();
     Admin.paintHome();
@@ -4699,16 +5025,51 @@ function buildReviewTools(){
     grid.appendChild(b);
   });
 
-  const sel = $('text-font');
-  sel.innerHTML = '';
+  Review.textFont = settings.headerFont;
+  const fonts = $('text-fonts');
+  fonts.innerHTML = '';
   HEADER_FONTS.forEach(f => {
-    const o = document.createElement('option');
-    o.value = f.id;
-    o.textContent = f.id;
-    o.style.fontFamily = f.css;
-    sel.appendChild(o);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = 'Aa';
+    b.title = f.id;
+    b.style.fontFamily = f.css;
+    b.style.fontWeight = f.w;
+    b.dataset.font = f.id;
+    b.onclick = () => { Review.textFont = f.id; paintTextTools(); };
+    fonts.appendChild(b);
   });
-  sel.value = settings.headerFont;
+
+  const colors = $('text-colors');
+  colors.innerHTML = '';
+  TEXT_COLORS.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.background = c;
+    b.dataset.color = c;
+    b.setAttribute('aria-label', 'Text colour ' + c);
+    b.onclick = () => { Review.textColor = c; paintTextTools(); };
+    colors.appendChild(b);
+  });
+  const pick = document.createElement('input');
+  pick.type = 'color';
+  pick.value = '#ffffff';
+  pick.setAttribute('aria-label', 'Any colour');
+  pick.oninput = () => { Review.textColor = pick.value; paintTextTools(); };
+  colors.appendChild(pick);
+  paintTextTools();
+}
+
+const TEXT_COLORS = ['#ffffff','#111111','#e11d48','#f59e0b','#facc15','#22c55e','#3b82f6','#a855f7','#f9a8d4'];
+
+function paintTextTools(){
+  document.querySelectorAll('#text-fonts button').forEach(b => b.classList.toggle('on', b.dataset.font === Review.textFont));
+  document.querySelectorAll('#text-colors button').forEach(b => b.classList.toggle('on', b.dataset.color === Review.textColor));
+  const input = $('text-input');
+  if (input){
+    input.style.fontFamily = Theme.font(Review.textFont);
+    input.style.fontWeight = Theme.weight(Review.textFont);
+  }
 }
 
 /* =============================== 14e. BOOT =============================== */
@@ -4722,8 +5083,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   loadDesigns();
   EventMode.paint();
   buildReviewTools();
-  Gcash.syncRelay();
+  document.querySelectorAll('.progress').forEach(p => {
+    const at = Number(p.dataset.step) || 1;
+    Array.from(p.children).forEach((dot, i) => dot.className = i + 1 < at ? 'done' : i + 1 === at ? 'on' : '');
+  });
   if (Cloud.ready()) Cloud.checkPage();
+  else if (!DEMO && !settings.activationSkipped && (Native.on() || /[?&]connect\b/.test(location.search))) open_('activate-modal');
 
   document.body.classList.add('at-start');
   if (DEMO) await Demo.setup();
@@ -4793,7 +5158,7 @@ const Demo = {
     });
 
     x.fillStyle = '#F6E9DA'; x.textAlign = 'center';
-    x.font = '700 120px "Bodoni Moda", Georgia, serif';
+    x.font = '700 120px "Fraunces", Georgia, serif';
     x.fillText(settings.headerTop || 'YOUR BOOTH', W / 2, H * .7);
     x.font = '700 34px system-ui, sans-serif';
     x.globalAlpha = .75;
@@ -4805,7 +5170,6 @@ const Demo = {
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden || !$('admin-modal').classList.contains('open')) return;
-  Gcash.paintLocal();
   Printing.paintBt();
   Admin.cameraStatus();
 });
