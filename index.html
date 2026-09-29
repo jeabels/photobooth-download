@@ -21,8 +21,8 @@
    So the page always looks like the booth that printed the strip.
    ========================================================================== */
 :root{
-  --paper:#F2EDE5; --ink:#1B1712; --sub:#6B645B; --line:rgba(27,23,18,.12);
-  --accent:#1B1712; --on-accent:#FFFFFF; --head-color:#1B1712;
+  --paper:#F4F3EF; --ink:#141414; --sub:#6B645B; --line:rgba(27,23,18,.12);
+  --accent:#111111; --accent-2:#444444; --on-accent:#FFFFFF; --head-color:#111111;
   --font-head:Georgia,"Times New Roman",serif;
   --font-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --btn-radius:999px; --btn-case:none; --btn-track:.01em;
@@ -38,7 +38,7 @@ main{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:c
 
 /* ---- the booth's own header ---- */
 .brand{margin-top:8px}
-.brand-top{font-family:var(--font-head);color:var(--head-color);font-weight:700;
+.brand-top{font-family:var(--font-head);color:var(--head-color);font-weight:var(--head-weight,700);
   font-size:clamp(30px,10vw,42px);line-height:1.02;letter-spacing:.04em;overflow-wrap:anywhere}
 .brand-bottom{color:var(--head-color);opacity:.78;font-size:11px;font-weight:700;
   letter-spacing:.26em;margin-top:9px;overflow-wrap:anywhere}
@@ -67,8 +67,11 @@ main{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:c
 .save{display:block;border:0;background:var(--accent);color:var(--on-accent);
   font:700 16px var(--font-body);letter-spacing:var(--btn-track);text-transform:var(--btn-case);
   padding:16px;border-radius:var(--btn-radius);text-decoration:none;cursor:pointer}
-.save.outline{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
-.save.marquee{background:transparent;color:var(--accent);outline:1px solid var(--accent);outline-offset:3px;box-shadow:inset 0 0 0 1px var(--accent)}
+.save.ring{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.save.frame{background:transparent;color:var(--accent);outline:1px solid var(--accent);outline-offset:3px;box-shadow:inset 0 0 0 1px var(--accent)}
+.save.neon{box-shadow:0 0 14px var(--accent),0 0 32px color-mix(in srgb,var(--accent) 55%,transparent)}
+.save.gradient{background:linear-gradient(120deg,var(--accent),var(--accent-2))}
+.save.retro{box-shadow:4px 4px 0 var(--ink)}
 .full{color:var(--sub);font-size:14px;font-weight:600;padding:12px;text-decoration:underline;text-underline-offset:3px}
 [aria-disabled="true"]{opacity:.4;pointer-events:none}
 .hint{color:var(--sub);font-size:13px;margin-top:6px;max-width:300px;min-height:40px}
@@ -105,20 +108,38 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 
 <script>
 (function(){
-  /* Mirrors of the booth's THEMES and HEADER_FONTS tables (same order). */
+  /* Mirrors of the booth's THEMES, HEADER_FONTS and BUTTON_SHAPES tables
+     (fonts in the same order — a link names its typeface by number). */
   var THEMES = {
-    noir:    { accent:'#1B1712', paper:'#F2EDE5', dark:false, head:'Bodoni Moda',        body:'Manrope' },
-    verdant: { accent:'#2F5D4A', paper:'#EFF3EE', dark:false, head:'Cormorant Garamond', body:'Outfit' },
-    blush:   { accent:'#B23A62', paper:'#FBF0F2', dark:false, head:'Instrument Serif',   body:'Outfit' },
-    ember:   { accent:'#8B1E1E', paper:'#F7F2EF', dark:false, head:'DM Serif Display',   body:'Manrope' },
-    gold:    { accent:'#8E6F30', paper:'#FAF5EA', dark:false, head:'Cormorant Garamond', body:'Archivo' },
-    midnight:{ accent:'#8E7CFF', paper:'#0E0D13', dark:true,  head:'Syne',               body:'Sora' },
-    neon:    { accent:'#FF3D7F', paper:'#0D0C12', dark:true,  head:'Archivo',            body:'Sora' }
+    studio:    { accent:'#111111', accent2:'#444444', on:'#ffffff', paper:'#F4F3EF', dark:false, body:'Manrope' },
+    porcelain: { accent:'#2446F5', accent2:'#1530C4', on:'#ffffff', paper:'#F2F4F8', dark:false, body:'Manrope' },
+    terracotta:{ accent:'#B4532F', accent2:'#8E3C1F', on:'#ffffff', paper:'#F5EEE6', dark:false, body:'Outfit' },
+    sage:      { accent:'#3F5E4B', accent2:'#2C4436', on:'#ffffff', paper:'#ECF0E8', dark:false, body:'Outfit' },
+    blush:     { accent:'#B23A62', accent2:'#8C2A4B', on:'#ffffff', paper:'#FAF0F1', dark:false, body:'Outfit' },
+    citrus:    { accent:'#EE6A1C', accent2:'#C9500B', on:'#ffffff', paper:'#FFF6E7', dark:false, body:'Outfit' },
+    mono:      { accent:'#000000', accent2:'#2a2a2a', on:'#ffffff', paper:'#FFFFFF', dark:false, body:'Archivo' },
+    champagne: { accent:'#D9C4A3', accent2:'#B89C72', on:'#16130F', paper:'#121110', dark:true,  body:'Manrope' },
+    midnight:  { accent:'#8FA3FF', accent2:'#6C82F0', on:'#0B1022', paper:'#0C1022', dark:true,  body:'Sora' },
+    neon:      { accent:'#FF2E88', accent2:'#D61E6C', on:'#ffffff', paper:'#0B0A10', dark:true,  body:'Sora' }
   };
-  var FONTS = ['Bodoni Moda','Instrument Serif','Cormorant Garamond','DM Serif Display','Syne',
-               'Archivo','Outfit','Manrope','Sora','Space Mono'];
-  var SERIF = { 'Bodoni Moda':1, 'Instrument Serif':1, 'Cormorant Garamond':1, 'DM Serif Display':1 };
-  var SINGLE_WEIGHT = { 'Instrument Serif':1, 'DM Serif Display':1 };
+  var ALIASES = { noir:'studio', verdant:'sage', ember:'terracotta', gold:'champagne' };
+  /* [family, weight, fallback] */
+  var FONTS = [
+    ['Bodoni Moda',700,'serif'],['Instrument Serif',400,'serif'],['Cormorant Garamond',700,'serif'],['DM Serif Display',400,'serif'],
+    ['Syne',800,'sans-serif'],['Archivo',800,'sans-serif'],['Outfit',700,'sans-serif'],['Manrope',800,'sans-serif'],
+    ['Sora',700,'sans-serif'],['Space Mono',700,'monospace'],['Playfair Display',700,'serif'],['Fraunces',700,'serif'],
+    ['Abril Fatface',400,'serif'],['Cinzel',700,'serif'],['Italiana',400,'serif'],['Yeseva One',400,'serif'],
+    ['Unbounded',700,'sans-serif'],['Bebas Neue',400,'sans-serif'],['Anton',400,'sans-serif'],['Montserrat',800,'sans-serif'],
+    ['Bricolage Grotesque',800,'sans-serif'],['Righteous',400,'sans-serif'],['Great Vibes',400,'cursive'],['Pinyon Script',400,'cursive'],
+    ['Allura',400,'cursive'],['Parisienne',400,'cursive'],['Dancing Script',700,'cursive'],['Sacramento',400,'cursive'],
+    ['Caveat',700,'cursive'],['Pacifico',400,'cursive'],['Lobster',400,'cursive'],['Shrikhand',400,'cursive'],
+    ['Monoton',400,'cursive'],['Special Elite',400,'monospace'],['UnifrakturMaguntia',400,'serif']
+  ];
+  /* radius in px (999 = round), capitals, look */
+  var BUTTONS = {
+    pill:[999], block:[3,1], outline:[999,0,'ring'], glass:[16], marquee:[0,1,'frame'], neon:[12,0,'neon'],
+    gradient:[999,0,'gradient'], retro:[6,1,'retro'], ticket:[6,1], halo:[999], minimal:[12,0,'ring'], stamp:[4,1,'frame']
+  };
 
   var q = new URLSearchParams(location.search);
   var clean = function(v, re){ return (q.get(v) || '').replace(re, ''); };
@@ -128,33 +149,36 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   var variant = q.get('v') === 'b' ? 'b' : 'c';
   var top = (q.get('n') || '').slice(0, 40);
   var bottom = (q.get('s') || '').slice(0, 50);
-  var theme = THEMES[q.get('t')] || THEMES.noir;
-  var headFont = FONTS[parseInt(q.get('f'), 10)] || FONTS[0];   /* the booth leaves out f for its default, Bodoni Moda */
+  var themeId = ALIASES[q.get('t')] || q.get('t');
+  var theme = THEMES[themeId] || THEMES.studio;
+  var head = FONTS[parseInt(q.get('f'), 10)] || FONTS[0];   /* the booth leaves out f only for Bodoni Moda */
   var headColor = /^[0-9a-f]{6}$/i.test(q.get('c') || '') ? '#' + q.get('c') : theme.accent;
-  var buttonStyle = q.get('k') || 'pill';
+  var buttonStyle = BUTTONS[q.get('k')] ? q.get('k') : 'pill';
 
   /* ---------- apply the booth's look ---------- */
   var root = document.documentElement.style;
   root.setProperty('--paper', theme.paper);
   root.setProperty('--accent', theme.accent);
+  root.setProperty('--accent-2', theme.accent2);
+  root.setProperty('--on-accent', theme.on);
   root.setProperty('--head-color', headColor);
-  root.setProperty('--font-head', "'" + headFont + "'," + (SERIF[headFont] ? 'Georgia,serif' : 'system-ui,sans-serif'));
+  root.setProperty('--head-weight', head[1]);
+  root.setProperty('--font-head', "'" + head[0] + "'," + (head[2] === 'serif' ? 'Georgia,serif' : head[2] === 'cursive' ? 'cursive' : 'system-ui,sans-serif'));
   root.setProperty('--font-body', "'" + theme.body + "',system-ui,-apple-system,sans-serif");
   document.body.classList.toggle('dark', theme.dark);
   document.querySelector('meta[name=theme-color]').setAttribute('content', theme.paper);
 
   var save = document.getElementById('save');
-  if (buttonStyle === 'block' || buttonStyle === 'marquee'){
-    root.setProperty('--btn-radius', '3px'); root.setProperty('--btn-case', 'uppercase'); root.setProperty('--btn-track', '.14em');
-  } else if (buttonStyle === 'glass'){
-    root.setProperty('--btn-radius', '16px');
-  }
-  if (buttonStyle === 'outline' || buttonStyle === 'marquee') save.classList.add(buttonStyle);
+  var shape = BUTTONS[buttonStyle];
+  root.setProperty('--btn-radius', shape[0] >= 999 ? '999px' : shape[0] + 'px');
+  if (shape[1]){ root.setProperty('--btn-case', 'uppercase'); root.setProperty('--btn-track', '.14em'); }
+  if (shape[2]) save.classList.add(shape[2]);
 
-  var fam = function(name){ return 'family=' + name.replace(/ /g, '+') + (SINGLE_WEIGHT[name] ? '' : ':wght@400;600;700'); };
+  var fam = function(f){ return 'family=' + f[0].replace(/ /g, '+') + (f[1] === 400 ? '' : ':wght@' + f[1]); };
   var link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?' + fam(headFont) + (headFont !== theme.body ? '&' + fam(theme.body) : '') + '&display=swap';
+  link.href = 'https://fonts.googleapis.com/css2?' + fam(head) +
+    (head[0] !== theme.body ? '&family=' + theme.body.replace(/ /g, '+') + ':wght@400;600;700' : '') + '&display=swap';
   document.head.appendChild(link);
 
   if (top){
