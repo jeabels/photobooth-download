@@ -719,6 +719,11 @@ body.framing #frame-bar{display:flex}
     <div class="divider">Pay with</div>
 
     <div class="pay-opts">
+      <button class="pay-opt" id="opt-qr" style="display:none;grid-column:1/-1" onclick="QrPay.start()">
+        <span class="pay-icon gcash"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="#0072ce" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="#0072ce" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="#0072ce" stroke-width="1.8"/><rect x="14" y="14" width="3" height="3" fill="#0072ce"/><rect x="18" y="18" width="3" height="3" fill="#0072ce"/><rect x="14" y="18" width="3" height="3" fill="#0072ce"/><rect x="18" y="14" width="3" height="3" fill="#0072ce"/></svg></span>
+        <span><span class="pay-title">Scan to pay</span><span class="pay-sub" style="display:block">GCash, Maya or any bank app (QR Ph)</span></span>
+        <span class="pay-go">Show QR →</span>
+      </button>
       <button class="pay-opt" id="opt-cash" onclick="Booth.payCash()">
         <span class="pay-icon cash"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="12" rx="2" stroke="#16a34a" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="#16a34a" stroke-width="1.8"/></svg></span>
         <span><span class="pay-title">Cash</span><span class="pay-sub" style="display:block">Hand it to the attendant</span></span>
@@ -1139,10 +1144,8 @@ body.framing #frame-bar{display:flex}
         <div class="set col" id="pay-qr" style="display:none">
           <div class="set-head"><div class="set-icon">🔳</div><div class="set-text">
             <div class="set-title">PayMongo QR Ph</div><div class="set-sub" id="qp-admin-status"><span class="dot"></span>Not tested yet</div></div></div>
-          <span class="label">Price per session (₱)</span>
-          <input class="input mono" type="number" id="qp-price" min="20" max="5000" step="5" onchange="QrPay.setPrice(this.value)">
           <button class="ghost" onclick="QrPay.test()">Test QR payments</button>
-          <p class="set-sub">Guests pay this before they choose a layout, by scanning a new QR Ph code with GCash, Maya or any bank app. The booth only continues once PayMongo confirms the payment, so no attendant is needed. The money goes straight to your PayMongo account.</p>
+          <p class="set-sub">Guests choose a layout and copies, see the price, then scan a new QR Ph code for exactly that amount with GCash, Maya or any bank app. The booth only starts once PayMongo confirms the payment, so no attendant is needed. The money goes straight to your PayMongo account. Prices come from <b>Layouts &amp; prices</b> (at least ₱20 each).</p>
         </div>
         <div id="pay-standard">
         <div class="set">
@@ -1582,7 +1585,7 @@ const DEFAULTS = {
   gcashZoom:100, gcashX:50, gcashY:50,
 
   cloudRef:'', cloudKey:'', cloudBucket:'photos', cloudPage:DOWNLOAD_PAGE,
-  cloudKeepHours:72, keepLocalCopy:true, qrPrice:50,
+  cloudKeepHours:72, keepLocalCopy:true,
   activationSkipped:false
 };
 
@@ -3869,12 +3872,6 @@ const Booth = {
     }
     Booth.state.credit = 0;
     Booth.state.qrPaid = false;
-    if (QRPAY && !EventMode.isEvent()){
-      /* Version 2: pay first, then choose a layout */
-      Camera.open();
-      QrPay.start();
-      return;
-    }
     go('screen-layout');
     Camera.open();
   },
@@ -3928,13 +3925,6 @@ const Booth = {
 
   afterLayout(){
     if (EventMode.isEvent()){ Booth.startSession(); return; }
-    if (QRPAY){
-      if (!Booth.state.qrPaid){ QrPay.start(); return; }
-      Booth.state.copies = 1;
-      Sales.relabel(Booth.layoutName(), Booth.state.credit);
-      Booth.startSession();
-      return;
-    }
     if (Booth.state.credit > 0){
       /* came back from the camera after paying: the payment carries over */
       if (Booth.total() > Booth.state.credit){
@@ -3949,10 +3939,11 @@ const Booth = {
     $('pay-layout').textContent = Booth.layoutName();
     $('pay-thumb').innerHTML = Booth.thumb();
     $('pay-each').textContent = peso(Booth.state.price) + ' each';
-    $('opt-cash').style.display = settings.acceptCash ? 'flex' : 'none';
-    $('opt-gcash').style.display = settings.acceptGcash ? 'flex' : 'none';
+    $('opt-cash').style.display = settings.acceptCash && !QRPAY ? 'flex' : 'none';
+    $('opt-gcash').style.display = settings.acceptGcash && !QRPAY ? 'flex' : 'none';
+    $('opt-qr').style.display = QRPAY ? 'flex' : 'none';
     Booth.refreshTotal();
-    if (!settings.acceptCash && !settings.acceptGcash){ Booth.startSession(); return; }
+    if (!QRPAY && !settings.acceptCash && !settings.acceptGcash){ Booth.startSession(); return; }
     go('screen-payment');
   },
 
@@ -4846,13 +4837,8 @@ const SALES_CAP = 3000;
 const QrPay = {
   id:null, poller:null, ticker:null, deadline:0, asking:false, done:false, run:0,
 
-  price(){ return Math.min(5000, Math.max(20, Math.round(Number(settings.qrPrice) || 50))); },
-  setPrice(v){
-    settings.qrPrice = Math.min(5000, Math.max(20, Math.round(Number(v) || 50)));
-    $('qp-price').value = settings.qrPrice;
-    save();
-    Admin.paintHome();
-  },
+  /** What the guest owes: the chosen layout's price times the copies. */
+  price(){ return Math.round(Booth.total()); },
 
   async call(body){
     let res;
@@ -4869,6 +4855,10 @@ const QrPay = {
   },
 
   async start(){
+    if (!DEMO && QrPay.price() < 20){
+      toast('QR payments start at ₱20. Please ask the owner to raise this layout\'s price.', true);
+      return;
+    }
     QrPay.stop();
     const run = ++QrPay.run;
     QrPay.done = false;
@@ -4925,12 +4915,12 @@ const QrPay = {
     QrPay.done = true;
     QrPay.stop();
     close_('qrpay-modal');
-    Sales.record({ mode:'nonevent', method:'gcash', layout:'QR Pay session', copies:1, unit:amount, amount });
+    Sales.record({ mode:'nonevent', method:'gcash', layout:Booth.layoutName(),
+      copies:Booth.state.copies, unit:Booth.state.price, amount });
     Booth.state.credit = amount;
     Booth.state.qrPaid = true;
-    Booth.state.copies = 1;
     toast('Payment received. Thank you!');
-    go('screen-layout');
+    Booth.startSession();
   },
 
   /** One last look before giving up, so a guest who paid is never sent away. */
@@ -4944,8 +4934,7 @@ const QrPay = {
     QrPay.run++;
     QrPay.stop();
     close_('qrpay-modal');
-    go('screen-start');
-    if (timedOut) toast('The QR code expired. Tap start to try again.');
+    if (timedOut){ go('screen-start'); toast('The QR code expired. Tap start to try again.'); }
   },
 
   fail(msg){
@@ -4968,7 +4957,7 @@ const QrPay = {
     try{
       const c = await QrPay.call({ action:'check' });
       if (!c.configured) throw new Error('Add PAYMONGO_SECRET_KEY in Supabase → Edge Functions → Secrets');
-      const out = await QrPay.call({ action:'create', amount:QrPay.price(), booth:settings.headerTop || '' });
+      const out = await QrPay.call({ action:'create', amount:Math.max(20, settings.basicPrices.solo || 20), booth:settings.headerTop || '' });
       if (!out.qr) throw new Error('PayMongo did not return a QR code');
       report('ok', c.live ? 'Working — LIVE: guests pay real money to your PayMongo account'
                           : 'Working in TEST mode — switch to your sk_live_ key before your event');
@@ -5141,7 +5130,7 @@ function renderBasicCards(){
     card.innerHTML = '<div class="thumb">' + l.thumb + '</div>' +
       '<div class="card-body"><div><div class="card-name">' + l.name + '</div>' +
       '<div class="card-meta">' + l.shots + ' shot' + (l.shots === 1 ? '' : 's') + '</div></div>' +
-      (EventMode.isEvent() || QRPAY ? '' : '<span class="price">' + peso(settings.basicPrices[l.id]) + '</span>') + '</div>';
+      (EventMode.isEvent() ? '' : '<span class="price">' + peso(settings.basicPrices[l.id]) + '</span>') + '</div>';
     row.appendChild(card);
   });
 }
@@ -5158,7 +5147,7 @@ function renderDesignCards(){
     card.innerHTML = '<div class="thumb"><img src="' + d.dataUrl + '" alt=""></div>' +
       '<div class="card-body"><div><div class="card-name"></div>' +
       '<div class="card-meta">' + d.zones.length + ' photo' + (d.zones.length === 1 ? '' : 's') + '</div></div>' +
-      (EventMode.isEvent() || QRPAY ? '' : '<span class="price">' + peso(d.price) + '</span>') + '</div>';
+      (EventMode.isEvent() ? '' : '<span class="price">' + peso(d.price) + '</span>') + '</div>';
     card.querySelector('.card-name').textContent = d.name;
     row.appendChild(card);
   });
@@ -5215,7 +5204,6 @@ const Admin = {
     Admin.paintSwitch('sw-gcash', settings.acceptGcash);
     Admin.paintSwitch('sw-mirror', settings.mirrorLock);
     Admin.paintSwitch('sw-local', settings.keepLocalCopy);
-    $('qp-price').value = QrPay.price();
     Cloud.paintKeep();
     Gcash.paint();
     $('act-code').value = '';
@@ -5282,7 +5270,7 @@ const Admin = {
     }
 
     const ways = [settings.acceptCash ? 'Cash' : null, settings.acceptGcash ? 'GCash' : null].filter(Boolean);
-    if (QRPAY) set('st-payment', 'PayMongo QR Ph · ' + peso(QrPay.price()) + ' per session');
+    if (QRPAY) set('st-payment', 'PayMongo QR Ph · no attendant');
     else set('st-payment', (ways.join(' + ') || 'Free') + (settings.acceptGcash ? (Media.url('gcash') ? ' · QR ready' : ' · no QR yet') : ''));
 
     const today = Sales.summary('day');
