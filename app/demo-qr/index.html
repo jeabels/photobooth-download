@@ -384,6 +384,8 @@ body.theme-dark .shutter{background:#fff;color:#111}
   background:#fff;color:#111;border-radius:var(--radius);padding:calc(var(--u)*12) calc(var(--u)*14) calc(var(--u)*10);
   box-shadow:var(--shadow),inset 0 0 0 1px rgba(0,0,0,.06)}
 .qr-pair{display:flex;justify-content:center;gap:calc(var(--u)*22);width:100%}
+.qr-pair.three{gap:calc(var(--u)*12)}
+.qr-pair.three .qr-box{width:calc(var(--u)*84);height:calc(var(--u)*84)}
 .qr-slot{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*6);cursor:pointer;min-width:0}
 .qr-box{width:calc(var(--u)*100);height:calc(var(--u)*100);display:flex;align-items:center;
   justify-content:center;background:#fff;border:1px solid #e8e8ec;border-radius:calc(var(--u)*8);overflow:hidden;padding:calc(var(--u)*4)}
@@ -865,6 +867,7 @@ body.framing #frame-bar{display:flex}
         <div class="qr-pair">
           <div class="qr-slot" onclick="Booth.preview('color')"><div class="qr-box" id="qr-color"></div><div class="qr-label">Colour</div></div>
           <div class="qr-slot" onclick="Booth.preview('bw')"><div class="qr-box" id="qr-bw"></div><div class="qr-label">Black &amp; white</div></div>
+          <div class="qr-slot" id="gif-slot" style="display:none" onclick="Booth.preview('gif')"><div class="qr-box" id="qr-gif"></div><div class="qr-label">GIF</div></div>
         </div>
         <div class="qr-meta"><span id="stamp"></span><span id="thanks"></span></div>
       </div>
@@ -1310,6 +1313,12 @@ body.framing #frame-bar{display:flex}
             <div class="set-sub">Every strip, full size, in Pictures › Snaps Photobooth. Nothing is lost if the internet fails or a link expires.</div></div>
           <button class="switch" id="sw-local" onclick="Admin.toggle('keepLocalCopy',this)"></button>
         </div>
+        <div class="set">
+          <div class="set-icon">🎞️</div>
+          <div class="set-text"><div class="set-title">GIF of the shots</div>
+            <div class="set-sub">A third QR on the last screen: an animated GIF that flips through the guest's shots, with your header. Layouts with 2 or more shots.</div></div>
+          <button class="switch" id="sw-gif" onclick="Admin.toggle('gifCopy',this)"></button>
+        </div>
 
         <div class="set col" id="kiosk-row" style="display:none">
           <div class="set-head"><div class="set-icon">🔒</div><div class="set-text">
@@ -1585,7 +1594,7 @@ const DEFAULTS = {
   gcashZoom:100, gcashX:50, gcashY:50,
 
   cloudRef:'', cloudKey:'', cloudBucket:'photos', cloudPage:DOWNLOAD_PAGE,
-  cloudKeepHours:72, keepLocalCopy:true,
+  cloudKeepHours:72, keepLocalCopy:true, gifCopy:true,
   activationSkipped:false
 };
 
@@ -2264,9 +2273,11 @@ const Cloud = {
 
   /** With a download page set, the QR opens that page; without one it opens
       the photo itself, which a guest can long-press to save. */
-  pageUrl(id, variant){
+  ext(variant){ return variant === 'g' ? '.gif' : '.jpg'; },
+
+  pageUrl(id, variant, hasGif){
     const page = Cloud.page();
-    if (!page || Cloud.pageLive === false) return Cloud.publicUrl('p/' + id + '-' + variant + '.jpg');
+    if (!page || Cloud.pageLive === false) return Cloud.publicUrl('p/' + id + '-' + variant + Cloud.ext(variant));
     /* The page dresses itself in the booth's branding from these few values,
        so it always matches Theme & branding with no setup. */
     const brand = {
@@ -2280,6 +2291,7 @@ const Cloud = {
     /* Only what differs from the page's defaults goes in, to keep the QR small. */
     const defaults = { f: 0, t: 'studio', k: 'pill' };
     const q = new URLSearchParams({ r: Cloud.ref(), id, v: variant });
+    if (hasGif) q.set('g', '1');
     if (Cloud.bucket() !== 'photos') q.set('b', Cloud.bucket());
     if (Cloud.keepHours() !== 72) q.set('e', Cloud.keepHours());
     Object.keys(brand).forEach(k => {
@@ -2483,18 +2495,143 @@ const Cloud = {
       const res = await fetch(Cloud.publicUrl(path) + '?t=' + Date.now(), { cache:'no-store' });
       if (!res.ok) throw new Error('Uploaded, but the file is not publicly readable (' + res.status + '). Set the bucket to public.');
       const live = await Cloud.checkPage(true);
+      let gifOk = true;
+      try{
+        const tiny = await Gif.encode([new ImageData(new Uint8ClampedArray(16).fill(255), 2, 2)], 10);
+        await Cloud.put('p/selftest-' + Date.now() + '.gif', new Blob([tiny], { type:'image/gif' }));
+      }catch(e){ gifOk = false; }
       const ping = await Cloud.ping();
       if (ping === 200) Cloud.cleanup(true);
       const keep = ping === 200 ? ' · photos auto-delete after ' + Cloud.keepLabel()
         : ' · run the latest setup.sql in Supabase to switch on auto-delete and keep-awake';
+      const gifNote = gifOk ? '' : ' · GIFs are blocked: run the latest setup.sql in Supabase';
       report(ping === 200 ? 'ok' : '', (!Cloud.page() ? 'Working — the QR opens the photo directly'
         : live ? 'Working — guests get your download page'
-        : 'Storage works, but the download page is not online yet — the QR opens the photo directly for now') + keep);
+        : 'Storage works, but the download page is not online yet — the QR opens the photo directly for now') + keep + gifNote);
       toast('Digital copies are live.');
     }catch(e){
       report('bad', e.message);
       toast(e.message, true);
     }
+  }
+};
+
+/* ============================ 6c. GIF MAKER ==============================
+   A small animated-GIF encoder, so the booth needs no extra library and
+   works offline. One shared 256-colour palette (median cut) for all frames,
+   a light ordered dither against banding on skin and walls, then LZW. */
+const Gif = {
+  palette(frames){
+    const step = Math.max(1, Math.floor(frames.reduce((n, f) => n + f.data.length / 4, 0) / 60000));
+    const px = [];
+    frames.forEach(f => { for (let i = 0; i < f.data.length; i += 4 * step) px.push([f.data[i], f.data[i + 1], f.data[i + 2]]); });
+    let boxes = [px];
+    while (boxes.length < 256){
+      let best = -1, bi = -1, ch = 0;
+      boxes.forEach((b, i) => {
+        if (b.length < 2) return;
+        for (let c = 0; c < 3; c++){
+          let lo = 255, hi = 0;
+          for (const p of b){ if (p[c] < lo) lo = p[c]; if (p[c] > hi) hi = p[c]; }
+          if ((hi - lo) * Math.log(b.length + 1) > best){ best = (hi - lo) * Math.log(b.length + 1); bi = i; ch = c; }
+        }
+      });
+      if (bi < 0 || best <= 0) break;
+      const b = boxes[bi].sort((p, q) => p[ch] - q[ch]), mid = b.length >> 1;
+      boxes.splice(bi, 1, b.slice(0, mid), b.slice(mid));
+    }
+    const pal = new Uint8Array(256 * 3);
+    boxes.forEach((b, i) => {
+      let r = 0, g = 0, bl = 0;
+      for (const p of b){ r += p[0]; g += p[1]; bl += p[2]; }
+      pal[i * 3] = Math.round(r / b.length); pal[i * 3 + 1] = Math.round(g / b.length); pal[i * 3 + 2] = Math.round(bl / b.length);
+    });
+    return { pal, size: Math.max(2, boxes.length) };
+  },
+
+  /** Colour → palette index, cached on a 5-bit-per-channel grid. */
+  mapper(pal, size){
+    const cache = new Int16Array(32768).fill(-1);
+    return (r, g, b) => {
+      const k = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+      let idx = cache[k];
+      if (idx >= 0) return idx;
+      let best = 1e9;
+      const cr = (r & 0xF8) | 4, cg = (g & 0xF8) | 4, cb = (b & 0xF8) | 4;
+      for (let i = 0; i < size; i++){
+        const dr = pal[i * 3] - cr, dg = pal[i * 3 + 1] - cg, db = pal[i * 3 + 2] - cb;
+        const d = dr * dr * 3 + dg * dg * 4 + db * db * 2;
+        if (d < best){ best = d; idx = i; }
+      }
+      cache[k] = idx;
+      return idx;
+    };
+  },
+
+  lzw(indices, out){
+    const minCode = 8, clear = 256, eoi = 257;
+    out.push(minCode);
+    let codeSize = 9, next = 258, dict = new Map();
+    let cur = 0, bits = 0, block = [];
+    const emit = code => {
+      cur |= code << bits; bits += codeSize;
+      while (bits >= 8){
+        block.push(cur & 255); cur >>>= 8; bits -= 8;
+        if (block.length === 255){ out.push(255, ...block); block = []; }
+      }
+    };
+    emit(clear);
+    let prefix = indices[0];
+    for (let i = 1; i < indices.length; i++){
+      const k = indices[i], key = prefix * 256 + k, hit = dict.get(key);
+      if (hit !== undefined){ prefix = hit; continue; }
+      emit(prefix);
+      if (next < 4096){
+        dict.set(key, next++);
+        if (next > (1 << codeSize) && codeSize < 12) codeSize++;
+      } else {
+        emit(clear);
+        dict = new Map(); next = 258; codeSize = 9;
+      }
+      prefix = k;
+    }
+    emit(prefix);
+    emit(eoi);
+    if (bits > 0) block.push(cur & 255);
+    if (block.length) out.push(block.length, ...block);
+    out.push(0);
+  },
+
+  /** frames: ImageData list of one size. delay in hundredths of a second. */
+  async encode(frames, delay){
+    const w = frames[0].width, h = frames[0].height;
+    const { pal, size } = Gif.palette(frames);
+    const map = Gif.mapper(pal, size);
+    const out = [];
+    const word = v => out.push(v & 255, (v >> 8) & 255);
+    out.push(0x47, 0x49, 0x46, 0x38, 0x39, 0x61);               // GIF89a
+    word(w); word(h);
+    out.push(0xF7, 0, 0);                                        // 256-colour global table
+    for (let i = 0; i < 768; i++) out.push(pal[i]);
+    out.push(0x21, 0xFF, 11, ...[...'NETSCAPE2.0'].map(c => c.charCodeAt(0)), 3, 1, 0, 0, 0);   // loop forever
+    const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    for (const f of frames){
+      const d = f.data, idx = new Uint8Array(w * h);
+      for (let y = 0, p = 0; y < h; y++) for (let x = 0; x < w; x++, p++){
+        const o = p * 4, r = d[o], g = d[o + 1], b = d[o + 2];
+        /* colours the palette already has (flat bands, text) stay clean */
+        const near = map(r, g, b), k = near * 3;
+        if (Math.abs(pal[k] - r) + Math.abs(pal[k + 1] - g) + Math.abs(pal[k + 2] - b) < 9){ idx[p] = near; continue; }
+        const t = (BAYER[(y & 3) * 4 + (x & 3)] - 7.5) * 1.6;
+        idx[p] = map(Math.min(255, Math.max(0, r + t)), Math.min(255, Math.max(0, g + t)), Math.min(255, Math.max(0, b + t)));
+      }
+      out.push(0x21, 0xF9, 4, 0x04); word(delay); out.push(0, 0); // frame delay
+      out.push(0x2C); word(0); word(0); word(w); word(h); out.push(0);
+      Gif.lzw(idx, out);
+      await new Promise(r => setTimeout(r, 0));                  // keep the screen responsive
+    }
+    out.push(0x3B);
+    return new Uint8Array(out);
   }
 };
 
@@ -2513,17 +2650,20 @@ const Uploads = {
   write(l){ try{ localStorage.setItem(KEY.uploads, JSON.stringify(l)); }catch(e){} },
   has(id){ return Uploads.list().some(x => x.id === id); },
 
-  async add(id, colorUrl, bwUrl){
+  gifRefused:false,
+
+  async add(id, colorUrl, bwUrl, gifBlob){
     await Media.tx('readwrite', s => s.put(Cloud.toBlob(colorUrl), 'up/' + id + '-c'));
     await Media.tx('readwrite', s => s.put(Cloud.toBlob(bwUrl), 'up/' + id + '-b'));
+    if (gifBlob) await Media.tx('readwrite', s => s.put(gifBlob, 'up/' + id + '-g'));
     const l = Uploads.list();
-    l.push({ id, t:Date.now() });
+    l.push({ id, t:Date.now(), g: !!gifBlob });
     Uploads.write(l);
   },
 
   async drop(id){
     Uploads.write(Uploads.list().filter(x => x.id !== id));
-    for (const v of ['c', 'b']){ try{ await Media.tx('readwrite', s => s.delete('up/' + id + '-' + v)); }catch(e){} }
+    for (const v of ['c', 'b', 'g']){ try{ await Media.tx('readwrite', s => s.delete('up/' + id + '-' + v)); }catch(e){} }
   },
 
   /** One pass over the queue, oldest first. */
@@ -2535,9 +2675,15 @@ const Uploads = {
         if (Date.now() - item.t > Cloud.keepHours() * 3600000){ await Uploads.drop(item.id); continue; }
         if (!Cloud.ready() || navigator.onLine === false) break;
         try{
-          for (const v of ['c', 'b']){
+          for (const v of item.g ? ['c', 'b', 'g'] : ['c', 'b']){
             const blob = await Media.tx('readonly', s => s.get('up/' + item.id + '-' + v));
-            if (blob) await Cloud.putWithRetry('p/' + item.id + '-' + v + '.jpg', blob);
+            if (!blob) continue;
+            try{ await Cloud.putWithRetry('p/' + item.id + '-' + v + Cloud.ext(v), blob); }
+            catch(e){
+              /* a project that hasn't re-run setup.sql refuses GIFs: keep the photos going */
+              if (v === 'g' && /\((400|403|413|415)\)/.test(e.message)){ Uploads.gifRefused = true; continue; }
+              throw e;
+            }
           }
           await Uploads.drop(item.id);
         }catch(e){
@@ -3983,6 +4129,52 @@ const Booth = {
     Booth.state.strips = { color:'', bw:'' };
     Booth.state.pending = { color:null, bw:null };
     Booth.state.printCanvas = null;
+    if (Booth.state.gif && Booth.state.gif.url) URL.revokeObjectURL(Booth.state.gif.url);
+    Booth.state.gif = null;
+    Booth.state.gifPending = null;
+  },
+
+  wantGif(){ return settings.gifCopy !== false && Booth.state.shots.length >= 2; },
+
+  /** An animated GIF that flips through the shots, each framed the way the
+      guest set it (pan, zoom, stickers, mirror), with the booth's header. */
+  gifFile(){
+    if (!Booth.wantGif()) return Promise.resolve(null);
+    if (Booth.state.gif) return Promise.resolve(Booth.state.gif);
+    if (Booth.state.gifPending) return Booth.state.gifPending;
+    const shots = Booth.state.shots.slice();
+    Booth.state.gifPending = (async () => {
+      const W = 480, PH = 640, BAND = 64, H = PH + BAND, theme = Theme.current();
+      const frames = [];
+      for (let i = 0; i < shots.length; i++){
+        const img = await loadImage(shots[i]);
+        if (!img) continue;
+        const c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        const ctx = c.getContext('2d', { willReadFrequently:true });
+        ctx.fillStyle = theme.paper || '#ffffff';
+        ctx.fillRect(0, 0, W, H);
+        drawIntoZone(ctx, img, { x:0, y:0, width:1, height:PH / H }, W, H, null, 'color',
+          Booth.state.mirrored, null, Booth.state.transforms[i], Booth.state.overlays[i]);
+        const name = String(settings.headerTop || '').trim();
+        if (name){
+          ctx.fillStyle = theme.accent || '#111111';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = Theme.weight(settings.headerFont) + ' 30px ' + Theme.font(settings.headerFont);
+          ctx.fillText(name.slice(0, 28), W / 2, PH + BAND / 2);
+        }
+        if (DEMO) demoWatermark(c);
+        frames.push(ctx.getImageData(0, 0, W, H));
+      }
+      if (frames.length < 2) return null;
+      const bytes = await Gif.encode(frames, 60);
+      const blob = new Blob([bytes], { type:'image/gif' });
+      Booth.state.gif = { blob, url: URL.createObjectURL(blob) };
+      return Booth.state.gif;
+    })().catch(e => { console.warn('GIF not made:', e); return null; })
+        .finally(() => { Booth.state.gifPending = null; });
+    return Booth.state.gifPending;
   },
 
   startSession(){
@@ -4179,15 +4371,17 @@ const Booth = {
     const session = Booth.state.shots;          // ignore the result if the guest moved on
     color.innerHTML = bw.innerHTML = '<span class="qr-note">Preparing…</span>';
     hint.textContent = 'Getting your digital copy ready…';
-    let id;
+    Booth.gifSlot(Booth.wantGif());
+    let id, gif = null;
     try{
       if (!window.QRCode) throw new Error('The QR library did not load.');
       const pair = await Promise.all([Booth.strip('color'), Booth.strip('bw')]);
       if (!pair[0] || !pair[1]) throw new Error('The strip could not be built.');
       Booth.keepLocal(pair[0]);
       const small = await Promise.all(pair.map(url => shrinkForUpload(url)));
+      gif = await Booth.gifFile();
       id = Cloud.newId();
-      await Uploads.add(id, small[0], small[1]);
+      await Uploads.add(id, small[0], small[1], gif && gif.blob);
     }catch(e){
       console.warn('Digital copies unavailable:', e);
       if (session !== Booth.state.shots) return;
@@ -4198,11 +4392,14 @@ const Booth = {
     await Cloud.checkPage();
     if (session !== Booth.state.shots){ Uploads.run(); return; }
     /* The link is known before the upload finishes, so guests can scan now. */
-    Booth.qr(color, Cloud.pageUrl(id, 'c'));
-    Booth.qr(bw, Cloud.pageUrl(id, 'b'));
+    Booth.gifSlot(!!gif);
+    Booth.qr(color, Cloud.pageUrl(id, 'c', !!gif));
+    Booth.qr(bw, Cloud.pageUrl(id, 'b', !!gif));
+    if (gif) Booth.qr($('qr-gif'), Cloud.pageUrl(id, 'g', true));
     hint.textContent = 'Uploading… you can scan already';
     const online = await Uploads.send(id);
     if (session !== Booth.state.shots) return;
+    if (gif && Uploads.gifRefused) $('qr-gif').innerHTML = '<span class="qr-note">GIF not available on this booth yet</span>';
     hint.textContent = online
       ? 'Scan with your phone camera · link works for ' + Cloud.keepLabel()
       : 'No internet right now. Scan anyway — your photo appears as soon as the booth is back online';
@@ -4219,14 +4416,24 @@ const Booth = {
   },
 
   async localTiles(){
-    const color = $('qr-color'), bw = $('qr-bw');
-    color.innerHTML = bw.innerHTML = '<span class="qr-note">Preparing…</span>';
+    const color = $('qr-color'), bw = $('qr-bw'), gifBox = $('qr-gif');
+    Booth.gifSlot(Booth.wantGif());
+    color.innerHTML = bw.innerHTML = gifBox.innerHTML = '<span class="qr-note">Preparing…</span>';
     const pair = await Promise.all([Booth.strip('color'), Booth.strip('bw')]);
     const tile = (src, label) => src
       ? '<img src="' + src + '" style="width:100%;height:100%;object-fit:cover" alt="' + label + '">'
       : '<span class="qr-note">Not ready</span>';
     color.innerHTML = tile(pair[0], 'Colour preview');
     bw.innerHTML = tile(pair[1], 'Black and white preview');
+    if (Booth.wantGif()){
+      const gif = await Booth.gifFile();
+      gifBox.innerHTML = tile(gif && gif.url, 'GIF preview');
+    }
+  },
+
+  gifSlot(on){
+    $('gif-slot').style.display = on ? '' : 'none';
+    document.querySelector('.qr-pair').classList.toggle('three', !!on);
   },
 
   /* Drawn at the box's real pixel size with whole-pixel squares, and with
@@ -4242,8 +4449,15 @@ const Booth = {
     Booth.state.previewVariant = variant;
     const holder = $('hd-holder');
     holder.innerHTML = '<p class="sheet-sub">Building the full-resolution image…</p>';
-    $('hd-label').textContent = variant === 'bw' ? 'Black and white' : 'Colour';
+    $('hd-label').textContent = variant === 'bw' ? 'Black and white' : variant === 'gif' ? 'GIF' : 'Colour';
     open_('hd-modal');
+    if (variant === 'gif'){
+      const gif = await Booth.gifFile();
+      holder.innerHTML = gif
+        ? '<img src="' + gif.url + '" style="width:100%;max-width:calc(var(--u)*260);border-radius:calc(var(--u)*8)">'
+        : '<p class="sheet-sub">The GIF could not be made.</p>';
+      return;
+    }
     const strip = await Booth.strip(variant);
     holder.innerHTML = strip
       ? '<img src="' + strip + '" style="width:100%;max-width:calc(var(--u)*260);border-radius:calc(var(--u)*8)">'
@@ -4251,6 +4465,23 @@ const Booth = {
   },
 
   async download(){
+    if (Booth.state.previewVariant === 'gif'){
+      const gif = await Booth.gifFile();
+      if (!gif){ toast('Nothing to save yet.', true); return; }
+      const name = 'photobooth-' + Date.now() + '.gif';
+      if (Native.has('saveFile')){
+        try{
+          const b64 = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(dataUrlBase64(r.result)); r.onerror = no; r.readAsDataURL(gif.blob); });
+          await Native.call('saveFile', b64, name, 'image/gif');
+          toast('Saved to this tablet\'s Gallery.');
+        }catch(e){ toast('Could not save — ' + e.message, true); }
+        return;
+      }
+      const a = document.createElement('a');
+      a.download = name; a.href = gif.url; a.click();
+      toast('Saved to this device.');
+      return;
+    }
     const strip = await Booth.strip(Booth.state.previewVariant);
     if (!strip){ toast('Nothing to save yet.', true); return; }
     if (Native.has('saveFile')){
@@ -5204,6 +5435,7 @@ const Admin = {
     Admin.paintSwitch('sw-gcash', settings.acceptGcash);
     Admin.paintSwitch('sw-mirror', settings.mirrorLock);
     Admin.paintSwitch('sw-local', settings.keepLocalCopy);
+    Admin.paintSwitch('sw-gif', settings.gifCopy);
     Cloud.paintKeep();
     Gcash.paint();
     $('act-code').value = '';
