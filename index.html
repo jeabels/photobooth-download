@@ -48,7 +48,7 @@ main{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:c
 /* ---- version switch ---- */
 .switch{display:flex;background:var(--line);padding:4px;border-radius:999px;margin:22px 0 18px}
 .switch button{border:0;background:transparent;color:var(--sub);font:600 14px var(--font-body);
-  padding:9px 18px;border-radius:999px;cursor:pointer;min-width:112px}
+  padding:9px 16px;border-radius:999px;cursor:pointer;min-width:88px}
 .switch button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.18)}
 
 /* ---- the strip, presented like a print ---- */
@@ -93,6 +93,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   <div class="switch" role="group" aria-label="Version">
     <button type="button" data-v="c" aria-pressed="true">Colour</button>
     <button type="button" data-v="b" aria-pressed="false">Black &amp; white</button>
+    <button type="button" data-v="g" aria-pressed="false" id="gif-btn" hidden>GIF</button>
   </div>
 
   <div class="print" id="print"><div class="placeholder loading">Loading your photo…</div></div>
@@ -146,7 +147,9 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   var ref = clean('r', /[^a-z0-9]/gi);
   var bucket = clean('b', /[^a-z0-9_-]/gi) || 'photos';
   var id = clean('id', /[^a-z0-9-]/gi);
-  var variant = q.get('v') === 'b' ? 'b' : 'c';
+  var variant = q.get('v') === 'b' ? 'b' : q.get('v') === 'g' ? 'g' : 'c';
+  /* g=1: this strip also has an animated GIF of the shots */
+  if (q.get('g') === '1' || variant === 'g') document.getElementById('gif-btn').hidden = false;
   var top = (q.get('n') || '').slice(0, 40);
   var bottom = (q.get('s') || '').slice(0, 50);
   var themeId = ALIASES[q.get('t')] || q.get('t');
@@ -215,8 +218,9 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-  function fileName(){ return (top ? top.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '-' : 'photo-strip-') + id + (variant === 'b' ? '-bw' : '') + '.jpg'; }
-  function photoUrl(v){ return 'https://' + ref + '.supabase.co/storage/v1/object/public/' + bucket + '/p/' + id + '-' + v + '.jpg'; }
+  function ext(v){ return v === 'g' ? '.gif' : '.jpg'; }
+  function fileName(){ return (top ? top.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '-' : 'photo-strip-') + id + (variant === 'b' ? '-bw' : variant === 'g' ? '-gif' : '') + ext(variant); }
+  function photoUrl(v){ return 'https://' + ref + '.supabase.co/storage/v1/object/public/' + bucket + '/p/' + id + '-' + v + ext(v); }
   /* Supabase serves the file as a download when ?download= is added. */
   function downloadUrl(){ return photoUrl(variant) + '?download=' + encodeURIComponent(fileName()); }
   function enable(on){ save.setAttribute('aria-disabled', String(!on)); open.setAttribute('aria-disabled', String(!on)); }
@@ -231,7 +235,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
     }
     if (!print.querySelector('img')) print.innerHTML = '<div class="placeholder loading">Loading your photo…</div>';
     var img = new Image();
-    img.alt = v === 'b' ? 'Your photo strip in black and white' : 'Your photo strip in colour';
+    img.alt = v === 'b' ? 'Your photo strip in black and white' : v === 'g' ? 'Your animated GIF' : 'Your photo strip in colour';
     img.onload = function(){
       print.innerHTML = '';
       print.appendChild(img);
@@ -275,7 +279,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
       if (!r.ok) throw new Error(String(r.status));
       return r.blob();
     }).then(function(blob){
-      var file = new File([blob], fileName(), { type:'image/jpeg' });
+      var file = new File([blob], fileName(), { type: variant === 'g' ? 'image/gif' : 'image/jpeg' });
       if (navigator.canShare && navigator.canShare({ files:[file] })){
         return navigator.share({ files:[file] }).then(function(){
           hint.textContent = 'Saved. You’ll find it in Photos.';
