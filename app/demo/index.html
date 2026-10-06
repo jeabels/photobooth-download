@@ -1111,7 +1111,11 @@ body.framing #frame-bar{display:flex}
         <div id="thermal-opts" style="display:none">
           <div class="set col">
             <div class="set-head"><div class="set-icon">📡</div><div class="set-text">
-              <div class="set-title">Bluetooth printer</div><div class="set-sub" id="bt-status"><span class="dot"></span>Checking…</div></div></div>
+              <div class="set-title" id="link-title">Bluetooth printer</div><div class="set-sub" id="bt-status"><span class="dot"></span>Checking…</div></div></div>
+            <div class="seg" id="link-seg" style="display:none">
+              <button data-link="bt" onclick="Printing.setLink('bt')">Bluetooth</button>
+              <button data-link="usb" onclick="Printing.setLink('usb')">USB cable</button>
+            </div>
             <div class="fields">
               <button class="ghost" onclick="Printing.pair()">Choose printer</button>
               <button class="ghost" onclick="Printing.testThermal()">Print test strip</button>
@@ -1136,6 +1140,12 @@ body.framing #frame-bar{display:flex}
               <button data-dots="silk" onclick="Printing.setDots('silk')">Silk</button>
             </div>
             <p class="set-sub"><b>Fine</b> scatters tiny dots for the sharpest detail and hair. <b>Smooth</b> uses an even dot pattern for softer skin and cleaner backgrounds. <b>Silk</b> (recommended) smooths out camera grain, keeps faces clear and prints a fine, even texture, like a classic receipt photobooth.</p>
+            <span class="label">Print speed</span>
+            <div class="seg" id="speed-seg">
+              <button data-speed="normal" onclick="Printing.setSpeed('normal')">Normal</button>
+              <button data-speed="steady" onclick="Printing.setSpeed('steady')">Steady</button>
+            </div>
+            <p class="set-sub"><b>Thin lines across the photo?</b> The printer is running ahead of Bluetooth and pausing. Use a <b>USB cable</b> (best), or try <b>Steady</b>, which asks the printer to print slower. Not every printer supports Steady; if the lines stay, use USB.</p>
             <canvas id="tone-preview" width="260" height="44" style="width:100%;height:calc(var(--u)*38);border-radius:calc(var(--u)*6);border:1px solid var(--line)"></canvas>
             <p class="set-sub">Top is the tone curve, bottom is the real dot pattern. Lower the darkness if faces print as black blobs.</p>
           </div>
@@ -1585,7 +1595,7 @@ const DEFAULTS = {
   basicPrices:{ solo:20, classic4:30, trio:30, mega6:30 },
 
   printEngine:'photo', paperSize:'4x6',
-  printWidth:576, printDarkness:'soft', printDots:'silk',
+  printWidth:576, printDarkness:'soft', printDots:'silk', printLink:'bt', usbId:'', printSpeed:'normal',
   btName:'', btAddress:'', btChunk:180, btPacing:12, cutMode:'full', cutFeed:4,
 
   boothMode:'nonevent', eventEndsAt:0, eventHours:4,
@@ -3685,6 +3695,12 @@ const BT = {
       : new Uint8Array([0x1D, 0x56, settings.cutMode === 'partial' ? 1 : 0]);
 
     parts.push(new Uint8Array([0x1B, 0x40]), new Uint8Array([0x1B, 0x61, 0x00]));
+    if (settings.printSpeed === 'steady' && settings.printLink !== 'usb'){
+      /* GS ( K fn 50: print speed, level 1 (slowest), so Bluetooth keeps up
+         and the head never stops mid-photo. It's length-prefixed, so a
+         printer without it skips it cleanly. */
+      parts.push(new Uint8Array([0x1D, 0x28, 0x4B, 0x02, 0x00, 0x32, 0x01]));
+    }
     for (let c = 0; c < Math.max(1, copies || 1); c++){
       parts.push(new Uint8Array([0x1D, 0x76, 0x30, 0x00, r.per & 255, (r.per >> 8) & 255, r.height & 255, (r.height >> 8) & 255]));
       parts.push(r.bits);
@@ -3700,7 +3716,15 @@ const BT = {
     return job;
   },
 
+  usb(){ return settings.printLink === 'usb' && Native.has('usbWrite'); },
+
   async send(job, onProgress){
+    if (BT.usb()){
+      if (onProgress) onProgress(.1);
+      await Native.call('usbWrite', settings.usbId || '', bytesToBase64(job));
+      if (onProgress) onProgress(1);
+      return;
+    }
     if (Native.has('printerWrite')){
       if (!settings.btAddress) throw new Error('no printer chosen — pick one under Settings, Printer');
       if (onProgress) onProgress(.1);
@@ -3721,6 +3745,13 @@ const BT = {
   },
 
   status(){
+    if (BT.usb()){
+      const list = Native.json('usbPrinters', []);
+      const mine = list.find(p => p.id === settings.usbId) || list[0];
+      if (!mine) return { dot:'bad', text:'No USB printer found — plug it in with the OTG adapter and switch it on' };
+      return { dot: mine.allowed ? 'ok' : '', text: (mine.allowed ? 'Ready: ' : 'Found: ') + mine.name +
+        (mine.allowed ? '' : ' — Android asks for access on the first print') };
+    }
     if (Native.has('printerWrite')){
       const s = Native.json('printerStatus', {});
       if (s.enabled === false) return { dot:'bad', text:'Bluetooth is off on this tablet' };
@@ -3761,7 +3792,25 @@ const Printing = {
     Printing.paintBt();
   },
 
+  setLink(link){
+    settings.printLink = link === 'usb' ? 'usb' : 'bt';
+    if (settings.printLink === 'usb'){
+      const list = Native.json('usbPrinters', []);
+      if (list[0] && !list.some(p => p.id === settings.usbId)) settings.usbId = list[0].id;
+    }
+    save(); Printing.paint();
+  },
+  setSpeed(v){ settings.printSpeed = v === 'steady' ? 'steady' : 'normal'; save(); Printing.paint(); },
+
   paintBt(){
+    const usbOk = Native.has('usbWrite');
+    if ($('link-seg')){
+      $('link-seg').style.display = usbOk ? '' : 'none';
+      document.querySelectorAll('#link-seg button').forEach(b => b.classList.toggle('on', b.dataset.link === (BT.usb() ? 'usb' : 'bt')));
+      $('link-title').textContent = BT.usb() ? 'USB printer' : 'Bluetooth printer';
+      $('speed-seg').previousElementSibling.style.display = $('speed-seg').style.display = BT.usb() ? 'none' : '';
+      document.querySelectorAll('#speed-seg button').forEach(b => b.classList.toggle('on', b.dataset.speed === settings.printSpeed));
+    }
     const el = $('bt-status');
     if (!el) return;
     const s = BT.status();
@@ -3769,6 +3818,16 @@ const Printing = {
   },
 
   async pair(){
+    if (BT.usb()){
+      const list = Native.json('usbPrinters', []);
+      if (!list.length){ toast('No USB printer found. Plug it in with the OTG adapter and switch it on.', true); Printing.paintBt(); return; }
+      const i = Math.max(0, list.findIndex(p => p.id === settings.usbId));
+      const next = list[(list.some(p => p.id === settings.usbId) ? i + 1 : 0) % list.length];
+      settings.usbId = next.id; save();
+      toast('Using ' + next.name + '.');
+      Printing.paintBt();
+      return;
+    }
     if (Native.has('printerWrite')){ Printing.showPicker(); return; }
     try{ await BT.pair(); toast('Paired with ' + settings.btName + '.'); }
     catch(e){ toast(e.name === 'NotFoundError' ? 'No printer chosen.' : (e.message || 'Pairing failed.'), true); }
@@ -5495,7 +5554,7 @@ const Admin = {
       (designs.length ? designs.length + ' design' + (designs.length === 1 ? '' : 's') : 'no designs'));
 
     if (settings.printEngine === 'thermal'){
-      set('st-printer', (BT.ready() ? 'Connected' : settings.btName ? 'Paired' : 'Not paired') +
+      set('st-printer', (BT.usb() ? 'USB cable' : BT.ready() ? 'Connected' : settings.btName ? 'Paired' : 'Not paired') +
         ' · ' + ({ 384:'58mm', 576:'80mm', 832:'112mm' }[Number(settings.printWidth)] || settings.printWidth + ' dots'));
     } else {
       set('st-printer', 'Photo printer · ' + (PAPER[settings.paperSize] || PAPER['4x6']).label);
