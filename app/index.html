@@ -63,12 +63,15 @@ a{color:inherit}
 .device .under a{font-weight:700;color:var(--ink);white-space:nowrap}
 
 /* demo version switch */
-.vswitch{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--paper-2);border-radius:999px;padding:5px;margin-bottom:14px}
+.vswitch{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:var(--paper-2);border-radius:999px;padding:5px;margin-bottom:14px}
 .vswitch button{border:0;background:transparent;border-radius:999px;padding:10px 8px;font:700 13px var(--sans);color:var(--sub);cursor:pointer}
 .vswitch button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 
 /* the two versions */
-.versions{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:44px}
+.versions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:44px}
+.version.newest{box-shadow:inset 0 0 0 2px var(--ink)}
+.version .badge{align-self:flex-start;background:var(--ink);color:var(--paper);font-size:11px;font-weight:800;letter-spacing:.12em;
+  text-transform:uppercase;padding:4px 10px;border-radius:999px}
 .version{background:var(--card);border-radius:22px;padding:30px;display:flex;flex-direction:column;gap:14px}
 .version .tag{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--sub)}
 .version h3{font-family:var(--serif);font-weight:500;font-size:28px;line-height:1.1}
@@ -78,7 +81,7 @@ a{color:inherit}
 .version .btn{align-self:flex-start}
 
 /* version choice in the request form */
-.pick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pick{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .pick label{margin:0;display:flex;gap:10px;align-items:flex-start;background:var(--paper);border:1.5px solid transparent;border-radius:12px;padding:12px 14px;cursor:pointer;font-weight:600}
 .pick label small{display:block;font-weight:500;color:var(--sub)}
 .pick input{width:auto;margin-top:4px;accent-color:var(--ink)}
@@ -130,6 +133,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
 
 @media (max-width:900px){
   .hero,.get{grid-template-columns:1fr;gap:44px}
+  .versions{grid-template-columns:1fr}
   .hero{padding-top:12px}
   .features{grid-template-columns:1fr 1fr}
   .needs{grid-template-columns:1fr 1fr}
@@ -173,6 +177,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
       <div class="vswitch" role="group" aria-label="Demo version">
         <button type="button" data-demo="demo/" aria-pressed="true">V1 · Cash + GCash</button>
         <button type="button" data-demo="demo-qr/" aria-pressed="false">V2 · QR Pay</button>
+        <button type="button" data-demo="demo-pkg/" aria-pressed="false">V3 · Package</button>
       </div>
       <div class="tablet">
         <div class="screen" id="screen">
@@ -189,8 +194,8 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
 
 <section class="band" id="versions">
   <div class="wrap">
-    <h2>Two versions. Pick the one that fits your booth.</h2>
-    <p class="intro">Both have every feature below: layouts, stickers, printing, QR digital copies, sales and event mode. They differ in how guests pay.</p>
+    <h2>Three versions. Pick the one that fits your booth.</h2>
+    <p class="intro">All three have the core booth: layouts, stickers, printing, QR digital copies, sales and event mode. Version 3 is the newest app.</p>
     <div class="versions">
       <div class="version">
         <span class="tag">Version 1</span>
@@ -216,6 +221,19 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
         <p class="for"><b>Best for</b> unattended booths: malls, cafés, lobbies. Needs a verified PayMongo account and internet. PayMongo charges a small fee per payment.</p>
         <a class="btn ghost small" href="demo-qr/" target="_blank" rel="noopener">Try Version 2</a>
       </div>
+      <div class="version newest">
+        <span class="badge">Newest</span>
+        <span class="tag">Version 3</span>
+        <h3>App for Package</h3>
+        <ul>
+          <li>The newest app, set up for you with its own photo storage</li>
+          <li>Move and recolour the start button, 22 themes and 53 fonts</li>
+          <li>Faster printing for cleaner receipt photos, by Bluetooth or USB cable</li>
+          <li>Cash + GCash, digital copies by QR, GIFs of the shots</li>
+        </ul>
+        <p class="for"><b>Best for</b> complete booth packages: tablet, printer and app, ready to run.</p>
+        <a class="btn ghost small" href="demo-pkg/" target="_blank" rel="noopener">Try Version 3</a>
+      </div>
     </div>
   </div>
 </section>
@@ -226,9 +244,9 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
     <p class="intro">Built for Filipino photobooth businesses: pay-per-print at malls and pop-ups, or hourly rentals for weddings and parties.</p>
     <div class="features">
       <div class="feature"><h3>Your choice of payment</h3><p>Version 1: cash or your own GCash QR with an attendant. Version 2: confirmed QR Ph payments through PayMongo, no attendant. Every sale is logged.</p></div>
-      <div class="feature"><h3>Prints on what you own</h3><p>Bluetooth receipt printers (58 or 80 mm) or any colour photo printer Android can print to, on 2×6, 4×6, 5×7 or A6 paper.</p></div>
+      <div class="feature"><h3>Prints on what you own</h3><p>Receipt printers (58 or 80 mm) by Bluetooth or USB cable, or any colour photo printer Android can print to, on 2×6, 4×6, 5×7 or A6 paper.</p></div>
       <div class="feature"><h3>Digital copy by QR</h3><p>Every strip gets a QR code. Guests scan it and save the photo to their phone, in colour or black and white.</p></div>
-      <div class="feature"><h3>Looks like your brand</h3><p>Ten themes, 35 typefaces for your header, twelve start-button designs, and a photo or live-video wallpaper.</p></div>
+      <div class="feature"><h3>Looks like your brand</h3><p>22 themes, 53 typefaces for your header, twelve start-button designs you can recolour and place anywhere, and a photo or live-video wallpaper.</p></div>
       <div class="feature"><h3>Stickers, text and designs</h3><p>Guests decorate each shot. You upload your own frame designs and place the photo spaces by hand.</p></div>
       <div class="feature"><h3>Sales and event mode</h3><p>Daily, weekly and monthly sales by cash and GCash, CSV export, and a timed mode for rented events.</p></div>
     </div>
@@ -236,9 +254,9 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
     <h2 style="margin-top:88px;font-size:clamp(26px,3vw,34px)">What you need</h2>
     <div class="needs">
       <div class="need"><b>An Android tablet</b><span>Android 8 or newer, any size. The booth fills the screen automatically.</span></div>
-      <div class="need"><b>A printer</b><span>Bluetooth receipt printer, or any photo printer that works with Android printing.</span></div>
+      <div class="need"><b>A printer</b><span>Receipt printer by Bluetooth or USB cable, or any photo printer that works with Android printing.</span></div>
       <div class="need"><b>Internet</b><span>For QR digital copies. Payments and printing work offline.</span></div>
-      <div class="need"><b>Nothing else to set up</b><span>Your download code switches on digital copies inside the app. No accounts, no keys to copy.</span></div>
+      <div class="need"><b>Nothing else to set up</b><span>We set up your booth's own photo storage for you, so guests can download their photos by QR.</span></div>
     </div>
   </div>
 </section>
@@ -266,6 +284,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
             <div class="pick">
               <label><input type="radio" name="edition" value="standard" checked><span>Version 1 · Cash + GCash<small>with an attendant</small></span></label>
               <label><input type="radio" name="edition" value="qrpay"><span>Version 2 · QR Pay<small>self-service, PayMongo</small></span></label>
+              <label><input type="radio" name="edition" value="package"><span>Version 3 · Package<small>newest app</small></span></label>
             </div>
           </div>
           <div class="two">
