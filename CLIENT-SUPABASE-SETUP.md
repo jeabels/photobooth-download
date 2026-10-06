@@ -112,6 +112,7 @@ The booth needs **two codes** from Supabase. Copy them into your tablet's notes.
 
 | What you see | What to do |
 |---|---|
+| QR screen says **"GIF not available on this booth yet"** | Your storage was set up with an older code that blocks GIFs. Repeat **Step 2** with the code in this guide, then tap **Test digital copies** again. |
 | Test says the project is **paused** | Free projects pause after about a week without use. Open supabase.com → your project → **Restore project**, wait 2 minutes, then test again. |
 | App says **"run the latest setup.sql"** | Repeat **Step 2**. It's safe to run more than once. |
 | QR page says **"on its way"** | The tablet isn't online yet. The photo uploads as soon as it reconnects. |
