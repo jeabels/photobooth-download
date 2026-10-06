@@ -6,7 +6,7 @@ This sets up **your own free photo storage**, so guests can scan the QR code on 
 
 - You need a Gmail account (or any email), the booth tablet, and about 10 minutes.
 - Everything here uses the Supabase **free plan**. You don't need a credit card.
-- Photos are stored in **your** account, not the seller's, and only you control them.
+- You make **your own** Supabase account. Photos are stored there, not with the seller, and only you control them.
 - Photos delete themselves after **3 hours**, so your storage never fills up.
 
 ## Step 1: Create your Supabase account and project
@@ -19,8 +19,6 @@ This sets up **your own free photo storage**, so guests can scan the QR code on 
    - **Database password:** tap **Generate a password**, then **save it somewhere safe**. The booth doesn't use it, but keep it private.
    - **Region:** **Southeast Asia (Singapore)**. It's closest to the Philippines, so downloads are fastest.
 5. Tap **Create new project**. Wait 1–2 minutes for the dashboard to finish loading.
-
-> **Did your seller already send you an invite email?** Your seller may have set up the project for you (project `dqggqdbvrkdtrkzralpf`). If so, open the email, tap **Accept invite**, sign in with the same Gmail, and **skip to Step 3**. Step 2 is already done on that project.
 
 ## Step 2: Create the photo storage (copy and paste once)
 
@@ -78,7 +76,7 @@ The booth needs **two codes** from Supabase. Copy them into your tablet's notes.
 
 **A. Project reference**
 1. Tap the ⚙️ **Project Settings** icon (bottom of the left menu), then **General**.
-2. Copy the **Project ID**. It's about 20 lowercase letters, like `dqggqdbvrkdtrkzralpf`.
+2. Copy the **Project ID**. It's about 20 lowercase letters, like `abcdefghijklmnopqrst`.
    - It's also the part of your project URL before `.supabase.co`.
 
 **B. Publishable key**
