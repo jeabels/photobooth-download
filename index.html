@@ -55,8 +55,8 @@ main{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:c
 .print{width:min(300px,100%);background:#fff;padding:10px;border-radius:3px;
   box-shadow:0 1px 2px rgba(0,0,0,.08),0 18px 40px -12px rgba(0,0,0,.35)}
 .print img{display:block;width:100%;height:auto;-webkit-touch-callout:default}
-.placeholder{aspect-ratio:1/2.6;background:#EEEBE6;display:flex;align-items:center;justify-content:center;
-  color:#8A847C;font-size:14px;padding:24px;line-height:1.45}
+.placeholder{aspect-ratio:1/2.6;background:color-mix(in srgb,var(--accent) 9%,var(--paper));display:flex;align-items:center;justify-content:center;
+  color:var(--sub);font-size:14px;padding:24px;line-height:1.45}
 @media (prefers-reduced-motion:no-preference){
   .placeholder.loading{animation:pulse 1.4s ease-in-out infinite}
   @keyframes pulse{50%{opacity:.55}}
@@ -121,7 +121,19 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
     mono:      { accent:'#000000', accent2:'#2a2a2a', on:'#ffffff', paper:'#FFFFFF', dark:false, body:'Archivo' },
     champagne: { accent:'#D9C4A3', accent2:'#B89C72', on:'#16130F', paper:'#121110', dark:true,  body:'Manrope' },
     midnight:  { accent:'#8FA3FF', accent2:'#6C82F0', on:'#0B1022', paper:'#0C1022', dark:true,  body:'Sora' },
-    neon:      { accent:'#FF2E88', accent2:'#D61E6C', on:'#ffffff', paper:'#0B0A10', dark:true,  body:'Sora' }
+    neon:      { accent:'#FF2E88', accent2:'#D61E6C', on:'#ffffff', paper:'#0B0A10', dark:true,  body:'Sora' },
+    latte:     { accent:'#8B6B4A', accent2:'#6E5236', on:'#ffffff', paper:'#F3EBDD', dark:false, body:'Outfit' },
+    kraft:     { accent:'#3B2F25', accent2:'#5A4736', on:'#F3E9D8', paper:'#E9DCC4', dark:false, body:'Archivo' },
+    rosegold:  { accent:'#B76E79', accent2:'#97555F', on:'#ffffff', paper:'#F8EEEB', dark:false, body:'Manrope' },
+    lavender:  { accent:'#7A5AC8', accent2:'#5E41A8', on:'#ffffff', paper:'#F3F0FA', dark:false, body:'Outfit' },
+    ocean:     { accent:'#0F7C86', accent2:'#0A5E66', on:'#ffffff', paper:'#EAF4F4', dark:false, body:'Sora' },
+    sky:       { accent:'#2F80ED', accent2:'#1F66C9', on:'#ffffff', paper:'#EEF5FF', dark:false, body:'Manrope' },
+    matcha:    { accent:'#6B8E3A', accent2:'#52702A', on:'#ffffff', paper:'#F1F4E6', dark:false, body:'Manrope' },
+    retro:     { accent:'#D9582B', accent2:'#B4441E', on:'#FFF5E1', paper:'#FFF1D6', dark:false, body:'Outfit' },
+    bubblegum: { accent:'#FF5FA2', accent2:'#E2448A', on:'#ffffff', paper:'#FFF0F6', dark:false, body:'Outfit' },
+    mocha:     { accent:'#C9A27E', accent2:'#A9825F', on:'#1E1611', paper:'#1E1611', dark:true,  body:'Manrope' },
+    emerald:   { accent:'#D4B26A', accent2:'#B8954C', on:'#0E1F18', paper:'#0E1F18', dark:true,  body:'Manrope' },
+    wine:      { accent:'#E8B4BC', accent2:'#D293A0', on:'#2A0E16', paper:'#2A0E16', dark:true,  body:'Outfit' }
   };
   var ALIASES = { noir:'studio', verdant:'sage', ember:'terracotta', gold:'champagne' };
   /* [family, weight, fallback] */
@@ -134,7 +146,12 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
     ['Bricolage Grotesque',800,'sans-serif'],['Righteous',400,'sans-serif'],['Great Vibes',400,'cursive'],['Pinyon Script',400,'cursive'],
     ['Allura',400,'cursive'],['Parisienne',400,'cursive'],['Dancing Script',700,'cursive'],['Sacramento',400,'cursive'],
     ['Caveat',700,'cursive'],['Pacifico',400,'cursive'],['Lobster',400,'cursive'],['Shrikhand',400,'cursive'],
-    ['Monoton',400,'cursive'],['Special Elite',400,'monospace'],['UnifrakturMaguntia',400,'serif']
+    ['Monoton',400,'cursive'],['Special Elite',400,'monospace'],['UnifrakturMaguntia',400,'serif'],
+    ['Lora',700,'serif'],['EB Garamond',700,'serif'],['Libre Baskerville',700,'serif'],['Marcellus',400,'serif'],
+    ['Poppins',800,'sans-serif'],['Raleway',800,'sans-serif'],['Josefin Sans',700,'sans-serif'],['Quicksand',700,'sans-serif'],
+    ['Nunito',800,'sans-serif'],['Tenor Sans',400,'sans-serif'],['Comfortaa',700,'sans-serif'],['Fredoka',600,'sans-serif'],
+    ['Bungee',400,'sans-serif'],['Amatic SC',700,'cursive'],['Satisfy',400,'cursive'],['Kaushan Script',400,'cursive'],
+    ['Playball',400,'cursive'],['Cookie',400,'cursive']
   ];
   /* radius in px (999 = round), capitals, look */
   var BUTTONS = {
