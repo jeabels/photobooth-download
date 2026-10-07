@@ -98,6 +98,9 @@ button{font-family:inherit;color:inherit}
   color:var(--header-color);opacity:.7;white-space:nowrap;font-family:var(--header-font)}
 .wordmark small:empty,.wordmark b:empty{display:none}
 .progress{justify-self:end;display:flex;gap:calc(var(--u)*4)}
+.home-link{align-self:center;display:inline-flex;align-items:center;gap:calc(var(--u)*5);background:none;border:none;cursor:pointer;
+  font-size:calc(var(--u)*11);font-weight:700;color:var(--sub);padding:calc(var(--u)*6) calc(var(--u)*10);margin-top:calc(var(--u)*2)}
+.home-link svg{width:calc(var(--u)*14);height:calc(var(--u)*14)}
 .progress i{width:calc(var(--u)*14);height:calc(var(--u)*3);border-radius:999px;background:var(--track)}
 .progress i.on{background:var(--accent)}
 .progress i.done{background:var(--accent);opacity:.35}
@@ -581,6 +584,8 @@ details.more > div{display:flex;flex-direction:column;gap:calc(var(--u)*8)}
 .dots div{width:calc(var(--u)*10);height:calc(var(--u)*10);border-radius:50%;background:var(--track)}
 .dots div.on{background:var(--accent)}
 .pin-err{font-size:calc(var(--u)*11);color:#c02626;font-weight:700;min-height:calc(var(--u)*14)}
+#license-modal{z-index:5000;background:rgba(10,10,12,.92)}
+body.framing #license-modal.open{display:flex!important}
 .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u)*6);margin-top:calc(var(--u)*6)}
 .keys button{padding:calc(var(--u)*10) 0;border-radius:calc(var(--u)*10);border:1px solid var(--line);background:var(--card);
   font-family:var(--font-mono);font-size:calc(var(--u)*15);font-weight:700;cursor:pointer}
@@ -894,6 +899,7 @@ body.framing #frame-bar{display:flex}
     </div>
 
     <button class="btn" id="print-btn" onclick="Booth.printAndFinish()">Print</button>
+    <button class="home-link" onclick="Booth.goHome()" aria-label="Back to the home screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Home</button>
   </section>
 </div>
 
@@ -955,6 +961,24 @@ body.framing #frame-bar{display:flex}
       <button onclick="Pin.press('7')">7</button><button onclick="Pin.press('8')">8</button><button onclick="Pin.press('9')">9</button>
       <button class="small" onclick="Pin.cancel()">Cancel</button><button onclick="Pin.press('0')">0</button><button class="small" onclick="Pin.back()">Delete</button>
     </div>
+  </div>
+</div>
+
+<!-- App license: shown until this tablet is unlocked with the buyer's code. No way to close it. -->
+<div class="modal" id="license-modal">
+  <div class="sheet" style="max-width:calc(var(--u)*280);padding:calc(var(--u)*16)">
+    <div class="sheet-title" style="font-size:calc(var(--u)*16)">Unlock this app</div>
+    <p class="sheet-sub" id="lic-sub">Enter the 6-digit code you got when you bought the app.</p>
+    <div class="dots" id="lic-dots"></div>
+    <div class="pin-err" id="lic-err"></div>
+    <div class="keys">
+      <button onclick="License.press('1')">1</button><button onclick="License.press('2')">2</button><button onclick="License.press('3')">3</button>
+      <button onclick="License.press('4')">4</button><button onclick="License.press('5')">5</button><button onclick="License.press('6')">6</button>
+      <button onclick="License.press('7')">7</button><button onclick="License.press('8')">8</button><button onclick="License.press('9')">9</button>
+      <button class="small" onclick="License.clear()">Clear</button><button onclick="License.press('0')">0</button><button class="small" onclick="License.back()">Delete</button>
+    </div>
+    <p class="sheet-sub" style="margin-top:calc(var(--u)*10)">Each code works on one tablet. Get the app only from
+      <b>jeabels.github.io/photobooth-download/app</b></p>
   </div>
 </div>
 
@@ -1235,7 +1259,7 @@ body.framing #frame-bar{display:flex}
           <div class="list" id="s-recent"></div>
           <div class="fields">
             <button class="ghost" onclick="Sales.exportCsv()">Export to CSV</button>
-            <button class="ghost danger" onclick="Sales.clear()">Clear log</button>
+            <button class="ghost danger" id="s-clear" onclick="Sales.clear()">Clear today's log</button>
           </div>
           <p class="set-sub">A sale is written the moment payment lands, so a paper jam never erases it. Export now and then — clearing this tablet's browser data wipes the log.</p>
         </div>
@@ -2308,6 +2332,119 @@ const Pin = {
   }
 };
 
+/* ============================ 5b. APP LICENSE ============================
+   The app is sold one tablet per code. On first open the buyer enters the
+   code from the website; the seller's download service ties it to this
+   tablet and answers with a license. A copy shared to another tablet asks
+   for a code again, and that code is refused there. The license is checked
+   again whenever the tablet is online, and keeps working offline for up to
+   GRACE_DAYS since the last good check. The web demo never asks. */
+const License = {
+  KEY:'snaps_license',
+  GRACE_DAYS:7,
+  buf:'', busy:false,
+
+  needed(){ return !DEMO && Native.on(); },
+  get(){ try{ return JSON.parse(localStorage.getItem(License.KEY) || 'null'); }catch(e){ return null; } },
+  set(v){ try{ v ? localStorage.setItem(License.KEY, JSON.stringify(v)) : localStorage.removeItem(License.KEY); }catch(e){} },
+
+  device(){
+    const id = String(Native.sync('deviceId') || '').trim();
+    if (id) return id;
+    let own = '';
+    try{ own = localStorage.getItem('snaps_device') || ''; }catch(e){}
+    if (!own){
+      own = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
+      try{ localStorage.setItem('snaps_device', own); }catch(e){}
+    }
+    return own;
+  },
+
+  async post(body){
+    const res = await fetch(SELLER.gate, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', apikey:SELLER.key },
+      body: JSON.stringify(body)
+    });
+    return { status: res.status, body: await res.json().catch(() => ({})) };
+  },
+
+  start(){
+    if (!License.needed()) return;
+    const lic = License.get();
+    if (!lic || !lic.id || !lic.token) return License.lock('');
+    if (Date.now() - (lic.ok || 0) > License.GRACE_DAYS * 86400000){
+      License.lock('Connect this tablet to the internet to check the app license, or enter your code again.');
+    }
+    License.check();
+    setInterval(() => License.check(), 6 * 3600000);
+    window.addEventListener('online', () => License.check());
+  },
+
+  async check(){
+    const lic = License.get();
+    if (!lic || navigator.onLine === false) return;
+    let r;
+    /* The booth's own storage rides along, so the seller's service can keep
+       that project awake and clear old photos even while this app is closed. */
+    const cloud = Cloud.ready() ? { ref:Cloud.ref(), key:Cloud.key(), bucket:Cloud.bucket(), keep:Cloud.keepHours() } : null;
+    try{ r = await License.post({ action:'check', license:lic.id, token:lic.token, device:License.device(), cloud }); }
+    catch(e){ return; }
+    if (r.status === 200 && r.body.ok){
+      lic.ok = Date.now();
+      License.set(lic);
+      if (!License.busy) close_('license-modal');
+    } else if (r.body && r.body.locked){
+      License.set(null);
+      License.lock(r.body.error || 'This app license is no longer active.');
+    }
+  },
+
+  lock(msg){
+    License.buf = '';
+    License.dots();
+    $('lic-err').textContent = msg || '';
+    open_('license-modal');
+  },
+
+  press(d){
+    if (License.busy || License.buf.length >= 6) return;
+    License.buf += d;
+    $('lic-err').textContent = '';
+    License.dots();
+    if (License.buf.length === 6) License.submit();
+  },
+  back(){ if (!License.busy){ License.buf = License.buf.slice(0, -1); License.dots(); } },
+  clear(){ if (!License.busy){ License.buf = ''; License.dots(); } },
+  dots(){
+    $('lic-dots').innerHTML = Array.from({ length: 6 },
+      (_, i) => '<div class="' + (i < License.buf.length ? 'on' : '') + '"></div>').join('');
+  },
+
+  async submit(){
+    const code = License.buf;
+    License.busy = true;
+    busy(true, 'Checking your code…');
+    try{
+      const r = await License.post({ action:'license', code, device:License.device(), edition: window.SNAPS_EDITION || 'standard' });
+      if (r.status === 200 && r.body.license && r.body.token){
+        License.set({ id:r.body.license, token:r.body.token, ok:Date.now() });
+        close_('license-modal');
+        toast('App unlocked. Enjoy!');
+      } else {
+        $('lic-err').textContent = r.body.error || 'That code could not be used (' + r.status + ').';
+      }
+    }catch(e){
+      $('lic-err').textContent = 'No internet connection. Connect to Wi-Fi and try again.';
+    }finally{
+      License.busy = false;
+      License.buf = '';
+      License.dots();
+      busy(false);
+    }
+  }
+};
+
 /* ==================== 6. DIGITAL COPIES (object storage) ================= */
 const Cloud = {
   ref(){
@@ -2591,6 +2728,7 @@ const Cloud = {
         : live ? 'Working — guests get your download page'
         : 'Storage works, but the download page is not online yet — the QR opens the photo directly for now') + keep + gifNote);
       toast('Digital copies are live.');
+      License.check();
     }catch(e){
       report('bad', e.message);
       toast(e.message, true);
@@ -3436,8 +3574,11 @@ const PAPER = {
 
 /* --- thermal tone + dither (receipt printers only) --- */
 const TONES = {
-  soft:     { autolevel:.58, black:.02, white:.99, gamma:.80, contrast:.24, gain:.40, maxInk:.82, despeckle:7,  sharpen:.58, snapW:240, snapB:6,  threshold:176 },
-  standard: { autolevel:.70, black:.03, white:.98, gamma:.86, contrast:.32, gain:.36, maxInk:.86, despeckle:12, sharpen:.55, snapW:236, snapB:7,  threshold:168 },
+  /* lift: brightens dim photos until their middle tone reaches this level
+     (0 = off). maxInk below 1 keeps a few white dots even in black hair and
+     dark rooms, so they print a soft grey instead of a solid black patch. */
+  soft:     { autolevel:.58, black:.02, white:.99, gamma:.72, contrast:.20, gain:.50, maxInk:.74, despeckle:7,  sharpen:.55, snapW:238, snapB:0,  threshold:176, lift:150 },
+  standard: { autolevel:.70, black:.03, white:.98, gamma:.78, contrast:.26, gain:.45, maxInk:.80, despeckle:12, sharpen:.55, snapW:234, snapB:2,  threshold:168, lift:138 },
   deep:     { autolevel:.85, black:.05, white:.96, gamma:.96, contrast:.45, gain:.28, maxInk:.93, despeckle:13, sharpen:.65, snapW:230, snapB:13, threshold:158 },
   ultra:    { autolevel:1,   black:.08, white:.94, gamma:1.06,contrast:.62, gain:.18, maxInk:1,   despeckle:15, sharpen:.78, snapW:222, snapB:22, threshold:148 }
 };
@@ -3496,6 +3637,21 @@ function autoLevel(lum, isPhoto, strength){
     if (!isPhoto[i]) continue;
     lum[i] += (clamp((lum[i] - lo) * k, 0, 255) - lum[i]) * strength;
   }
+}
+/** Brightens a dim photo (dark room, backlight) with a gamma curve that moves
+    its median tone up to `target`, so faces don't print as dark patches.
+    Bright photos are left alone. */
+function liftShadows(lum, isPhoto, target){
+  if (!target) return;
+  const hist = new Uint32Array(256);
+  let n = 0;
+  for (let i = 0; i < lum.length; i++){ if (!isPhoto[i]) continue; hist[clamp(Math.round(lum[i]), 0, 255)]++; n++; }
+  if (n < 500) return;
+  let acc = 0, med = 128;
+  for (let i = 0; i < 256; i++){ acc += hist[i]; if (acc >= n / 2){ med = i; break; } }
+  if (med >= target) return;
+  const g = clamp(Math.log(target / 255) / Math.log(Math.max(8, med) / 255), .45, 1);
+  for (let i = 0; i < lum.length; i++) if (isPhoto[i]) lum[i] = 255 * Math.pow(clamp(lum[i], 0, 255) / 255, g);
 }
 function unsharp(lum, isPhoto, w, h, amount){
   if (amount <= 0) return;
@@ -3646,6 +3802,7 @@ function binarize(canvas, maskCanvas, profile){
   medianFilter(lum, isPhoto, w, h, p.despeckle);
   if (silk) smoothSkin(lum, isPhoto, w, h, 12);
   autoLevel(lum, isPhoto, p.autolevel);
+  liftShadows(lum, isPhoto, p.lift);
   if (silk) clarity(lum, isPhoto, w, h, 4, .8);
   for (let px = 0; px < n; px++) if (isPhoto[px] || ditherArt) lum[px] = curve[clamp(Math.round(lum[px]), 0, 255)];
   unsharp(lum, isPhoto, w, h, p.sharpen);
@@ -4765,6 +4922,7 @@ const Booth = {
         Sales.record({ mode:'event', method:'event', layout:Booth.layoutName(),
           copies:Booth.state.copies, unit:0, amount:0 });
       }
+      Booth.state.printed = true;
       setTimeout(() => Booth.reset(), 1500);
     }catch(err){
       console.error('Print failed:', err);
@@ -4775,7 +4933,14 @@ const Booth = {
     }
   },
 
+  /** The small Home button on the last screen. Asks first if nothing printed yet. */
+  goHome(){
+    if (!Booth.state.printed && !confirm('Go back to the home screen? This strip has not been printed yet.')) return;
+    Booth.reset();
+  },
+
   reset(){
+    Booth.state.printed = false;
     Booth.state.shots = [];
     Booth.state.transforms = [];
     Booth.state.overlays = [];
@@ -5511,6 +5676,7 @@ const Sales = {
     const many = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 
     document.querySelectorAll('#range-seg button').forEach(b => b.classList.toggle('on', b.dataset.range === Sales.range));
+    if ($('s-clear')) $('s-clear').textContent = { day:"Clear today's log", week:"Clear this week's log", month:"Clear this month's log" }[Sales.range];
     $('s-total').textContent = peso(s.revenue);
     $('s-total-n').textContent = many(s.paid, 'paid session') + ' · ' + many(s.prints, 'print');
     $('s-cash').textContent = peso(s.cash);
@@ -5576,15 +5742,19 @@ const Sales = {
     toast('Exported ' + rows.length + ' transactions.');
   },
 
+  /** Clears only the range on screen (today, this week or this month). */
   clear(){
-    const rows = Sales.all();
-    if (!rows.length){ toast('The sales log is already empty.'); return; }
-    if (!confirm('Delete all ' + rows.length + ' transactions? Export first if you still need them.')) return;
-    Sales.rows = [];
-    try{ localStorage.removeItem(KEY.sales); }catch(e){}
+    const from = Sales.from(Sales.range);
+    const label = Sales.RANGE_LABEL[Sales.range];
+    const n = Sales.all().filter(e => e.t >= from).length;
+    if (!n){ toast('Nothing to clear for ' + label + '.'); return; }
+    if (!confirm('Delete ' + n + ' transaction' + (n === 1 ? '' : 's') + ' from ' + label + '? Older records are kept. Export first if you still need them.')) return;
+    Sales.rows = Sales.all().filter(e => e.t < from);
+    Sales.persist();
     Sales.render();
-    toast('Sales log cleared.');
-  }
+    toast('Cleared the log for ' + label + '.');
+  },
+  RANGE_LABEL:{ day:'today', week:'this week', month:'this month' }
 };
 
 /* ============================== 14c. CARDS =============================== */
@@ -5927,6 +6097,7 @@ function paintTextTools(){
 
 /* =============================== 14e. BOOT =============================== */
 window.addEventListener('DOMContentLoaded', async () => {
+  License.start();
   if (QRPAY){
     $('pay-standard').style.display = 'none';
     $('pay-qr').style.display = '';
