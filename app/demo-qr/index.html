@@ -1175,13 +1175,14 @@ body.framing #frame-bar{display:flex}
             <p class="set-sub"><b>Fine</b> scatters tiny dots for the sharpest detail and hair. <b>Smooth</b> uses an even dot pattern for softer skin and cleaner backgrounds. <b>Silk</b> (recommended) smooths out camera grain, keeps faces clear and prints a fine, even texture, like a classic receipt photobooth.</p>
             <span class="label">Print speed</span>
             <div class="seg" id="speed-seg">
+              <button data-speed="steady" onclick="Printing.setSpeed('steady')">Steady ★</button>
               <button data-speed="fast" onclick="Printing.setSpeed('fast')">1 · Fast</button>
               <button data-speed="smooth" onclick="Printing.setSpeed('smooth')">2 · Smooth</button>
               <button data-speed="smoother" onclick="Printing.setSpeed('smoother')">3 · Smoother</button>
               <button data-speed="slowest" onclick="Printing.setSpeed('slowest')">4 · Slowest</button>
             </div>
             <button class="ghost" id="speed-test" onclick="Printing.speedTest()">Print speed test</button>
-            <p class="set-sub"><b>Lines across Bluetooth prints?</b> The printer is faster than its Bluetooth, so it stops and starts. Slower speeds feed it a few rows at a steady beat it can always keep up with, so it never stops. Tap <b>Print speed test</b>: it prints a grey sample at each speed, numbered 1 to 4. Pick the fastest one without lines. <b>4 · Slowest</b> also prints each row twice as tall. A <b>USB cable</b> never has lines.</p>
+            <p class="set-sub"><b>Steady ★</b> (recommended) prints at a normal pace with no lines over Bluetooth: the printer slows its head a little so Bluetooth always keeps ahead of it, and it never stops mid-photo. Full detail, normal darkness. If your printer still shows lines, tap <b>Print speed test</b>: it prints a grey sample at each speed. Pick the one without lines. A <b>USB cable</b> never has lines.</p>
             <canvas id="tone-preview" width="260" height="44" style="width:100%;height:calc(var(--u)*38);border-radius:calc(var(--u)*6);border:1px solid var(--line)"></canvas>
             <p class="set-sub">Top is the tone curve, bottom is the real dot pattern. Lower the darkness if faces print as black blobs.</p>
           </div>
@@ -1614,7 +1615,7 @@ const DEFAULTS = {
   basicPrices:{ solo:20, classic4:30, trio:30, mega6:30 },
 
   printEngine:'photo', paperSize:'4x6',
-  printWidth:576, printDarkness:'soft', printDots:'silk', printLink:'bt', usbId:'', printSpeed:'smoother',
+  printWidth:576, printDarkness:'soft', printDots:'silk', printLink:'bt', usbId:'', printSpeed:'steady',
   btName:'', btAddress:'', btChunk:180, btPacing:12, cutMode:'full', cutFeed:4,
 
   boothMode:'nonevent', eventEndsAt:0, eventHours:4,
@@ -1650,6 +1651,8 @@ function loadSettings(){
     ['payTable','payWait','relaySecret','relayOn'].forEach(k => delete s[k]);
     /* 2.5: cloud copies last 3 hours unless the owner picks otherwise */
     if (!s.keep3hSet){ s.cloudKeepHours = 3; s.keep3hSet = true; }
+    /* v2.7: Steady replaces the paced speeds as the Bluetooth default (no lines). */
+    if (!s.steadySet){ s.printSpeed = 'steady'; s.steadySet = true; }
     return s;
   }catch(e){
     console.warn('Settings unreadable, using defaults.', e);
@@ -3924,6 +3927,15 @@ const BT = {
       : new Uint8Array([0x1D, 0x56, settings.cutMode === 'partial' ? 1 : 0]);
 
     parts.push(new Uint8Array([0x1B, 0x40]), new Uint8Array([0x1B, 0x61, 0x00]));
+    const sp = Printing.speed(speedId);
+    if (!BT.usb() && sp.heat){
+      /* ESC 7 n1 n2 n3: heat at most 8*(n1+1) dots at a time, n2 x 10us each,
+         then n3 x 10us rest between groups. Heating fewer dots at once slows
+         the head below what Bluetooth delivers, so it never runs dry and
+         never stops mid-photo (the stops are the lines). Each dot still gets
+         its normal heat, so the print is not darker. */
+      parts.push(new Uint8Array([0x1B, 0x37, sp.heat[0], sp.heat[1], sp.heat[2]]));
+    }
     if (!BT.usb() && (speedId || settings.printSpeed) !== 'fast'){
       /* GS ( K fn 50: print speed, level 1 (slowest), so Bluetooth keeps up
          and the head never stops mid-photo. It's length-prefixed, so a
@@ -4054,7 +4066,7 @@ const Printing = {
     }
     save(); Booth.clearStrips(); Printing.paint();
   },
-  setSpeed(v){ settings.printSpeed = Printing.SPEEDS[v] ? v : 'smoother'; save(); Booth.clearStrips(); Printing.paint(); },
+  setSpeed(v){ settings.printSpeed = Printing.SPEEDS[v] ? v : 'steady'; save(); Booth.clearStrips(); Printing.paint(); },
 
   paintBt(){
     const usbOk = Native.has('usbWrite');
@@ -4063,7 +4075,7 @@ const Printing = {
       document.querySelectorAll('#link-seg button').forEach(b => b.classList.toggle('on', b.dataset.link === (BT.usb() ? 'usb' : 'bt')));
       $('link-title').textContent = BT.usb() ? 'USB printer' : 'Bluetooth printer';
       $('speed-seg').previousElementSibling.style.display = $('speed-seg').style.display = BT.usb() ? 'none' : '';
-      document.querySelectorAll('#speed-seg button').forEach(b => b.classList.toggle('on', b.dataset.speed === (Printing.SPEEDS[settings.printSpeed] ? settings.printSpeed : 'smoother')));
+      document.querySelectorAll('#speed-seg button').forEach(b => b.classList.toggle('on', b.dataset.speed === (Printing.SPEEDS[settings.printSpeed] ? settings.printSpeed : 'steady')));
       $('speed-test').style.display = BT.usb() ? 'none' : '';
     }
     const el = $('bt-status');
@@ -4187,12 +4199,13 @@ const Printing = {
      between writes. An even beat the link can sustain means the printer never
      runs dry and stops mid-photo, which is what leaves lines. */
   SPEEDS:{
+    steady:   { rows:0, pace:8,  half:false, heat:[3, 90, 100] }, // slower head, data sent as fast as the link allows
     fast:     { rows:0, pace:8,  half:false },        // 512-byte pieces, as fast as the link allows
     smooth:   { rows:8, pace:30, half:false },
     smoother: { rows:4, pace:30, half:false },
     slowest:  { rows:2, pace:30, half:true  }         // and half the rows, each printed twice as tall
   },
-  speed(id){ return Printing.SPEEDS[id || settings.printSpeed] || Printing.SPEEDS.smoother; },
+  speed(id){ return Printing.SPEEDS[id || settings.printSpeed] || Printing.SPEEDS.steady; },
   halfData(id){ return !BT.usb() && Printing.speed(id).half; },
   halfHeight(src){
     const c = document.createElement('canvas');
@@ -4259,8 +4272,8 @@ const Printing = {
   async speedTest(){
     const W = Math.max(200, Number(settings.printWidth) || 576);
     await ensureFonts();
-    const ids = ['fast', 'smooth', 'smoother', 'slowest'];
-    toast('Printing 4 samples. Pick the fastest one without lines.');
+    const ids = ['steady', 'fast', 'smooth', 'smoother', 'slowest'];
+    toast('Printing 5 samples. Pick the one without lines.');
     try{
       for (let i = 0; i < ids.length; i++){
         const c = document.createElement('canvas');
@@ -4269,7 +4282,7 @@ const Printing = {
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, c.height);
         ctx.fillStyle = '#000'; ctx.textAlign = 'left';
         ctx.font = '700 ' + Math.round(W * .07) + 'px sans-serif';
-        ctx.fillText((i + 1) + ' · ' + ['FAST', 'SMOOTH', 'SMOOTHER', 'SLOWEST'][i], W * .04, W * .09);
+        ctx.fillText(['STEADY', '1 · FAST', '2 · SMOOTH', '3 · SMOOTHER', '4 · SLOWEST'][i], W * .04, W * .09);
         const top = Math.round(W * .13), h = c.height - top - Math.round(W * .03);
         const g = ctx.createLinearGradient(0, top, 0, top + h);
         g.addColorStop(0, '#9a9a9a'); g.addColorStop(1, '#5a5a5a');
@@ -4278,7 +4291,7 @@ const Printing = {
         binarize(t, null, settings.printDarkness);
         await BT.send(BT.job(t, 1, ids[i]), null, ids[i]);
       }
-      toast('Done. Choose the fastest number with no lines under Print speed.');
+      toast('Done. Choose the sample with no lines under Print speed.');
     }catch(e){ toast(e.message || 'Speed test failed.', true); }
     Printing.paintBt();
   },
