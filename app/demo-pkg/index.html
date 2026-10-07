@@ -491,6 +491,8 @@ body.framing .modal{display:none!important}
 .seg button{flex:1;border:none;background:transparent;padding:calc(var(--u)*9) calc(var(--u)*4);border-radius:999px;
   font-size:calc(var(--u)*11.5);font-weight:700;color:var(--sub);cursor:pointer}
 .seg button.on{background:var(--accent);color:var(--on-accent)}
+#speed-seg{flex-wrap:wrap;border-radius:calc(var(--u)*14)}
+#speed-seg button{flex:1 0 30%}
 .switch{width:calc(var(--u)*46);height:calc(var(--u)*26);border-radius:999px;background:var(--track);position:relative;
   cursor:pointer;border:none;flex-shrink:0;transition:background .2s}
 .switch.on{background:var(--accent)}
@@ -1180,9 +1182,11 @@ body.framing #frame-bar{display:flex}
               <button data-speed="smooth" onclick="Printing.setSpeed('smooth')">2 · Smooth</button>
               <button data-speed="smoother" onclick="Printing.setSpeed('smoother')">3 · Smoother</button>
               <button data-speed="slowest" onclick="Printing.setSpeed('slowest')">4 · Slowest</button>
+              <button data-speed="bands" onclick="Printing.setSpeed('bands')">5 · Bands</button>
+              <button data-speed="light" onclick="Printing.setSpeed('light')">6 · Light data</button>
             </div>
             <button class="ghost" id="speed-test" onclick="Printing.speedTest()">Print speed test</button>
-            <p class="set-sub"><b>Steady ★</b> (recommended) prints at a normal pace with no lines over Bluetooth: the printer slows its head a little so Bluetooth always keeps ahead of it, and it never stops mid-photo. Full detail, normal darkness. If your printer still shows lines, tap <b>Print speed test</b>: it prints a grey sample at each speed. Pick the one without lines. A <b>USB cable</b> never has lines.</p>
+            <p class="set-sub"><b>Steady ★</b> (recommended) prints at a normal pace with no lines over Bluetooth: the printer slows its head a little so Bluetooth always keeps ahead of it, and it never stops mid-photo. Full detail, normal darkness. If your printer still shows lines, tap <b>Print speed test</b>: it prints a grey sample at each speed. Pick the one without lines. <b>5 · Bands</b> sends the photo in small strips the printer finishes one at a time. <b>6 · Light data</b> sends a quarter of the data (each dot printed a little bigger), so Bluetooth always keeps up. A <b>USB cable</b> never has lines.</p>
             <canvas id="tone-preview" width="260" height="44" style="width:100%;height:calc(var(--u)*38);border-radius:calc(var(--u)*6);border:1px solid var(--line)"></canvas>
             <p class="set-sub">Top is the tone curve, bottom is the real dot pattern. Lower the darkness if faces print as black blobs.</p>
           </div>
@@ -3942,9 +3946,14 @@ const BT = {
          printer without it skips it cleanly. */
       parts.push(new Uint8Array([0x1D, 0x28, 0x4B, 0x02, 0x00, 0x32, 0x01]));
     }
+    const bands = !BT.usb() && sp.band ? BT.bands(r) : null;
+    const mode = BT.usb() ? 0 : sp.quarter ? 3 : sp.half ? 2 : 0;
     for (let c = 0; c < Math.max(1, copies || 1); c++){
-      parts.push(new Uint8Array([0x1D, 0x76, 0x30, Printing.halfData(speedId) ? 0x02 : 0x00, r.per & 255, (r.per >> 8) & 255, r.height & 255, (r.height >> 8) & 255]));
-      parts.push(r.bits);
+      if (bands) parts.push(...bands);
+      else {
+        parts.push(new Uint8Array([0x1D, 0x76, 0x30, mode, r.per & 255, (r.per >> 8) & 255, r.height & 255, (r.height >> 8) & 255]));
+        parts.push(r.bits);
+      }
       parts.push(new Uint8Array([0x1B, 0x64, feed]));
       if (cut) parts.push(cut);
       else if (c < copies - 1) parts.push(new Uint8Array([0x1B, 0x64, 2]));
@@ -3955,6 +3964,32 @@ const BT = {
     let at = 0;
     parts.forEach(p => { job.set(p, at); at += p.length; });
     return job;
+  },
+
+  /** The photo as 24-dot bands (ESC * 33). A band prints only once all of it
+      has arrived, so the head never stops inside one: any wait for
+      Bluetooth falls exactly between bands, at the same spot every time. */
+  bands(r){
+    const w = r.per * 8, out = [new Uint8Array([0x1B, 0x33, 24])];
+    for (let y0 = 0; y0 < r.height; y0 += 24){
+      const band = new Uint8Array(5 + w * 3 + 1);
+      band.set([0x1B, 0x2A, 33, w & 255, (w >> 8) & 255]);
+      for (let x = 0; x < w; x++){
+        const byte = x >> 3, bit = 0x80 >> (x & 7);
+        for (let k = 0; k < 3; k++){
+          let v = 0;
+          for (let b = 0; b < 8; b++){
+            const y = y0 + k * 8 + b;
+            if (y < r.height && (r.bits[y * r.per + byte] & bit)) v |= 0x80 >> b;
+          }
+          band[5 + x * 3 + k] = v;
+        }
+      }
+      band[band.length - 1] = 0x0A;
+      out.push(band);
+    }
+    out.push(new Uint8Array([0x1B, 0x32]));
+    return out;
   },
 
   usb(){ return settings.printLink === 'usb' && Native.has('usbWrite'); },
@@ -4187,7 +4222,7 @@ const Printing = {
     let mask = document.createElement('canvas');
     let canvas = await compose('print', W, mask);
     if (!canvas) return null;
-    if (Printing.halfData()){ canvas = Printing.halfHeight(canvas); mask = Printing.halfHeight(mask); }
+    canvas = Printing.fit(canvas); mask = Printing.fit(mask);
     binarize(canvas, mask, settings.printDarkness);
     return canvas;
   },
@@ -4203,10 +4238,25 @@ const Printing = {
     fast:     { rows:0, pace:8,  half:false },        // 512-byte pieces, as fast as the link allows
     smooth:   { rows:8, pace:30, half:false },
     smoother: { rows:4, pace:30, half:false },
-    slowest:  { rows:2, pace:30, half:true  }         // and half the rows, each printed twice as tall
+    slowest:  { rows:2, pace:30, half:true  },        // and half the rows, each printed twice as tall
+    bands:    { rows:0, pace:8,  band:true },         // 24-dot bands: never stops inside a band
+    light:    { rows:0, pace:8,  quarter:true }       // a quarter of the data: every dot printed 2x2
   },
   speed(id){ return Printing.SPEEDS[id || settings.printSpeed] || Printing.SPEEDS.steady; },
-  halfData(id){ return !BT.usb() && Printing.speed(id).half; },
+  /** Shrinks the picture for speeds that print each dot bigger. */
+  fit(src, id){
+    if (BT.usb()) return src;
+    const sp = Printing.speed(id);
+    if (sp.quarter){
+      const c = document.createElement('canvas');
+      c.width = Math.max(8, Math.round(src.width / 2)); c.height = Math.max(1, Math.round(src.height / 2));
+      const ctx = c.getContext('2d', { willReadFrequently:true });
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(src, 0, 0, c.width, c.height);
+      return c;
+    }
+    return sp.half ? Printing.halfHeight(src) : src;
+  },
   halfHeight(src){
     const c = document.createElement('canvas');
     c.width = src.width; c.height = Math.max(1, Math.round(src.height / 2));
@@ -4260,7 +4310,7 @@ const Printing = {
     grad.addColorStop(0, '#fff'); grad.addColorStop(1, '#000');
     ctx.fillStyle = grad; ctx.fillRect(0, top, W, band);
     ctx.fillStyle = '#000'; ctx.fillRect(0, top + band + Math.round(W * .03), W, Math.round(W * .05));
-    const t = Printing.halfData() ? Printing.halfHeight(c) : c;
+    const t = Printing.fit(c);
     binarize(t, null, settings.printDarkness);
     try{ await BT.send(BT.job(t, 1)); toast('Test sent. The ramp should fade evenly and the bar should be solid.'); }
     catch(e){ toast(e.message || 'Test print failed.', true); }
@@ -4272,8 +4322,8 @@ const Printing = {
   async speedTest(){
     const W = Math.max(200, Number(settings.printWidth) || 576);
     await ensureFonts();
-    const ids = ['steady', 'fast', 'smooth', 'smoother', 'slowest'];
-    toast('Printing 5 samples. Pick the one without lines.');
+    const ids = ['steady', 'fast', 'smooth', 'smoother', 'slowest', 'bands', 'light'];
+    toast('Printing 7 samples. Pick the one without lines.');
     try{
       for (let i = 0; i < ids.length; i++){
         const c = document.createElement('canvas');
@@ -4282,12 +4332,12 @@ const Printing = {
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, c.height);
         ctx.fillStyle = '#000'; ctx.textAlign = 'left';
         ctx.font = '700 ' + Math.round(W * .07) + 'px sans-serif';
-        ctx.fillText(['STEADY', '1 · FAST', '2 · SMOOTH', '3 · SMOOTHER', '4 · SLOWEST'][i], W * .04, W * .09);
+        ctx.fillText(['STEADY', '1 · FAST', '2 · SMOOTH', '3 · SMOOTHER', '4 · SLOWEST', '5 · BANDS', '6 · LIGHT DATA'][i], W * .04, W * .09);
         const top = Math.round(W * .13), h = c.height - top - Math.round(W * .03);
         const g = ctx.createLinearGradient(0, top, 0, top + h);
         g.addColorStop(0, '#9a9a9a'); g.addColorStop(1, '#5a5a5a');
         ctx.fillStyle = g; ctx.fillRect(0, top, W, h);
-        const t = Printing.halfData(ids[i]) ? Printing.halfHeight(c) : c;
+        const t = Printing.fit(c, ids[i]);
         binarize(t, null, settings.printDarkness);
         await BT.send(BT.job(t, 1, ids[i]), null, ids[i]);
       }
