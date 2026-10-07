@@ -1184,9 +1184,11 @@ body.framing #frame-bar{display:flex}
               <button data-speed="slowest" onclick="Printing.setSpeed('slowest')">4 · Slowest</button>
               <button data-speed="bands" onclick="Printing.setSpeed('bands')">5 · Bands</button>
               <button data-speed="light" onclick="Printing.setSpeed('light')">6 · Light data</button>
+              <button data-speed="halfh" onclick="Printing.setSpeed('halfh')">7 · Half height</button>
+              <button data-speed="halfw" onclick="Printing.setSpeed('halfw')">8 · Half width</button>
             </div>
             <button class="ghost" id="speed-test" onclick="Printing.speedTest()">Print speed test</button>
-            <p class="set-sub"><b>Steady ★</b> (recommended) prints at a normal pace with no lines over Bluetooth: the printer slows its head a little so Bluetooth always keeps ahead of it, and it never stops mid-photo. Full detail, normal darkness. If your printer still shows lines, tap <b>Print speed test</b>: it prints a grey sample at each speed. Pick the one without lines. <b>5 · Bands</b> sends the photo in small strips the printer finishes one at a time. <b>6 · Light data</b> sends a quarter of the data (each dot printed a little bigger), so Bluetooth always keeps up. A <b>USB cable</b> never has lines.</p>
+            <p class="set-sub"><b>Steady ★</b> (recommended) prints at a normal pace with no lines over Bluetooth: the printer slows its head a little so Bluetooth always keeps ahead of it, and it never stops mid-photo. Full detail, normal darkness. If your printer still shows lines, try the other speeds. <b>5 · Bands</b> sends the photo in small strips the printer finishes one at a time. <b>6 · Light data</b> sends a quarter of the data (each dot printed a little bigger), so Bluetooth always keeps up. <b>7 · Half height</b> and <b>8 · Half width</b> send half the data and keep more detail. The speed test prints 6, 7 and 8 side by side: pick the sharpest one without lines. A <b>USB cable</b> never has lines.</p>
             <canvas id="tone-preview" width="260" height="44" style="width:100%;height:calc(var(--u)*38);border-radius:calc(var(--u)*6);border:1px solid var(--line)"></canvas>
             <p class="set-sub">Top is the tone curve, bottom is the real dot pattern. Lower the darkness if faces print as black blobs.</p>
           </div>
@@ -3947,7 +3949,7 @@ const BT = {
       parts.push(new Uint8Array([0x1D, 0x28, 0x4B, 0x02, 0x00, 0x32, 0x01]));
     }
     const bands = !BT.usb() && sp.band ? BT.bands(r) : null;
-    const mode = BT.usb() ? 0 : sp.quarter ? 3 : sp.half ? 2 : 0;
+    const mode = BT.usb() ? 0 : sp.quarter ? 3 : sp.half ? 2 : sp.halfW ? 1 : 0;
     for (let c = 0; c < Math.max(1, copies || 1); c++){
       if (bands) parts.push(...bands);
       else {
@@ -4240,16 +4242,21 @@ const Printing = {
     smoother: { rows:4, pace:30, half:false },
     slowest:  { rows:2, pace:30, half:true  },        // and half the rows, each printed twice as tall
     bands:    { rows:0, pace:8,  band:true },         // 24-dot bands: never stops inside a band
-    light:    { rows:0, pace:8,  quarter:true }       // a quarter of the data: every dot printed 2x2
+    light:    { rows:0, pace:8,  quarter:true },      // a quarter of the data: every dot printed 2x2
+    halfh:    { rows:0, pace:8,  half:true },         // half the data: full width detail, each row printed twice
+    halfw:    { rows:0, pace:8,  halfW:true }         // half the data: full height detail, each dot printed twice as wide
   },
+  SPEED_NAMES:{ steady:'Steady', fast:'1 · Fast', smooth:'2 · Smooth', smoother:'3 · Smoother', slowest:'4 · Slowest',
+    bands:'5 · Bands', light:'6 · Light data', halfh:'7 · Half height', halfw:'8 · Half width' },
   speed(id){ return Printing.SPEEDS[id || settings.printSpeed] || Printing.SPEEDS.steady; },
   /** Shrinks the picture for speeds that print each dot bigger. */
   fit(src, id){
     if (BT.usb()) return src;
     const sp = Printing.speed(id);
-    if (sp.quarter){
+    if (sp.quarter || sp.halfW){
       const c = document.createElement('canvas');
-      c.width = Math.max(8, Math.round(src.width / 2)); c.height = Math.max(1, Math.round(src.height / 2));
+      c.width = Math.max(8, Math.round(src.width / 2));
+      c.height = sp.quarter ? Math.max(1, Math.round(src.height / 2)) : src.height;
       const ctx = c.getContext('2d', { willReadFrequently:true });
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(src, 0, 0, c.width, c.height);
@@ -4322,8 +4329,10 @@ const Printing = {
   async speedTest(){
     const W = Math.max(200, Number(settings.printWidth) || 576);
     await ensureFonts();
-    const ids = ['steady', 'fast', 'smooth', 'smoother', 'slowest', 'bands', 'light'];
-    toast('Printing 7 samples. Pick the one without lines.');
+    /* Only the low-data modes: on printers whose Bluetooth is too slow for
+       full photos these are the ones that print without lines. */
+    const ids = ['light', 'halfh', 'halfw'];
+    toast('Printing 3 samples. Pick the sharpest one without lines.');
     try{
       for (let i = 0; i < ids.length; i++){
         const c = document.createElement('canvas');
@@ -4332,11 +4341,22 @@ const Printing = {
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, c.height);
         ctx.fillStyle = '#000'; ctx.textAlign = 'left';
         ctx.font = '700 ' + Math.round(W * .07) + 'px sans-serif';
-        ctx.fillText(['STEADY', '1 · FAST', '2 · SMOOTH', '3 · SMOOTHER', '4 · SLOWEST', '5 · BANDS', '6 · LIGHT DATA'][i], W * .04, W * .09);
+        ctx.fillText(Printing.SPEED_NAMES[ids[i]].toUpperCase(), W * .04, W * .09);
         const top = Math.round(W * .13), h = c.height - top - Math.round(W * .03);
         const g = ctx.createLinearGradient(0, top, 0, top + h);
         g.addColorStop(0, '#9a9a9a'); g.addColorStop(1, '#5a5a5a');
-        ctx.fillStyle = g; ctx.fillRect(0, top, W, h);
+        ctx.fillStyle = g; ctx.fillRect(0, top, W * .6, h);
+        /* fine detail on the right, to compare sharpness: thin lines, small text, a soft face-like gradient */
+        const x0 = W * .64;
+        ctx.fillStyle = '#000';
+        for (let k = 0; k < 6; k++) ctx.fillRect(x0, top + k * 6, W * .32, 1 + (k % 3));
+        ctx.font = '600 ' + Math.round(W * .03) + 'px sans-serif';
+        ctx.fillText('Fika Snaps 0123', x0, top + 52);
+        ctx.font = '400 ' + Math.round(W * .022) + 'px sans-serif';
+        ctx.fillText('small text 456789', x0, top + 74);
+        const rg = ctx.createRadialGradient(x0 + W * .16, top + h * .72, 4, x0 + W * .16, top + h * .72, W * .14);
+        rg.addColorStop(0, '#e8d0c0'); rg.addColorStop(1, '#3a3a3a');
+        ctx.fillStyle = rg; ctx.fillRect(x0, top + 86, W * .32, h - 86);
         const t = Printing.fit(c, ids[i]);
         binarize(t, null, settings.printDarkness);
         await BT.send(BT.job(t, 1, ids[i]), null, ids[i]);
