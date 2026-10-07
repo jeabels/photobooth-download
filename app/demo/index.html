@@ -14,6 +14,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Bodoni+Moda:opsz,wght@6..96,600;6..96,700&family=Cormorant+Garamond:wght@600;700&family=DM+Serif+Display&family=Instrument+Serif&family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Sora:wght@400;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Playfair+Display:wght@700;800&family=Unbounded:wght@500;600;700&family=Cinzel:wght@600;700&family=Bricolage+Grotesque:wght@700;800&family=Bebas+Neue&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Italiana&family=Yeseva+One&family=Anton&family=Righteous&family=Shrikhand&family=Monoton&family=Special+Elite&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@700&family=EB+Garamond:wght@700&family=Libre+Baskerville:wght@700&family=Marcellus&family=Poppins:wght@800&family=Raleway:wght@800&family=Josefin+Sans:wght@700&family=Quicksand:wght@700&family=Nunito:wght@800&family=Tenor+Sans&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@600&family=Bungee&family=Amatic+SC:wght@700&family=Satisfy&family=Kaushan+Script&family=Playball&family=Cookie&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Pinyon+Script&family=Allura&family=Parisienne&family=Dancing+Script:wght@700&family=Sacramento&family=Caveat:wght@700&family=Pacifico&family=Lobster&display=swap" rel="stylesheet">
 
 <!-- QR codes are drawn by a bundled library, so they work with no internet. -->
@@ -96,6 +98,9 @@ button{font-family:inherit;color:inherit}
   color:var(--header-color);opacity:.7;white-space:nowrap;font-family:var(--header-font)}
 .wordmark small:empty,.wordmark b:empty{display:none}
 .progress{justify-self:end;display:flex;gap:calc(var(--u)*4)}
+.home-link{align-self:center;display:inline-flex;align-items:center;gap:calc(var(--u)*5);background:none;border:none;cursor:pointer;
+  font-size:calc(var(--u)*11);font-weight:700;color:var(--sub);padding:calc(var(--u)*6) calc(var(--u)*10);margin-top:calc(var(--u)*2)}
+.home-link svg{width:calc(var(--u)*14);height:calc(var(--u)*14)}
 .progress i{width:calc(var(--u)*14);height:calc(var(--u)*3);border-radius:999px;background:var(--track)}
 .progress i.on{background:var(--accent)}
 .progress i.done{background:var(--accent);opacity:.35}
@@ -145,6 +150,12 @@ body.theme-dark .ghost.danger{background:rgba(255,80,80,.12);color:#ff9b9b;borde
 
 /* ---------- start ---------- */
 #screen-start{justify-content:flex-end;align-items:center;padding-bottom:calc(var(--u)*64)}
+/* Placed anywhere on the start screen (Settings › Theme & branding › Start button). */
+#screen-start #start-btn{position:absolute;left:var(--start-x,50%);top:var(--start-y,86%);transform:translate(-50%,-50%)}
+#screen-start #start-btn:active{transform:translate(-50%,-50%) scale(.97)}
+#screen-start #start-btn.sb-stamp{transform:translate(-50%,-50%) rotate(-3deg)}
+#screen-start #start-btn.sb-stamp:active{transform:translate(-50%,-50%) rotate(-3deg) scale(.97)}
+#screen-start #start-btn.sb-retro:active{transform:translate(calc(-50% + var(--u)*3),calc(-50% + var(--u)*3))}
 
 /* Start-button designs. Each is a class on the button itself, so the settings
    tiles can show a live miniature of every design. */
@@ -294,7 +305,7 @@ video#webcam.mirror{transform:scaleX(-1)}
 .chip{background:rgba(0,0,0,.5);color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
   padding:calc(var(--u)*5) calc(var(--u)*11);border-radius:999px;font-size:calc(var(--u)*10.5);font-weight:800;letter-spacing:calc(var(--u)*.6)}
 .chip.rec::before{content:'';display:inline-block;width:calc(var(--u)*6);height:calc(var(--u)*6);border-radius:50%;
-  background:#ff3b30;margin-right:calc(var(--u)*6);vertical-align:middle;animation:blink 1.4s infinite}
+  background:var(--accent);margin-right:calc(var(--u)*6);vertical-align:middle;animation:blink 1.4s infinite}
 @keyframes blink{50%{opacity:.25}}
 .vf-dots{position:absolute;bottom:calc(var(--u)*22);left:0;right:0;z-index:3;display:flex;justify-content:center;gap:calc(var(--u)*6)}
 .vf-dots i{width:calc(var(--u)*22);height:calc(var(--u)*4);border-radius:999px;background:rgba(255,255,255,.35)}
@@ -405,11 +416,14 @@ body.theme-dark .shutter{background:#fff;color:#111}
 body.framing .demo-badge,body:not(.at-start) .demo-badge{display:none}
 
 /* ---------- toast ---------- */
-#toast{position:fixed;left:50%;bottom:calc(var(--u)*26);transform:translateX(-50%);background:#16151a;color:#fff;
+#toast{position:fixed;left:50%;bottom:calc(var(--u)*26);transform:translateX(-50%);background:var(--accent);color:var(--on-accent);
   padding:calc(var(--u)*11) calc(var(--u)*18);border-radius:999px;font-size:calc(var(--u)*12);font-weight:700;
   z-index:3000;max-width:86vw;text-align:center;display:none;box-shadow:0 8px 24px rgba(0,0,0,.3);pointer-events:none}
 #toast.show{display:block;animation:enter .2s ease-out}
-#toast.bad{background:#a32020}
+#toast.bad{background:var(--accent-2);display:none}
+#toast.bad.show{display:flex;align-items:center;gap:calc(var(--u)*10)}
+#toast.bad::before{content:'!';flex:none;width:calc(var(--u)*20);height:calc(var(--u)*20);border-radius:50%;display:flex;
+  align-items:center;justify-content:center;background:var(--on-accent);color:var(--accent-2);font-weight:900;font-size:calc(var(--u)*12)}
 
 /* ---------- modals ---------- */
 .modal{display:none;position:fixed;inset:0;background:rgba(10,10,12,.66);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
@@ -570,6 +584,8 @@ details.more > div{display:flex;flex-direction:column;gap:calc(var(--u)*8)}
 .dots div{width:calc(var(--u)*10);height:calc(var(--u)*10);border-radius:50%;background:var(--track)}
 .dots div.on{background:var(--accent)}
 .pin-err{font-size:calc(var(--u)*11);color:#c02626;font-weight:700;min-height:calc(var(--u)*14)}
+#license-modal{z-index:5000;background:rgba(10,10,12,.92)}
+body.framing #license-modal.open{display:flex!important}
 .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u)*6);margin-top:calc(var(--u)*6)}
 .keys button{padding:calc(var(--u)*10) 0;border-radius:calc(var(--u)*10);border:1px solid var(--line);background:var(--card);
   font-family:var(--font-mono);font-size:calc(var(--u)*15);font-weight:700;cursor:pointer}
@@ -883,6 +899,7 @@ body.framing #frame-bar{display:flex}
     </div>
 
     <button class="btn" id="print-btn" onclick="Booth.printAndFinish()">Print</button>
+    <button class="home-link" onclick="Booth.goHome()" aria-label="Back to the home screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Home</button>
   </section>
 </div>
 
@@ -931,19 +948,6 @@ body.framing #frame-bar{display:flex}
   </div>
 </div>
 
-<!-- ====================== FIRST RUN: CONNECT ====================== -->
-<div class="modal" id="activate-modal">
-  <div class="sheet pay-sheet">
-    <p class="eyebrow">Welcome</p>
-    <div class="sheet-title">Connect your booth</div>
-    <p class="sheet-sub" style="margin-top:0">Enter the 6-digit code you used to download the app. It switches on digital copies, so guests can scan a QR and keep their photos.</p>
-    <input class="input code" id="act-first" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••••">
-    <p class="pin-err" id="act-first-err"></p>
-    <button class="btn" onclick="Cloud.activateFirst()">Connect</button>
-    <button class="ghost wide" onclick="Cloud.skipFirst()">Skip for now</button>
-  </div>
-</div>
-
 <!-- ====================== PIN ====================== -->
 <div class="modal" id="pin-modal">
   <div class="sheet" style="max-width:calc(var(--u)*260);padding:calc(var(--u)*14)">
@@ -957,6 +961,24 @@ body.framing #frame-bar{display:flex}
       <button onclick="Pin.press('7')">7</button><button onclick="Pin.press('8')">8</button><button onclick="Pin.press('9')">9</button>
       <button class="small" onclick="Pin.cancel()">Cancel</button><button onclick="Pin.press('0')">0</button><button class="small" onclick="Pin.back()">Delete</button>
     </div>
+  </div>
+</div>
+
+<!-- App license: shown until this tablet is unlocked with the buyer's code. No way to close it. -->
+<div class="modal" id="license-modal">
+  <div class="sheet" style="max-width:calc(var(--u)*280);padding:calc(var(--u)*16)">
+    <div class="sheet-title" style="font-size:calc(var(--u)*16)">Unlock this app</div>
+    <p class="sheet-sub" id="lic-sub">Enter the 6-digit code you got when you bought the app.</p>
+    <div class="dots" id="lic-dots"></div>
+    <div class="pin-err" id="lic-err"></div>
+    <div class="keys">
+      <button onclick="License.press('1')">1</button><button onclick="License.press('2')">2</button><button onclick="License.press('3')">3</button>
+      <button onclick="License.press('4')">4</button><button onclick="License.press('5')">5</button><button onclick="License.press('6')">6</button>
+      <button onclick="License.press('7')">7</button><button onclick="License.press('8')">8</button><button onclick="License.press('9')">9</button>
+      <button class="small" onclick="License.clear()">Clear</button><button onclick="License.press('0')">0</button><button class="small" onclick="License.back()">Delete</button>
+    </div>
+    <p class="sheet-sub" style="margin-top:calc(var(--u)*10)">Each code works on one tablet. Get the app only from
+      <b>jeabels.github.io/photobooth-download/app</b></p>
   </div>
 </div>
 
@@ -1019,6 +1041,17 @@ body.framing #frame-bar{display:flex}
           <div class="btn-grid" id="btn-grid"></div>
           <span class="label">Button words</span>
           <input class="input" id="start-text" placeholder="TAP TO START" oninput="Theme.setStartText(this.value)">
+          <span class="label">Button colour</span>
+          <div class="fields">
+            <input type="color" id="start-color" oninput="Theme.setStartColor(this.value)" style="width:100%;height:calc(var(--u)*44);padding:0;border:0;background:none">
+            <button class="ghost" onclick="Theme.setStartColor('')">Use theme colour</button>
+          </div>
+          <span class="label">Button position</span>
+          <div class="slider"><span class="label">Left ↔ right</span>
+            <input type="range" id="start-x" min="8" max="92" oninput="Theme.setStartPos('x',this.value)"><span class="val mono" id="start-x-val"></span></div>
+          <div class="slider"><span class="label">Top ↕ bottom</span>
+            <input type="range" id="start-y" min="8" max="94" oninput="Theme.setStartPos('y',this.value)"><span class="val mono" id="start-y-val"></span></div>
+          <button class="ghost" onclick="Theme.resetStart()">Reset position</button>
           <p class="set-sub">The shape also carries through to every button guests press.</p>
         </div>
 
@@ -1142,10 +1175,13 @@ body.framing #frame-bar{display:flex}
             <p class="set-sub"><b>Fine</b> scatters tiny dots for the sharpest detail and hair. <b>Smooth</b> uses an even dot pattern for softer skin and cleaner backgrounds. <b>Silk</b> (recommended) smooths out camera grain, keeps faces clear and prints a fine, even texture, like a classic receipt photobooth.</p>
             <span class="label">Print speed</span>
             <div class="seg" id="speed-seg">
-              <button data-speed="normal" onclick="Printing.setSpeed('normal')">Normal</button>
-              <button data-speed="steady" onclick="Printing.setSpeed('steady')">Steady</button>
+              <button data-speed="fast" onclick="Printing.setSpeed('fast')">1 · Fast</button>
+              <button data-speed="smooth" onclick="Printing.setSpeed('smooth')">2 · Smooth</button>
+              <button data-speed="smoother" onclick="Printing.setSpeed('smoother')">3 · Smoother</button>
+              <button data-speed="slowest" onclick="Printing.setSpeed('slowest')">4 · Slowest</button>
             </div>
-            <p class="set-sub"><b>Thin lines across the photo?</b> The printer is running ahead of Bluetooth and pausing. Use a <b>USB cable</b> (best), or try <b>Steady</b>, which asks the printer to print slower. Not every printer supports Steady; if the lines stay, use USB.</p>
+            <button class="ghost" id="speed-test" onclick="Printing.speedTest()">Print speed test</button>
+            <p class="set-sub"><b>Lines across Bluetooth prints?</b> The printer is faster than its Bluetooth, so it stops and starts. Slower speeds feed it a few rows at a steady beat it can always keep up with, so it never stops. Tap <b>Print speed test</b>: it prints a grey sample at each speed, numbered 1 to 4. Pick the fastest one without lines. <b>4 · Slowest</b> also prints each row twice as tall. A <b>USB cable</b> never has lines.</p>
             <canvas id="tone-preview" width="260" height="44" style="width:100%;height:calc(var(--u)*38);border-radius:calc(var(--u)*6);border:1px solid var(--line)"></canvas>
             <p class="set-sub">Top is the tone curve, bottom is the real dot pattern. Lower the darkness if faces print as black blobs.</p>
           </div>
@@ -1223,7 +1259,7 @@ body.framing #frame-bar{display:flex}
           <div class="list" id="s-recent"></div>
           <div class="fields">
             <button class="ghost" onclick="Sales.exportCsv()">Export to CSV</button>
-            <button class="ghost danger" onclick="Sales.clear()">Clear log</button>
+            <button class="ghost danger" id="s-clear" onclick="Sales.clear()">Clear today's log</button>
           </div>
           <p class="set-sub">A sale is written the moment payment lands, so a paper jam never erases it. Export now and then — clearing this tablet's browser data wipes the log.</p>
         </div>
@@ -1279,49 +1315,32 @@ body.framing #frame-bar{display:flex}
         </div>
 
         <div class="set col">
-          <div class="set-head"><div class="set-icon">📷</div><div class="set-text">
-            <div class="set-title">Camera</div><div class="set-sub" id="cam-status"><span class="dot"></span>Checking…</div></div></div>
-          <button class="ghost" onclick="Admin.grantCamera()">Allow the camera now</button>
-          <p class="set-sub">The Android app asks once on first launch, so guests never see the prompt. In a browser, open the booth at <span class="mono">http://localhost</span> so the answer sticks.</p>
-        </div>
-
-        <div class="set col">
           <div class="set-head"><div class="set-icon">☁️</div><div class="set-text">
             <div class="set-title">Digital copies</div><div class="set-sub" id="cloud-status"><span class="dot"></span>Not tested yet</div></div></div>
-          <span class="label">Connect with your download code</span>
-          <div class="fields">
-            <input class="input mono" id="act-code" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6-digit code">
-            <button class="ghost" onclick="Cloud.activate()">Connect</button>
-          </div>
-          <p class="set-sub">The code you used to download the app fills everything in by itself. Guests then scan the QR on the last screen to keep their photos.</p>
+          <span class="label">Supabase project reference</span><input class="input mono" id="c-ref" placeholder="abcdefghijklmnop">
+          <span class="label">Publishable key</span><input class="input mono" id="c-key" placeholder="sb_publishable_…">
+          <p class="set-sub">From your Supabase project: Project Settings › API Keys. Use the publishable key, never the secret key. Guests scan the QR on the last screen to keep their photos.</p>
           <details class="more">
-            <summary>Enter the details by hand</summary>
+            <summary>More options</summary>
             <div>
-              <span class="label">Project reference</span><input class="input mono" id="c-ref">
-              <span class="label">Publishable key</span><input class="input mono" id="c-key">
-              <div class="fields">
-                <div class="field"><span class="label">Bucket</span><input class="mono" id="c-bucket"></div>
-                <div class="field"><span class="label">&nbsp;</span><button class="ghost" onclick="Cloud.test()">Test link</button></div>
-              </div>
-              <span class="label">Download page</span><input class="input mono" id="c-page">
-              <p class="set-sub">Use the publishable (or anon) key, never the secret or service key. If the download page is ever offline, the QR opens the photo directly instead.</p>
+              <span class="label">Bucket</span><input class="input mono" id="c-bucket">
             </div>
           </details>
           <button class="ghost" onclick="Cloud.test()">Test digital copies</button>
           <span class="label">Keep photos online for</span>
           <div class="seg" id="keep-seg">
             <button data-keep="1" onclick="Cloud.setKeep(1)">1 hour</button>
+            <button data-keep="3" onclick="Cloud.setKeep(3)">3 hours</button>
             <button data-keep="24" onclick="Cloud.setKeep(24)">1 day</button>
             <button data-keep="72" onclick="Cloud.setKeep(72)">3 days</button>
-            <button data-keep="168" onclick="Cloud.setKeep(168)">7 days</button>
           </div>
-          <p class="set-sub">Older photos are deleted from the cloud by themselves, so a free Supabase project never fills up. Guests see how long their link works. Photos taken without internet wait on the tablet and upload when it's back.</p>
+          <p class="set-sub">After this time the QR link expires and the photos are deleted from the cloud by themselves (checked every 10 minutes while the booth is on), so a free Supabase project never fills up. Guests see how long their link works.</p>
         </div>
         <div class="set">
           <div class="set-icon">🗂️</div>
-          <div class="set-text"><div class="set-title">Save a copy on this tablet</div>
-            <div class="set-sub">Every strip, full size, in Pictures › Snaps Photobooth. Nothing is lost if the internet fails or a link expires.</div></div>
-          <button class="switch" id="sw-local" onclick="Admin.toggle('keepLocalCopy',this)"></button>
+          <div class="set-text"><div class="set-title">Download shots</div>
+            <div class="set-sub" id="shots-sub">From the moment it's on, every session's shots, colour strip, black &amp; white strip and GIF go straight to this tablet's Photos, in an album for each day (Pictures › Snaps Photobooth). Guests still get their QR copies.</div></div>
+          <button class="switch" id="sw-local" onclick="Admin.toggle('downloadShots',this);Booth.paintShots()"></button>
         </div>
         <div class="set">
           <div class="set-icon">🎞️</div>
@@ -1595,7 +1614,7 @@ const DEFAULTS = {
   basicPrices:{ solo:20, classic4:30, trio:30, mega6:30 },
 
   printEngine:'photo', paperSize:'4x6',
-  printWidth:576, printDarkness:'soft', printDots:'silk', printLink:'bt', usbId:'', printSpeed:'normal',
+  printWidth:576, printDarkness:'soft', printDots:'silk', printLink:'bt', usbId:'', printSpeed:'smoother',
   btName:'', btAddress:'', btChunk:180, btPacing:12, cutMode:'full', cutFeed:4,
 
   boothMode:'nonevent', eventEndsAt:0, eventHours:4,
@@ -1604,7 +1623,7 @@ const DEFAULTS = {
   gcashZoom:100, gcashX:50, gcashY:50,
 
   cloudRef:'', cloudKey:'', cloudBucket:'photos', cloudPage:DOWNLOAD_PAGE,
-  cloudKeepHours:72, keepLocalCopy:true, gifCopy:true,
+  cloudKeepHours:3, keepLocalCopy:false, downloadShots:false, gifCopy:true,
   activationSkipped:false
 };
 
@@ -1629,6 +1648,8 @@ function loadSettings(){
     const alias = { noir:'studio', verdant:'sage', ember:'terracotta', gold:'champagne' };
     if (alias[s.theme]) s.theme = alias[s.theme];
     ['payTable','payWait','relaySecret','relayOn'].forEach(k => delete s[k]);
+    /* 2.5: cloud copies last 3 hours unless the owner picks otherwise */
+    if (!s.keep3hSet){ s.cloudKeepHours = 3; s.keep3hSet = true; }
     return s;
   }catch(e){
     console.warn('Settings unreadable, using defaults.', e);
@@ -1722,7 +1743,31 @@ const THEMES = [
   { id:'midnight',   name:'Midnight',   note:'Deep navy',     accent:'#8FA3FF', accent2:'#6C82F0', onAccent:'#0B1022', paper:'#0C1022', card:'#151B33', dark:true,
     head:"'Syne', system-ui, sans-serif",             body:"'Sora', system-ui, sans-serif",    weight:800, radius:16 },
   { id:'neon',       name:'Neon',       note:'After dark',    accent:'#FF2E88', accent2:'#D61E6C', onAccent:'#ffffff', paper:'#0B0A10', card:'#16141D', dark:true,
-    head:"'Unbounded', system-ui, sans-serif",        body:"'Sora', system-ui, sans-serif",    weight:700, radius:12 }
+    head:"'Unbounded', system-ui, sans-serif",        body:"'Sora', system-ui, sans-serif",    weight:700, radius:12 },
+  { id:'latte',      name:'Latte',      note:'Warm beige',    accent:'#8B6B4A', accent2:'#6E5236', onAccent:'#ffffff', paper:'#F3EBDD', card:'#FBF7F0', dark:false,
+    head:"'Cormorant Garamond', Georgia, serif",      body:"'Outfit', system-ui, sans-serif",  weight:700, radius:18 },
+  { id:'kraft',      name:'Kraft',      note:'Brown paper',   accent:'#3B2F25', accent2:'#5A4736', onAccent:'#F3E9D8', paper:'#E9DCC4', card:'#F4EBDB', dark:false,
+    head:"'Special Elite', monospace",                body:"'Archivo', system-ui, sans-serif", weight:400, radius:4 },
+  { id:'rosegold',   name:'Rose Gold',  note:'Soft luxe',     accent:'#B76E79', accent2:'#97555F', onAccent:'#ffffff', paper:'#F8EEEB', card:'#ffffff', dark:false,
+    head:"'Italiana', Georgia, serif",                body:"'Manrope', system-ui, sans-serif", weight:400, radius:24 },
+  { id:'lavender',   name:'Lavender',   note:'Dreamy lilac',  accent:'#7A5AC8', accent2:'#5E41A8', onAccent:'#ffffff', paper:'#F3F0FA', card:'#ffffff', dark:false,
+    head:"'DM Serif Display', Georgia, serif",        body:"'Outfit', system-ui, sans-serif",  weight:400, radius:22 },
+  { id:'ocean',      name:'Ocean',      note:'Calm teal',     accent:'#0F7C86', accent2:'#0A5E66', onAccent:'#ffffff', paper:'#EAF4F4', card:'#ffffff', dark:false,
+    head:"'Sora', system-ui, sans-serif",             body:"'Sora', system-ui, sans-serif",    weight:700, radius:14 },
+  { id:'sky',        name:'Sky',        note:'Fresh blue',    accent:'#2F80ED', accent2:'#1F66C9', onAccent:'#ffffff', paper:'#EEF5FF', card:'#ffffff', dark:false,
+    head:"'Montserrat', system-ui, sans-serif",       body:"'Manrope', system-ui, sans-serif", weight:800, radius:16 },
+  { id:'matcha',     name:'Matcha',     note:'Green tea',     accent:'#6B8E3A', accent2:'#52702A', onAccent:'#ffffff', paper:'#F1F4E6', card:'#FCFDF7', dark:false,
+    head:"'Fraunces', Georgia, serif",                body:"'Manrope', system-ui, sans-serif", weight:700, radius:20 },
+  { id:'retro',      name:'Retro 70s',  note:'Sunset orange', accent:'#D9582B', accent2:'#B4441E', onAccent:'#FFF5E1', paper:'#FFF1D6', card:'#FFF9EC', dark:false,
+    head:"'Shrikhand', cursive",                      body:"'Outfit', system-ui, sans-serif",  weight:400, radius:26 },
+  { id:'bubblegum',  name:'Bubblegum',  note:'Playful pink',  accent:'#FF5FA2', accent2:'#E2448A', onAccent:'#ffffff', paper:'#FFF0F6', card:'#ffffff', dark:false,
+    head:"'Righteous', system-ui, sans-serif",        body:"'Outfit', system-ui, sans-serif",  weight:400, radius:28 },
+  { id:'mocha',      name:'Mocha',      note:'Dark coffee',   accent:'#C9A27E', accent2:'#A9825F', onAccent:'#1E1611', paper:'#1E1611', card:'#2A2019', dark:true,
+    head:"'Playfair Display', Georgia, serif",        body:"'Manrope', system-ui, sans-serif", weight:700, radius:12 },
+  { id:'emerald',    name:'Emerald',    note:'Green & gold',  accent:'#D4B26A', accent2:'#B8954C', onAccent:'#0E1F18', paper:'#0E1F18', card:'#16291F', dark:true,
+    head:"'Cinzel', Georgia, serif",                  body:"'Manrope', system-ui, sans-serif", weight:700, radius:6 },
+  { id:'wine',       name:'Wine',       note:'Velvet night',  accent:'#E8B4BC', accent2:'#D293A0', onAccent:'#2A0E16', paper:'#2A0E16', card:'#3A1520', dark:true,
+    head:"'Playfair Display', Georgia, serif",        body:"'Outfit', system-ui, sans-serif",  weight:700, radius:12 }
 ];
 /* Earlier versions used other names; saved settings and old QR links still map. */
 const THEME_ALIASES = { noir:'studio', verdant:'sage', ember:'terracotta', gold:'champagne' };
@@ -1764,7 +1809,25 @@ const HEADER_FONTS = [
   { id:'Shrikhand',           css:"'Shrikhand', cursive",                     w:400, cat:'Retro' },
   { id:'Monoton',             css:"'Monoton', cursive",                       w:400, cat:'Display' },
   { id:'Special Elite',       css:"'Special Elite', monospace",               w:400, cat:'Hand' },
-  { id:'UnifrakturMaguntia',  css:"'UnifrakturMaguntia', serif",              w:400, cat:'Display' }
+  { id:'UnifrakturMaguntia',  css:"'UnifrakturMaguntia', serif",              w:400, cat:'Display' },
+  { id:'Lora',                css:"'Lora', Georgia, serif",                   w:700, cat:'Serif' },
+  { id:'EB Garamond',         css:"'EB Garamond', Georgia, serif",            w:700, cat:'Serif' },
+  { id:'Libre Baskerville',   css:"'Libre Baskerville', Georgia, serif",      w:700, cat:'Serif' },
+  { id:'Marcellus',           css:"'Marcellus', Georgia, serif",              w:400, cat:'Serif' },
+  { id:'Poppins',             css:"'Poppins', sans-serif",                    w:800, cat:'Modern' },
+  { id:'Raleway',             css:"'Raleway', sans-serif",                    w:800, cat:'Modern' },
+  { id:'Josefin Sans',        css:"'Josefin Sans', sans-serif",               w:700, cat:'Modern' },
+  { id:'Quicksand',           css:"'Quicksand', sans-serif",                  w:700, cat:'Modern' },
+  { id:'Nunito',              css:"'Nunito', sans-serif",                     w:800, cat:'Modern' },
+  { id:'Tenor Sans',          css:"'Tenor Sans', sans-serif",                 w:400, cat:'Modern' },
+  { id:'Comfortaa',           css:"'Comfortaa', sans-serif",                  w:700, cat:'Retro' },
+  { id:'Fredoka',             css:"'Fredoka', sans-serif",                    w:600, cat:'Retro' },
+  { id:'Bungee',              css:"'Bungee', Impact, sans-serif",             w:400, cat:'Display' },
+  { id:'Amatic SC',           css:"'Amatic SC', cursive",                     w:700, cat:'Hand' },
+  { id:'Satisfy',             css:"'Satisfy', cursive",                       w:400, cat:'Script' },
+  { id:'Kaushan Script',      css:"'Kaushan Script', cursive",                w:400, cat:'Script' },
+  { id:'Playball',            css:"'Playball', cursive",                      w:400, cat:'Script' },
+  { id:'Cookie',              css:"'Cookie', cursive",                        w:400, cat:'Script' }
 ];
 const FONT_CATS = ['All','Serif','Modern','Display','Script','Retro','Hand'];
 
@@ -1829,6 +1892,9 @@ const Theme = {
     document.querySelectorAll('[data-brand1]').forEach(el => el.textContent = settings.headerTop);
     document.querySelectorAll('[data-brand2]').forEach(el => el.textContent = settings.headerBottom);
     $('start-btn').textContent = settings.startText || 'TAP TO START';
+    r.setProperty('--start-x', (Number(settings.startX) || 50) + '%');
+    r.setProperty('--start-y', (Number(settings.startY) || 86) + '%');
+    Theme.paintStart($('start-btn'));
     $('thanks').textContent = settings.headerTop ? 'THANK YOU · ' + settings.headerTop.toUpperCase() : 'THANK YOU';
     const meta = document.querySelector('meta[name=theme-color]');
     if (meta) meta.setAttribute('content', t.paper);
@@ -1837,6 +1903,35 @@ const Theme = {
   set(id){ settings.theme = id; save(); Theme.apply(); Theme.renderGrid(); Wallpaper.paint(); Wallpaper.renderGrid(); Booth.clearStrips(); },
   setButton(style){ settings.buttonStyle = style; save(); Theme.apply(); Theme.renderButtons(); },
   setStartText(v){ settings.startText = v.slice(0, 28); save(); Theme.apply(); Theme.renderButtons(); },
+
+  /** The start button's own colour (empty = the theme's), with readable text. */
+  paintStart(el){
+    if (!el) return;
+    const c = /^#[0-9a-f]{6}$/i.test(settings.startColor || '') ? settings.startColor : '';
+    ['--accent', '--accent-2', '--on-accent', '--start-ink'].forEach(k => el.style.removeProperty(k));
+    if (!c) return;
+    const n = parseInt(c.slice(1), 16), lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+    el.style.setProperty('--accent', c);
+    el.style.setProperty('--accent-2', 'color-mix(in srgb,' + c + ' 78%,#000)');
+    el.style.setProperty('--on-accent', lum > .62 ? '#16130F' : '#ffffff');
+    el.style.setProperty('--start-ink', c);
+  },
+  setStartColor(v){
+    settings.startColor = v || '';
+    save(); Theme.apply(); Theme.renderButtons();
+    if (!v) $('start-color').value = Theme.current().accent;
+  },
+  setStartPos(axis, v){
+    settings[axis === 'x' ? 'startX' : 'startY'] = Number(v);
+    $('start-' + axis + '-val').textContent = v + '%';
+    save(); Theme.apply();
+  },
+  resetStart(){ settings.startX = 50; settings.startY = 86; save(); Theme.apply(); Theme.fillStartForm(); },
+  fillStartForm(){
+    $('start-color').value = settings.startColor || Theme.current().accent;
+    $('start-x').value = Number(settings.startX) || 50; $('start-x-val').textContent = $('start-x').value + '%';
+    $('start-y').value = Number(settings.startY) || 86; $('start-y-val').textContent = $('start-y').value + '%';
+  },
   setFont(id){ settings.headerFont = id; save(); Theme.apply(); Theme.renderFonts(); Booth.clearStrips(); },
 
   header(){
@@ -1898,6 +1993,7 @@ const Theme = {
         '<span class="start-btn sb-' + bs.id + '"></span></div>' +
         '<div class="swatch-name">' + bs.name + '<span>' + bs.note + '</span></div>';
       tile.querySelector('.start-btn').textContent = settings.startText || 'TAP TO START';
+      Theme.paintStart(tile.querySelector('.start-btn'));
       tile.onclick = () => Theme.setButton(bs.id);
       grid.appendChild(tile);
     });
@@ -1938,6 +2034,7 @@ const Theme = {
     $('hdr-size-val').textContent = settings.headerSize + '%';
     $('hdr-color').value = /^#[0-9a-f]{6}$/i.test(settings.headerColor) ? settings.headerColor : Theme.current().accent;
     $('start-text').value = settings.startText;
+    Theme.fillStartForm();
   }
 };
 
@@ -2235,6 +2332,119 @@ const Pin = {
   }
 };
 
+/* ============================ 5b. APP LICENSE ============================
+   The app is sold one tablet per code. On first open the buyer enters the
+   code from the website; the seller's download service ties it to this
+   tablet and answers with a license. A copy shared to another tablet asks
+   for a code again, and that code is refused there. The license is checked
+   again whenever the tablet is online, and keeps working offline for up to
+   GRACE_DAYS since the last good check. The web demo never asks. */
+const License = {
+  KEY:'snaps_license',
+  GRACE_DAYS:7,
+  buf:'', busy:false,
+
+  needed(){ return !DEMO && Native.on(); },
+  get(){ try{ return JSON.parse(localStorage.getItem(License.KEY) || 'null'); }catch(e){ return null; } },
+  set(v){ try{ v ? localStorage.setItem(License.KEY, JSON.stringify(v)) : localStorage.removeItem(License.KEY); }catch(e){} },
+
+  device(){
+    const id = String(Native.sync('deviceId') || '').trim();
+    if (id) return id;
+    let own = '';
+    try{ own = localStorage.getItem('snaps_device') || ''; }catch(e){}
+    if (!own){
+      own = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
+      try{ localStorage.setItem('snaps_device', own); }catch(e){}
+    }
+    return own;
+  },
+
+  async post(body){
+    const res = await fetch(SELLER.gate, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', apikey:SELLER.key },
+      body: JSON.stringify(body)
+    });
+    return { status: res.status, body: await res.json().catch(() => ({})) };
+  },
+
+  start(){
+    if (!License.needed()) return;
+    const lic = License.get();
+    if (!lic || !lic.id || !lic.token) return License.lock('');
+    if (Date.now() - (lic.ok || 0) > License.GRACE_DAYS * 86400000){
+      License.lock('Connect this tablet to the internet to check the app license, or enter your code again.');
+    }
+    License.check();
+    setInterval(() => License.check(), 6 * 3600000);
+    window.addEventListener('online', () => License.check());
+  },
+
+  async check(){
+    const lic = License.get();
+    if (!lic || navigator.onLine === false) return;
+    let r;
+    /* The booth's own storage rides along, so the seller's service can keep
+       that project awake and clear old photos even while this app is closed. */
+    const cloud = Cloud.ready() ? { ref:Cloud.ref(), key:Cloud.key(), bucket:Cloud.bucket(), keep:Cloud.keepHours() } : null;
+    try{ r = await License.post({ action:'check', license:lic.id, token:lic.token, device:License.device(), cloud }); }
+    catch(e){ return; }
+    if (r.status === 200 && r.body.ok){
+      lic.ok = Date.now();
+      License.set(lic);
+      if (!License.busy) close_('license-modal');
+    } else if (r.body && r.body.locked){
+      License.set(null);
+      License.lock(r.body.error || 'This app license is no longer active.');
+    }
+  },
+
+  lock(msg){
+    License.buf = '';
+    License.dots();
+    $('lic-err').textContent = msg || '';
+    open_('license-modal');
+  },
+
+  press(d){
+    if (License.busy || License.buf.length >= 6) return;
+    License.buf += d;
+    $('lic-err').textContent = '';
+    License.dots();
+    if (License.buf.length === 6) License.submit();
+  },
+  back(){ if (!License.busy){ License.buf = License.buf.slice(0, -1); License.dots(); } },
+  clear(){ if (!License.busy){ License.buf = ''; License.dots(); } },
+  dots(){
+    $('lic-dots').innerHTML = Array.from({ length: 6 },
+      (_, i) => '<div class="' + (i < License.buf.length ? 'on' : '') + '"></div>').join('');
+  },
+
+  async submit(){
+    const code = License.buf;
+    License.busy = true;
+    busy(true, 'Checking your code…');
+    try{
+      const r = await License.post({ action:'license', code, device:License.device(), edition: window.SNAPS_EDITION || 'standard' });
+      if (r.status === 200 && r.body.license && r.body.token){
+        License.set({ id:r.body.license, token:r.body.token, ok:Date.now() });
+        close_('license-modal');
+        toast('App unlocked. Enjoy!');
+      } else {
+        $('lic-err').textContent = r.body.error || 'That code could not be used (' + r.status + ').';
+      }
+    }catch(e){
+      $('lic-err').textContent = 'No internet connection. Connect to Wi-Fi and try again.';
+    }finally{
+      License.busy = false;
+      License.buf = '';
+      License.dots();
+      busy(false);
+    }
+  }
+};
+
 /* ==================== 6. DIGITAL COPIES (object storage) ================= */
 const Cloud = {
   ref(){
@@ -2363,11 +2573,11 @@ const Cloud = {
      can never be removed, and recent guests' photos can never be listed. */
   keepHours(){
     const h = Number(settings.cloudKeepHours);
-    return [1, 24, 72, 168].includes(h) ? h : 72;
+    return [1, 3, 24, 72, 168].includes(h) ? h : 3;
   },
   keepLabel(){
     const h = Cloud.keepHours();
-    return h === 1 ? '1 hour' : h === 24 ? '24 hours' : (h / 24) + ' days';
+    return h < 24 ? h + (h === 1 ? ' hour' : ' hours') : h === 24 ? '24 hours' : (h / 24) + ' days';
   },
   setKeep(h){ settings.cloudKeepHours = h; save(); Cloud.paintKeep(); },
   paintKeep(){
@@ -2378,7 +2588,7 @@ const Cloud = {
     if (DEMO || !Cloud.ready() || navigator.onLine === false) return 0;
     let last = 0;
     try{ last = Number(localStorage.getItem(KEY.cleanup)) || 0; }catch(e){}
-    if (!force && Date.now() - last < 30 * 60000) return 0;
+    if (!force && Date.now() - last < 10 * 60000) return 0;
     try{ localStorage.setItem(KEY.cleanup, String(Date.now())); }catch(e){}
     const cutoff = Date.now() - Cloud.keepHours() * 3600000;
     const bucket = encodeURIComponent(Cloud.bucket());
@@ -2458,7 +2668,6 @@ const Cloud = {
       $('c-ref').value = settings.cloudRef;
       $('c-key').value = settings.cloudKey;
       $('c-bucket').value = settings.cloudBucket;
-      $('c-page').value = settings.cloudPage;
       $('act-code').value = '';
       el.innerHTML = '<span class="dot ok"></span>Connected — guests can scan to keep their photos';
       toast('Digital copies connected.');
@@ -2519,6 +2728,7 @@ const Cloud = {
         : live ? 'Working — guests get your download page'
         : 'Storage works, but the download page is not online yet — the QR opens the photo directly for now') + keep + gifNote);
       toast('Digital copies are live.');
+      License.check();
     }catch(e){
       report('bad', e.message);
       toast(e.message, true);
@@ -3364,8 +3574,11 @@ const PAPER = {
 
 /* --- thermal tone + dither (receipt printers only) --- */
 const TONES = {
-  soft:     { autolevel:.58, black:.02, white:.99, gamma:.80, contrast:.24, gain:.40, maxInk:.82, despeckle:7,  sharpen:.58, snapW:240, snapB:6,  threshold:176 },
-  standard: { autolevel:.70, black:.03, white:.98, gamma:.86, contrast:.32, gain:.36, maxInk:.86, despeckle:12, sharpen:.55, snapW:236, snapB:7,  threshold:168 },
+  /* lift: brightens dim photos until their middle tone reaches this level
+     (0 = off). maxInk below 1 keeps a few white dots even in black hair and
+     dark rooms, so they print a soft grey instead of a solid black patch. */
+  soft:     { autolevel:.58, black:.02, white:.99, gamma:.72, contrast:.20, gain:.50, maxInk:.74, despeckle:7,  sharpen:.55, snapW:238, snapB:0,  threshold:176, lift:150 },
+  standard: { autolevel:.70, black:.03, white:.98, gamma:.78, contrast:.26, gain:.45, maxInk:.80, despeckle:12, sharpen:.55, snapW:234, snapB:2,  threshold:168, lift:138 },
   deep:     { autolevel:.85, black:.05, white:.96, gamma:.96, contrast:.45, gain:.28, maxInk:.93, despeckle:13, sharpen:.65, snapW:230, snapB:13, threshold:158 },
   ultra:    { autolevel:1,   black:.08, white:.94, gamma:1.06,contrast:.62, gain:.18, maxInk:1,   despeckle:15, sharpen:.78, snapW:222, snapB:22, threshold:148 }
 };
@@ -3424,6 +3637,21 @@ function autoLevel(lum, isPhoto, strength){
     if (!isPhoto[i]) continue;
     lum[i] += (clamp((lum[i] - lo) * k, 0, 255) - lum[i]) * strength;
   }
+}
+/** Brightens a dim photo (dark room, backlight) with a gamma curve that moves
+    its median tone up to `target`, so faces don't print as dark patches.
+    Bright photos are left alone. */
+function liftShadows(lum, isPhoto, target){
+  if (!target) return;
+  const hist = new Uint32Array(256);
+  let n = 0;
+  for (let i = 0; i < lum.length; i++){ if (!isPhoto[i]) continue; hist[clamp(Math.round(lum[i]), 0, 255)]++; n++; }
+  if (n < 500) return;
+  let acc = 0, med = 128;
+  for (let i = 0; i < 256; i++){ acc += hist[i]; if (acc >= n / 2){ med = i; break; } }
+  if (med >= target) return;
+  const g = clamp(Math.log(target / 255) / Math.log(Math.max(8, med) / 255), .45, 1);
+  for (let i = 0; i < lum.length; i++) if (isPhoto[i]) lum[i] = 255 * Math.pow(clamp(lum[i], 0, 255) / 255, g);
 }
 function unsharp(lum, isPhoto, w, h, amount){
   if (amount <= 0) return;
@@ -3574,6 +3802,7 @@ function binarize(canvas, maskCanvas, profile){
   medianFilter(lum, isPhoto, w, h, p.despeckle);
   if (silk) smoothSkin(lum, isPhoto, w, h, 12);
   autoLevel(lum, isPhoto, p.autolevel);
+  liftShadows(lum, isPhoto, p.lift);
   if (silk) clarity(lum, isPhoto, w, h, 4, .8);
   for (let px = 0; px < n; px++) if (isPhoto[px] || ditherArt) lum[px] = curve[clamp(Math.round(lum[px]), 0, 255)];
   unsharp(lum, isPhoto, w, h, p.sharpen);
@@ -3688,21 +3917,21 @@ const BT = {
 
   /** One GS v 0 command per copy. Splitting a strip into bands makes the
       printer pause between them, which shows up as seams on paper. */
-  job(canvas, copies){
+  job(canvas, copies, speedId){
     const r = BT.raster(canvas), parts = [];
     const feed = clamp(Number(settings.cutFeed) || 4, 0, 20);
     const cut = settings.cutMode === 'none' ? null
       : new Uint8Array([0x1D, 0x56, settings.cutMode === 'partial' ? 1 : 0]);
 
     parts.push(new Uint8Array([0x1B, 0x40]), new Uint8Array([0x1B, 0x61, 0x00]));
-    if (settings.printSpeed === 'steady' && settings.printLink !== 'usb'){
+    if (!BT.usb() && (speedId || settings.printSpeed) !== 'fast'){
       /* GS ( K fn 50: print speed, level 1 (slowest), so Bluetooth keeps up
          and the head never stops mid-photo. It's length-prefixed, so a
          printer without it skips it cleanly. */
       parts.push(new Uint8Array([0x1D, 0x28, 0x4B, 0x02, 0x00, 0x32, 0x01]));
     }
     for (let c = 0; c < Math.max(1, copies || 1); c++){
-      parts.push(new Uint8Array([0x1D, 0x76, 0x30, 0x00, r.per & 255, (r.per >> 8) & 255, r.height & 255, (r.height >> 8) & 255]));
+      parts.push(new Uint8Array([0x1D, 0x76, 0x30, Printing.halfData(speedId) ? 0x02 : 0x00, r.per & 255, (r.per >> 8) & 255, r.height & 255, (r.height >> 8) & 255]));
       parts.push(r.bits);
       parts.push(new Uint8Array([0x1B, 0x64, feed]));
       if (cut) parts.push(cut);
@@ -3718,23 +3947,48 @@ const BT = {
 
   usb(){ return settings.printLink === 'usb' && Native.has('usbWrite'); },
 
-  async send(job, onProgress){
+  async send(job, onProgress, speedId){
+    const sp = Printing.speed(speedId);
+    const per = Math.ceil((Number(settings.printWidth) || 576) / 8);
+    const chunk = sp.rows ? per * sp.rows : 512;
     if (BT.usb()){
       if (onProgress) onProgress(.1);
-      await Native.call('usbWrite', settings.usbId || '', bytesToBase64(job));
+      try{ await Native.call('usbWrite', settings.usbId || '', bytesToBase64(job)); }
+      catch(e){
+        /* cable pulled out: fall back to the Bluetooth printer if there is one */
+        if (!settings.btAddress || !/no USB printer/.test(e.message)) throw e;
+        await Native.call(Native.has('printerWritePaced') ? 'printerWritePaced' : 'printerWrite', settings.btAddress, bytesToBase64(job),
+          ...(Native.has('printerWritePaced') ? [8] : []));
+      }
       if (onProgress) onProgress(1);
       return;
     }
     if (Native.has('printerWrite')){
-      if (!settings.btAddress) throw new Error('no printer chosen — pick one under Settings, Printer');
+      if (!settings.btAddress){
+        /* nothing chosen yet: use a plugged-in USB printer, or the only paired printer */
+        const usb = Native.json('usbPrinters', []);
+        if (usb.length && Native.has('usbWrite')){
+          settings.printLink = 'usb'; settings.usbId = usb[0].id; save();
+          return BT.send(job, onProgress);
+        }
+        const paired = BT.paired(), likely = paired.filter(p => p.printer);
+        const pick = likely.length === 1 ? likely[0] : paired.length === 1 ? paired[0] : null;
+        if (!pick) throw new Error('the printer is not set up yet (Settings › Printer)');
+        settings.btAddress = pick.address; settings.btName = pick.name || 'Bluetooth printer'; save();
+      }
       if (onProgress) onProgress(.1);
-      await Native.call('printerWrite', settings.btAddress, bytesToBase64(job));
+      if (Native.has('printerWritePaced')){
+        /* A steady trickle of small pieces: big bursts make printers like the
+           VOZY G80 print each burst and stop, leaving a line every few mm. */
+        if (Native.has('printerWriteRate')) await Native.call('printerWriteRate', settings.btAddress, bytesToBase64(job), chunk, sp.pace);
+        else await Native.call('printerWritePaced', settings.btAddress, bytesToBase64(job), 8);
+      } else await Native.call('printerWrite', settings.btAddress, bytesToBase64(job));
       if (onProgress) onProgress(1);
       return;
     }
     if (!BT.ready() && !(await BT.restore())) throw new Error('the printer is not connected');
-    const size = clamp(Number(settings.btChunk) || 180, 20, 512);
-    const pace = clamp(Number(settings.btPacing) || 12, 0, 200);
+    const size = sp.rows ? Math.min(512, chunk) : clamp(Number(settings.btChunk) || 180, 20, 512);
+    const pace = sp.rows ? sp.pace : clamp(Number(settings.btPacing) || 12, 0, 200);
     const noAck = !!BT.ch.properties.writeWithoutResponse && !!BT.ch.writeValueWithoutResponse;
     for (let i = 0; i < job.length; i += size){
       const chunk = job.slice(i, i + size);
@@ -3798,9 +4052,9 @@ const Printing = {
       const list = Native.json('usbPrinters', []);
       if (list[0] && !list.some(p => p.id === settings.usbId)) settings.usbId = list[0].id;
     }
-    save(); Printing.paint();
+    save(); Booth.clearStrips(); Printing.paint();
   },
-  setSpeed(v){ settings.printSpeed = v === 'steady' ? 'steady' : 'normal'; save(); Printing.paint(); },
+  setSpeed(v){ settings.printSpeed = Printing.SPEEDS[v] ? v : 'smoother'; save(); Booth.clearStrips(); Printing.paint(); },
 
   paintBt(){
     const usbOk = Native.has('usbWrite');
@@ -3809,7 +4063,8 @@ const Printing = {
       document.querySelectorAll('#link-seg button').forEach(b => b.classList.toggle('on', b.dataset.link === (BT.usb() ? 'usb' : 'bt')));
       $('link-title').textContent = BT.usb() ? 'USB printer' : 'Bluetooth printer';
       $('speed-seg').previousElementSibling.style.display = $('speed-seg').style.display = BT.usb() ? 'none' : '';
-      document.querySelectorAll('#speed-seg button').forEach(b => b.classList.toggle('on', b.dataset.speed === settings.printSpeed));
+      document.querySelectorAll('#speed-seg button').forEach(b => b.classList.toggle('on', b.dataset.speed === (Printing.SPEEDS[settings.printSpeed] ? settings.printSpeed : 'smoother')));
+      $('speed-test').style.display = BT.usb() ? 'none' : '';
     }
     const el = $('bt-status');
     if (!el) return;
@@ -3917,11 +4172,35 @@ const Printing = {
 
   async thermalCanvas(){
     const W = Math.max(200, Number(settings.printWidth) || 576);
-    const mask = document.createElement('canvas');
-    const canvas = await compose('print', W, mask);
+    let mask = document.createElement('canvas');
+    let canvas = await compose('print', W, mask);
     if (!canvas) return null;
+    if (Printing.halfData()){ canvas = Printing.halfHeight(canvas); mask = Printing.halfHeight(mask); }
     binarize(canvas, mask, settings.printDarkness);
     return canvas;
+  },
+
+  /** Steady on Bluetooth: half the rows, each printed twice as tall (GS v 0
+      mode 2). Half the data per centimetre, so Bluetooth keeps ahead of the
+      print head and it never stops mid-photo, which is what leaves lines. */
+  /* Bluetooth print speeds: how many dot rows go out per write, and the beat
+     between writes. An even beat the link can sustain means the printer never
+     runs dry and stops mid-photo, which is what leaves lines. */
+  SPEEDS:{
+    fast:     { rows:0, pace:8,  half:false },        // 512-byte pieces, as fast as the link allows
+    smooth:   { rows:8, pace:30, half:false },
+    smoother: { rows:4, pace:30, half:false },
+    slowest:  { rows:2, pace:30, half:true  }         // and half the rows, each printed twice as tall
+  },
+  speed(id){ return Printing.SPEEDS[id || settings.printSpeed] || Printing.SPEEDS.smoother; },
+  halfData(id){ return !BT.usb() && Printing.speed(id).half; },
+  halfHeight(src){
+    const c = document.createElement('canvas');
+    c.width = src.width; c.height = Math.max(1, Math.round(src.height / 2));
+    const ctx = c.getContext('2d', { willReadFrequently:true });
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(src, 0, 0, c.width, c.height);
+    return c;
   },
 
   async testPhoto(){
@@ -3968,9 +4247,39 @@ const Printing = {
     grad.addColorStop(0, '#fff'); grad.addColorStop(1, '#000');
     ctx.fillStyle = grad; ctx.fillRect(0, top, W, band);
     ctx.fillStyle = '#000'; ctx.fillRect(0, top + band + Math.round(W * .03), W, Math.round(W * .05));
-    binarize(c, null, settings.printDarkness);
-    try{ await BT.send(BT.job(c, 1)); toast('Test sent. The ramp should fade evenly and the bar should be solid.'); }
+    const t = Printing.halfData() ? Printing.halfHeight(c) : c;
+    binarize(t, null, settings.printDarkness);
+    try{ await BT.send(BT.job(t, 1)); toast('Test sent. The ramp should fade evenly and the bar should be solid.'); }
     catch(e){ toast(e.message || 'Test print failed.', true); }
+    Printing.paintBt();
+  },
+
+  /** One short grey sample per speed, numbered 1 to 4, so the owner can see
+      which is the fastest without lines on their own printer. */
+  async speedTest(){
+    const W = Math.max(200, Number(settings.printWidth) || 576);
+    await ensureFonts();
+    const ids = ['fast', 'smooth', 'smoother', 'slowest'];
+    toast('Printing 4 samples. Pick the fastest one without lines.');
+    try{
+      for (let i = 0; i < ids.length; i++){
+        const c = document.createElement('canvas');
+        c.width = W; c.height = Math.round(W * .55);
+        const ctx = c.getContext('2d', { willReadFrequently:true });
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, c.height);
+        ctx.fillStyle = '#000'; ctx.textAlign = 'left';
+        ctx.font = '700 ' + Math.round(W * .07) + 'px sans-serif';
+        ctx.fillText((i + 1) + ' · ' + ['FAST', 'SMOOTH', 'SMOOTHER', 'SLOWEST'][i], W * .04, W * .09);
+        const top = Math.round(W * .13), h = c.height - top - Math.round(W * .03);
+        const g = ctx.createLinearGradient(0, top, 0, top + h);
+        g.addColorStop(0, '#9a9a9a'); g.addColorStop(1, '#5a5a5a');
+        ctx.fillStyle = g; ctx.fillRect(0, top, W, h);
+        const t = Printing.halfData(ids[i]) ? Printing.halfHeight(c) : c;
+        binarize(t, null, settings.printDarkness);
+        await BT.send(BT.job(t, 1, ids[i]), null, ids[i]);
+      }
+      toast('Done. Choose the fastest number with no lines under Print speed.');
+    }catch(e){ toast(e.message || 'Speed test failed.', true); }
     Printing.paintBt();
   },
 
@@ -4372,6 +4681,7 @@ const Booth = {
     Booth.paintCopies();
     Booth.setFilter(Booth.state.filter);
     Booth.publish();
+    Booth.saveShots();
   },
 
   setFilter(mode){
@@ -4436,7 +4746,6 @@ const Booth = {
       if (!window.QRCode) throw new Error('The QR library did not load.');
       const pair = await Promise.all([Booth.strip('color'), Booth.strip('bw')]);
       if (!pair[0] || !pair[1]) throw new Error('The strip could not be built.');
-      Booth.keepLocal(pair[0]);
       const small = await Promise.all(pair.map(url => shrinkForUpload(url)));
       gif = await Booth.gifFile();
       id = Cloud.newId();
@@ -4464,14 +4773,41 @@ const Booth = {
       : 'No internet right now. Scan anyway — your photo appears as soon as the booth is back online';
   },
 
-  /** A full-size copy in the tablet's Pictures folder, so no photo is ever
-      lost to a bad connection or an expired link. Android app only. */
-  keepLocal(strip){
-    if (!settings.keepLocalCopy || !Native.has('saveFile')) return;
+  /** Download shots: every shot, both strips and the GIF go to the tablet's
+      Photos, in an album per day. The owner keeps everything even after the
+      cloud copy expires. Android app only. */
+  async saveShots(){
+    if (!settings.downloadShots || DEMO) return;
+    const inAlbum = Native.has('saveFileIn'), plain = Native.has('saveFile');
+    if (!inAlbum && !plain) return;
     const d = new Date(), pad = v => String(v).padStart(2, '0');
-    const name = 'snaps-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' +
-                 pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '.jpg';
-    Native.call('saveFile', dataUrlBase64(strip), name, 'image/jpeg').catch(e => console.warn('Local copy not saved:', e));
+    const day = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    const stamp = day.replace(/-/g, '') + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+    const put = (b64, name, mime) => inAlbum
+      ? Native.call('saveFileIn', b64, name, mime, day)
+      : Native.call('saveFile', b64, name, mime);
+    try{
+      const shots = Booth.state.shots.slice();
+      for (let i = 0; i < shots.length; i++) await put(dataUrlBase64(shots[i]), stamp + '-shot' + (i + 1) + '.jpg', 'image/jpeg');
+      const pair = await Promise.all([Booth.strip('color'), Booth.strip('bw')]);
+      if (pair[0]) await put(dataUrlBase64(pair[0]), stamp + '-strip-colour.jpg', 'image/jpeg');
+      if (pair[1]) await put(dataUrlBase64(pair[1]), stamp + '-strip-bw.jpg', 'image/jpeg');
+      const gif = await Booth.gifFile();
+      if (gif){
+        const b64 = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(dataUrlBase64(r.result)); r.onerror = no; r.readAsDataURL(gif.blob); });
+        await put(b64, stamp + '-shots.gif', 'image/gif');
+      }
+      const today = settings.shotsDay === day ? (Number(settings.shotsToday) || 0) : 0;
+      settings.shotsDay = day; settings.shotsToday = today + 1; save();
+    }catch(e){ console.warn('Shots not saved to the tablet:', e); }
+  },
+  paintShots(){
+    const el = $('shots-sub');
+    if (!el || !settings.downloadShots) return;
+    const d = new Date(), pad = v => String(v).padStart(2, '0');
+    const day = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    const n = settings.shotsDay === day ? (Number(settings.shotsToday) || 0) : 0;
+    el.textContent = 'On. Saving to Photos › Snaps Photobooth › ' + day + ' · ' + n + ' session' + (n === 1 ? '' : 's') + ' saved today. Guests still get their QR copies.';
   },
 
   async localTiles(){
@@ -4586,17 +4922,25 @@ const Booth = {
         Sales.record({ mode:'event', method:'event', layout:Booth.layoutName(),
           copies:Booth.state.copies, unit:0, amount:0 });
       }
+      Booth.state.printed = true;
       setTimeout(() => Booth.reset(), 1500);
     }catch(err){
       console.error('Print failed:', err);
-      toast('Print failed — ' + (err.message || 'unknown error') + '.', true);
+      toast('Couldn\'t print — ' + (err.message || 'please try again') + '. Your digital copy is still on the screen.', true);
     }finally{
       btn.disabled = false;
       Booth.paintCopies();
     }
   },
 
+  /** The small Home button on the last screen. Asks first if nothing printed yet. */
+  goHome(){
+    if (!Booth.state.printed && !confirm('Go back to the home screen? This strip has not been printed yet.')) return;
+    Booth.reset();
+  },
+
   reset(){
+    Booth.state.printed = false;
     Booth.state.shots = [];
     Booth.state.transforms = [];
     Booth.state.overlays = [];
@@ -5051,13 +5395,12 @@ const Gcash = {
 /** Android Back button: closes the top dialog instead of leaving the booth. */
 window.onNativeBack = () => {
   if (document.body.classList.contains('framing')){ Wallpaper.endFraming(); return; }
-  const order = ['bt-modal','hd-modal','editor-modal','pin-modal','gcash-modal','activate-modal','admin-modal'];
+  const order = ['bt-modal','hd-modal','editor-modal','pin-modal','gcash-modal','admin-modal'];
   const open = order.find(id => $(id).classList.contains('open'));
   if (!open) return;
   if (open === 'admin-modal'){ if (Admin.current) Admin.home(); else Admin.close(); }
   else if (open === 'gcash-modal') Booth.gcashCancel();
   else if (open === 'pin-modal') Pin.cancel();
-  else if (open === 'activate-modal') Cloud.skipFirst();
   else close_(open);
 };
 
@@ -5333,6 +5676,7 @@ const Sales = {
     const many = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 
     document.querySelectorAll('#range-seg button').forEach(b => b.classList.toggle('on', b.dataset.range === Sales.range));
+    if ($('s-clear')) $('s-clear').textContent = { day:"Clear today's log", week:"Clear this week's log", month:"Clear this month's log" }[Sales.range];
     $('s-total').textContent = peso(s.revenue);
     $('s-total-n').textContent = many(s.paid, 'paid session') + ' · ' + many(s.prints, 'print');
     $('s-cash').textContent = peso(s.cash);
@@ -5398,15 +5742,19 @@ const Sales = {
     toast('Exported ' + rows.length + ' transactions.');
   },
 
+  /** Clears only the range on screen (today, this week or this month). */
   clear(){
-    const rows = Sales.all();
-    if (!rows.length){ toast('The sales log is already empty.'); return; }
-    if (!confirm('Delete all ' + rows.length + ' transactions? Export first if you still need them.')) return;
-    Sales.rows = [];
-    try{ localStorage.removeItem(KEY.sales); }catch(e){}
+    const from = Sales.from(Sales.range);
+    const label = Sales.RANGE_LABEL[Sales.range];
+    const n = Sales.all().filter(e => e.t >= from).length;
+    if (!n){ toast('Nothing to clear for ' + label + '.'); return; }
+    if (!confirm('Delete ' + n + ' transaction' + (n === 1 ? '' : 's') + ' from ' + label + '? Older records are kept. Export first if you still need them.')) return;
+    Sales.rows = Sales.all().filter(e => e.t < from);
+    Sales.persist();
     Sales.render();
-    toast('Sales log cleared.');
-  }
+    toast('Cleared the log for ' + label + '.');
+  },
+  RANGE_LABEL:{ day:'today', week:'this week', month:'this month' }
 };
 
 /* ============================== 14c. CARDS =============================== */
@@ -5493,16 +5841,15 @@ const Admin = {
     Admin.paintSwitch('sw-cash', settings.acceptCash);
     Admin.paintSwitch('sw-gcash', settings.acceptGcash);
     Admin.paintSwitch('sw-mirror', settings.mirrorLock);
-    Admin.paintSwitch('sw-local', settings.keepLocalCopy);
+    Admin.paintSwitch('sw-local', settings.downloadShots);
+    Booth.paintShots();
     Admin.paintSwitch('sw-gif', settings.gifCopy);
     Cloud.paintKeep();
     Gcash.paint();
-    $('act-code').value = '';
     $('kiosk-row').style.display = Kiosk.available() ? '' : 'none';
     $('c-ref').value = settings.cloudRef;
     $('c-key').value = settings.cloudKey;
     $('c-bucket').value = settings.cloudBucket;
-    $('c-page').value = settings.cloudPage;
     Admin.prices();
     renderDesignList();
     Printing.paint();
@@ -5614,7 +5961,6 @@ const Admin = {
       settings.cloudRef = $('c-ref').value.trim();
       settings.cloudKey = $('c-key').value.trim();
       settings.cloudBucket = $('c-bucket').value.trim() || 'photos';
-      settings.cloudPage = $('c-page').value.trim();
     }
     save();
   },
@@ -5751,6 +6097,7 @@ function paintTextTools(){
 
 /* =============================== 14e. BOOT =============================== */
 window.addEventListener('DOMContentLoaded', async () => {
+  License.start();
   if (QRPAY){
     $('pay-standard').style.display = 'none';
     $('pay-qr').style.display = '';
@@ -5775,10 +6122,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     Cloud.ping();
     setTimeout(() => Cloud.cleanup(), 20000);
   }
-  else if (!DEMO && !settings.activationSkipped && (Native.on() || /[?&]connect\b/.test(location.search))) open_('activate-modal');
 
   window.addEventListener('online', () => { if (Cloud.ready()) Uploads.run(); });
-  setInterval(() => { if (Cloud.ready()) Cloud.cleanup(); }, 30 * 60000);
+  setInterval(() => { if (Cloud.ready()) Cloud.cleanup(); }, 10 * 60000);
   setInterval(() => { if (Cloud.ready()) Cloud.ping(); }, 6 * 3600000);
 
   document.body.classList.add('at-start');
