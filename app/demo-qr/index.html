@@ -445,9 +445,10 @@ body.framing .modal{display:none!important}
   height:min(92dvh,calc(var(--u)*660));max-height:92dvh}
 .adm-head{flex-shrink:0;display:flex;align-items:center;gap:calc(var(--u)*10);
   padding:calc(var(--u)*14) calc(var(--u)*16) calc(var(--u)*12);border-bottom:1px solid var(--line)}
-.adm-back{display:none;align-items:center;justify-content:center;width:calc(var(--u)*34);height:calc(var(--u)*34);
-  border-radius:50%;border:1px solid var(--line);background:var(--card);cursor:pointer;flex-shrink:0;
-  font-size:calc(var(--u)*20);font-weight:700;line-height:1;padding-bottom:calc(var(--u)*2)}
+.adm-back{display:none;align-items:center;justify-content:center;gap:calc(var(--u)*4);height:calc(var(--u)*34);
+  padding:0 calc(var(--u)*12) 0 calc(var(--u)*9);border-radius:999px;border:1px solid var(--line);background:var(--card);
+  color:var(--text);cursor:pointer;flex-shrink:0;font-size:calc(var(--u)*12.5);font-weight:700;line-height:1}
+.adm-back b{font-size:calc(var(--u)*18);line-height:1;margin-top:calc(var(--u)*-2)}
 .admin.in-section .adm-back{display:flex}
 .adm-body{flex:1;min-height:0;overflow-y:auto;padding:calc(var(--u)*12) calc(var(--u)*16)}
 .adm-foot{flex-shrink:0;display:flex;gap:calc(var(--u)*8);padding:calc(var(--u)*12) calc(var(--u)*16);
@@ -491,8 +492,6 @@ body.framing .modal{display:none!important}
 .seg button{flex:1;border:none;background:transparent;padding:calc(var(--u)*9) calc(var(--u)*4);border-radius:999px;
   font-size:calc(var(--u)*11.5);font-weight:700;color:var(--sub);cursor:pointer}
 .seg button.on{background:var(--accent);color:var(--on-accent)}
-#speed-seg{flex-wrap:wrap;border-radius:calc(var(--u)*14)}
-#speed-seg button{flex:1 0 30%}
 .switch{width:calc(var(--u)*46);height:calc(var(--u)*26);border-radius:999px;background:var(--track);position:relative;
   cursor:pointer;border:none;flex-shrink:0;transition:background .2s}
 .switch.on{background:var(--accent)}
@@ -988,7 +987,7 @@ body.framing #frame-bar{display:flex}
 <div class="modal" id="admin-modal">
   <div class="sheet admin" id="admin-sheet">
     <div class="adm-head">
-      <button class="adm-back" onclick="Admin.home()" aria-label="Back">‹</button>
+      <button class="adm-back" onclick="Admin.home()" aria-label="Back to settings"><b>‹</b>Back</button>
       <div style="flex:1;min-width:0">
         <div class="sheet-title" id="adm-title">Booth settings</div>
         <p class="sheet-sub" id="adm-sub">Everything your booth needs, in seven places.</p>
@@ -1175,22 +1174,6 @@ body.framing #frame-bar{display:flex}
               <button data-dots="silk" onclick="Printing.setDots('silk')">Silk</button>
             </div>
             <p class="set-sub"><b>Fine</b> scatters tiny dots for the sharpest detail and hair. <b>Smooth</b> uses an even dot pattern for softer skin and cleaner backgrounds. <b>Silk</b> (recommended) smooths out camera grain, keeps faces clear and prints a fine, even texture, like a classic receipt photobooth.</p>
-            <span class="label">Print speed</span>
-            <div class="seg" id="speed-seg">
-              <button data-speed="steady" onclick="Printing.setSpeed('steady')">Steady ★</button>
-              <button data-speed="fast" onclick="Printing.setSpeed('fast')">1 · Fast</button>
-              <button data-speed="smooth" onclick="Printing.setSpeed('smooth')">2 · Smooth</button>
-              <button data-speed="smoother" onclick="Printing.setSpeed('smoother')">3 · Smoother</button>
-              <button data-speed="slowest" onclick="Printing.setSpeed('slowest')">4 · Slowest</button>
-              <button data-speed="bands" onclick="Printing.setSpeed('bands')">5 · Bands</button>
-              <button data-speed="light" onclick="Printing.setSpeed('light')">6 · Light data</button>
-              <button data-speed="halfh" onclick="Printing.setSpeed('halfh')">7 · Half height</button>
-              <button data-speed="halfw" onclick="Printing.setSpeed('halfw')">8 · Half width</button>
-              <button data-speed="page" onclick="Printing.setSpeed('page')">9 · Page mode</button>
-              <button data-speed="buffer" onclick="Printing.setSpeed('buffer')">10 · Buffered</button>
-            </div>
-            <button class="ghost" id="speed-test" onclick="Printing.speedTest()">Print speed test</button>
-            <p class="set-sub"><b>Steady ★</b> (recommended) prints at a normal pace with no lines over Bluetooth: the printer slows its head a little so Bluetooth always keeps ahead of it, and it never stops mid-photo. Full detail, normal darkness. If your printer still shows lines, try the other speeds. <b>5 · Bands</b> sends the photo in small strips the printer finishes one at a time. <b>6 · Light data</b> sends a quarter of the data (each dot printed a little bigger), so Bluetooth always keeps up. <b>7 · Half height</b> and <b>8 · Half width</b> send half the data and keep more detail. <b>9 · Page mode</b> and <b>10 · Buffered</b> keep full detail: the printer receives a whole section first, then prints it in one smooth pass, with sections split at the white gaps between photos. The speed test prints 9, 10 and 6 side by side: pick the sharpest one without lines. A <b>USB cable</b> never has lines.</p>
             <canvas id="tone-preview" width="260" height="44" style="width:100%;height:calc(var(--u)*38);border-radius:calc(var(--u)*6);border:1px solid var(--line)"></canvas>
             <p class="set-sub">Top is the tone curve, bottom is the real dot pattern. Lower the darkness if faces print as black blobs.</p>
           </div>
@@ -1378,7 +1361,7 @@ body.framing #frame-bar{display:flex}
     </div>
 
     <div class="adm-foot">
-      <button class="btn quiet" style="flex:1" onclick="Admin.close()">Close</button>
+      <button class="btn quiet" style="flex:1" id="adm-left" onclick="Admin.leave()">Close</button>
       <button class="btn" style="flex:1" onclick="Admin.save()">Save</button>
     </div>
   </div>
@@ -1623,7 +1606,7 @@ const DEFAULTS = {
   basicPrices:{ solo:20, classic4:30, trio:30, mega6:30 },
 
   printEngine:'photo', paperSize:'4x6',
-  printWidth:576, printDarkness:'soft', printDots:'silk', printLink:'bt', usbId:'', printSpeed:'steady',
+  printWidth:576, printDarkness:'soft', printDots:'silk', printLink:'bt', usbId:'',
   btName:'', btAddress:'', btChunk:180, btPacing:12, cutMode:'full', cutFeed:4,
 
   boothMode:'nonevent', eventEndsAt:0, eventHours:4,
@@ -1659,8 +1642,6 @@ function loadSettings(){
     ['payTable','payWait','relaySecret','relayOn'].forEach(k => delete s[k]);
     /* 2.5: cloud copies last 3 hours unless the owner picks otherwise */
     if (!s.keep3hSet){ s.cloudKeepHours = 3; s.keep3hSet = true; }
-    /* v2.7: Steady replaces the paced speeds as the Bluetooth default (no lines). */
-    if (!s.steadySet){ s.printSpeed = 'steady'; s.steadySet = true; }
     return s;
   }catch(e){
     console.warn('Settings unreadable, using defaults.', e);
@@ -3928,36 +3909,16 @@ const BT = {
 
   /** One GS v 0 command per copy. Splitting a strip into bands makes the
       printer pause between them, which shows up as seams on paper. */
-  job(canvas, copies, speedId){
+  job(canvas, copies){
     const r = BT.raster(canvas), parts = [];
     const feed = clamp(Number(settings.cutFeed) || 4, 0, 20);
     const cut = settings.cutMode === 'none' ? null
       : new Uint8Array([0x1D, 0x56, settings.cutMode === 'partial' ? 1 : 0]);
 
     parts.push(new Uint8Array([0x1B, 0x40]), new Uint8Array([0x1B, 0x61, 0x00]));
-    const sp = Printing.speed(speedId);
-    if (!BT.usb() && sp.heat){
-      /* ESC 7 n1 n2 n3: heat at most 8*(n1+1) dots at a time, n2 x 10us each,
-         then n3 x 10us rest between groups. Heating fewer dots at once slows
-         the head below what Bluetooth delivers, so it never runs dry and
-         never stops mid-photo (the stops are the lines). Each dot still gets
-         its normal heat, so the print is not darker. */
-      parts.push(new Uint8Array([0x1B, 0x37, sp.heat[0], sp.heat[1], sp.heat[2]]));
-    }
-    if (!BT.usb() && (speedId || settings.printSpeed) !== 'fast'){
-      /* GS ( K fn 50: print speed, level 1 (slowest), so Bluetooth keeps up
-         and the head never stops mid-photo. It's length-prefixed, so a
-         printer without it skips it cleanly. */
-      parts.push(new Uint8Array([0x1D, 0x28, 0x4B, 0x02, 0x00, 0x32, 0x01]));
-    }
-    const bands = BT.usb() ? null : sp.band ? BT.bands(r) : sp.page ? BT.pageJob(r) : sp.buffered ? BT.bufferJob(r) : null;
-    const mode = BT.usb() ? 0 : sp.quarter ? 3 : sp.half ? 2 : sp.halfW ? 1 : 0;
     for (let c = 0; c < Math.max(1, copies || 1); c++){
-      if (bands) parts.push(...bands);
-      else {
-        parts.push(new Uint8Array([0x1D, 0x76, 0x30, mode, r.per & 255, (r.per >> 8) & 255, r.height & 255, (r.height >> 8) & 255]));
-        parts.push(r.bits);
-      }
+      parts.push(new Uint8Array([0x1D, 0x76, 0x30, 0, r.per & 255, (r.per >> 8) & 255, r.height & 255, (r.height >> 8) & 255]));
+      parts.push(r.bits);
       parts.push(new Uint8Array([0x1B, 0x64, feed]));
       if (cut) parts.push(cut);
       else if (c < copies - 1) parts.push(new Uint8Array([0x1B, 0x64, 2]));
@@ -3970,88 +3931,9 @@ const BT = {
     return job;
   },
 
-  /** The photo as 24-dot bands (ESC * 33). A band prints only once all of it
-      has arrived, so the head never stops inside one: any wait for
-      Bluetooth falls exactly between bands, at the same spot every time. */
-  bands(r, from, to){
-    from = from || 0; to = to == null ? r.height : to;
-    const w = r.per * 8, out = [new Uint8Array([0x1B, 0x33, 24])];
-    for (let y0 = from; y0 < to; y0 += 24){
-      const band = new Uint8Array(5 + w * 3 + 1);
-      band.set([0x1B, 0x2A, 33, w & 255, (w >> 8) & 255]);
-      for (let x = 0; x < w; x++){
-        const byte = x >> 3, bit = 0x80 >> (x & 7);
-        for (let k = 0; k < 3; k++){
-          let v = 0;
-          for (let b = 0; b < 8; b++){
-            const y = y0 + k * 8 + b;
-            if (y < to && (r.bits[y * r.per + byte] & bit)) v |= 0x80 >> b;
-          }
-          band[5 + x * 3 + k] = v;
-        }
-      }
-      band[band.length - 1] = 0x0A;
-      out.push(band);
-    }
-    out.push(new Uint8Array([0x1B, 0x32]));
-    return out;
-  },
-
-  /** Splits the picture into sections that each print in one go, cutting on
-      an all-white row (the gaps between photos, the margins), so any pause
-      for Bluetooth between sections lands on blank paper. */
-  segments(r, maxH){
-    const blank = y => { for (let i = y * r.per, e = i + r.per; i < e; i++) if (r.bits[i]) return false; return true; };
-    const out = [];
-    let start = 0, lastBlank = -1;
-    for (let y = 0; y < r.height; y++){
-      if (blank(y)) lastBlank = y;
-      if (y - start + 1 >= maxH){
-        const cut = lastBlank > start + 24 ? lastBlank + 1 : y + 1;
-        out.push([start, cut]);
-        start = cut; lastBlank = -1;
-        y = cut - 1;
-      }
-    }
-    if (start < r.height) out.push([start, r.height]);
-    return out;
-  },
-
-  /** Page mode (ESC L): each section goes into the printer's page memory
-      and prints in one smooth pass on FF, after all of it has arrived. */
-  pageJob(r){
-    const w = r.per * 8, out = [];
-    for (const [a, b] of BT.segments(r, 1600)){
-      const h = Math.ceil((b - a) / 24) * 24;
-      out.push(new Uint8Array([0x1B, 0x4C,
-        0x1B, 0x57, 0, 0, 0, 0, w & 255, (w >> 8) & 255, h & 255, (h >> 8) & 255]));
-      out.push(...BT.bands(r, a, b).slice(0, -1));
-      out.push(new Uint8Array([0x0C]));
-    }
-    out.push(new Uint8Array([0x1B, 0x32]));
-    return out;
-  },
-
-  /** Print-buffer graphics (GS 8 L fn 112, then GS ( L fn 50): each section
-      is stored whole in the printer, then printed in one smooth pass. */
-  bufferJob(r){
-    const out = [], w = r.per * 8;
-    for (const [a, b] of BT.segments(r, 1600)){
-      const h = b - a, data = r.bits.subarray(a * r.per, b * r.per), len = 10 + data.length;
-      out.push(new Uint8Array([0x1D, 0x38, 0x4C, len & 255, (len >> 8) & 255, (len >> 16) & 255, (len >>> 24) & 255,
-        48, 112, 48, 1, 1, 49, w & 255, (w >> 8) & 255, h & 255, (h >> 8) & 255]));
-      out.push(data);
-      out.push(new Uint8Array([0x1D, 0x28, 0x4C, 2, 0, 48, 50]));
-    }
-    return out;
-  },
-
   usb(){ return settings.printLink === 'usb' && Native.has('usbWrite'); },
 
-  async send(job, onProgress, speedId){
-    const sp = Printing.speed(speedId);
-    const per = Math.ceil((Number(settings.printWidth) || 576) / 8);
-    const chunk = sp.rows ? per * sp.rows : 512;
+  async send(job, onProgress){
     if (BT.usb()){
       if (onProgress) onProgress(.1);
       try{ await Native.call('usbWrite', settings.usbId || '', bytesToBase64(job)); }
@@ -4081,15 +3963,15 @@ const BT = {
       if (Native.has('printerWritePaced')){
         /* A steady trickle of small pieces: big bursts make printers like the
            VOZY G80 print each burst and stop, leaving a line every few mm. */
-        if (Native.has('printerWriteRate')) await Native.call('printerWriteRate', settings.btAddress, bytesToBase64(job), chunk, sp.pace);
+        if (Native.has('printerWriteRate')) await Native.call('printerWriteRate', settings.btAddress, bytesToBase64(job), 512, 8);
         else await Native.call('printerWritePaced', settings.btAddress, bytesToBase64(job), 8);
       } else await Native.call('printerWrite', settings.btAddress, bytesToBase64(job));
       if (onProgress) onProgress(1);
       return;
     }
     if (!BT.ready() && !(await BT.restore())) throw new Error('the printer is not connected');
-    const size = sp.rows ? Math.min(512, chunk) : clamp(Number(settings.btChunk) || 180, 20, 512);
-    const pace = sp.rows ? sp.pace : clamp(Number(settings.btPacing) || 12, 0, 200);
+    const size = clamp(Number(settings.btChunk) || 180, 20, 512);
+    const pace = clamp(Number(settings.btPacing) || 12, 0, 200);
     const noAck = !!BT.ch.properties.writeWithoutResponse && !!BT.ch.writeValueWithoutResponse;
     for (let i = 0; i < job.length; i += size){
       const chunk = job.slice(i, i + size);
@@ -4155,7 +4037,6 @@ const Printing = {
     }
     save(); Booth.clearStrips(); Printing.paint();
   },
-  setSpeed(v){ settings.printSpeed = Printing.SPEEDS[v] ? v : 'steady'; save(); Booth.clearStrips(); Printing.paint(); },
 
   paintBt(){
     const usbOk = Native.has('usbWrite');
@@ -4163,9 +4044,6 @@ const Printing = {
       $('link-seg').style.display = usbOk ? '' : 'none';
       document.querySelectorAll('#link-seg button').forEach(b => b.classList.toggle('on', b.dataset.link === (BT.usb() ? 'usb' : 'bt')));
       $('link-title').textContent = BT.usb() ? 'USB printer' : 'Bluetooth printer';
-      $('speed-seg').previousElementSibling.style.display = $('speed-seg').style.display = BT.usb() ? 'none' : '';
-      document.querySelectorAll('#speed-seg button').forEach(b => b.classList.toggle('on', b.dataset.speed === (Printing.SPEEDS[settings.printSpeed] ? settings.printSpeed : 'steady')));
-      $('speed-test').style.display = BT.usb() ? 'none' : '';
     }
     const el = $('bt-status');
     if (!el) return;
@@ -4273,59 +4151,11 @@ const Printing = {
 
   async thermalCanvas(){
     const W = Math.max(200, Number(settings.printWidth) || 576);
-    let mask = document.createElement('canvas');
-    let canvas = await compose('print', W, mask);
+    const mask = document.createElement('canvas');
+    const canvas = await compose('print', W, mask);
     if (!canvas) return null;
-    canvas = Printing.fit(canvas); mask = Printing.fit(mask);
     binarize(canvas, mask, settings.printDarkness);
     return canvas;
-  },
-
-  /** Steady on Bluetooth: half the rows, each printed twice as tall (GS v 0
-      mode 2). Half the data per centimetre, so Bluetooth keeps ahead of the
-      print head and it never stops mid-photo, which is what leaves lines. */
-  /* Bluetooth print speeds: how many dot rows go out per write, and the beat
-     between writes. An even beat the link can sustain means the printer never
-     runs dry and stops mid-photo, which is what leaves lines. */
-  SPEEDS:{
-    steady:   { rows:0, pace:8,  half:false, heat:[3, 90, 100] }, // slower head, data sent as fast as the link allows
-    fast:     { rows:0, pace:8,  half:false },        // 512-byte pieces, as fast as the link allows
-    smooth:   { rows:8, pace:30, half:false },
-    smoother: { rows:4, pace:30, half:false },
-    slowest:  { rows:2, pace:30, half:true  },        // and half the rows, each printed twice as tall
-    bands:    { rows:0, pace:8,  band:true },         // 24-dot bands: never stops inside a band
-    light:    { rows:0, pace:8,  quarter:true },      // a quarter of the data: every dot printed 2x2
-    halfh:    { rows:0, pace:8,  half:true },         // half the data: full width detail, each row printed twice
-    halfw:    { rows:0, pace:8,  halfW:true },        // half the data: full height detail, each dot printed twice as wide
-    page:     { rows:0, pace:8,  page:true },         // full detail: each section collected in page memory, then printed in one pass
-    buffer:   { rows:0, pace:8,  buffered:true }      // full detail: each section stored in the print buffer, then printed in one pass
-  },
-  SPEED_NAMES:{ steady:'Steady', fast:'1 · Fast', smooth:'2 · Smooth', smoother:'3 · Smoother', slowest:'4 · Slowest',
-    bands:'5 · Bands', light:'6 · Light data', halfh:'7 · Half height', halfw:'8 · Half width',
-    page:'9 · Page mode', buffer:'10 · Buffered' },
-  speed(id){ return Printing.SPEEDS[id || settings.printSpeed] || Printing.SPEEDS.steady; },
-  /** Shrinks the picture for speeds that print each dot bigger. */
-  fit(src, id){
-    if (BT.usb()) return src;
-    const sp = Printing.speed(id);
-    if (sp.quarter || sp.halfW){
-      const c = document.createElement('canvas');
-      c.width = Math.max(8, Math.round(src.width / 2));
-      c.height = sp.quarter ? Math.max(1, Math.round(src.height / 2)) : src.height;
-      const ctx = c.getContext('2d', { willReadFrequently:true });
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(src, 0, 0, c.width, c.height);
-      return c;
-    }
-    return sp.half ? Printing.halfHeight(src) : src;
-  },
-  halfHeight(src){
-    const c = document.createElement('canvas');
-    c.width = src.width; c.height = Math.max(1, Math.round(src.height / 2));
-    const ctx = c.getContext('2d', { willReadFrequently:true });
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(src, 0, 0, c.width, c.height);
-    return c;
   },
 
   async testPhoto(){
@@ -4372,52 +4202,9 @@ const Printing = {
     grad.addColorStop(0, '#fff'); grad.addColorStop(1, '#000');
     ctx.fillStyle = grad; ctx.fillRect(0, top, W, band);
     ctx.fillStyle = '#000'; ctx.fillRect(0, top + band + Math.round(W * .03), W, Math.round(W * .05));
-    const t = Printing.fit(c);
-    binarize(t, null, settings.printDarkness);
-    try{ await BT.send(BT.job(t, 1)); toast('Test sent. The ramp should fade evenly and the bar should be solid.'); }
+    binarize(c, null, settings.printDarkness);
+    try{ await BT.send(BT.job(c, 1)); toast('Test sent. The ramp should fade evenly and the bar should be solid.'); }
     catch(e){ toast(e.message || 'Test print failed.', true); }
-    Printing.paintBt();
-  },
-
-  /** One short grey sample per speed, numbered 1 to 4, so the owner can see
-      which is the fastest without lines on their own printer. */
-  async speedTest(){
-    const W = Math.max(200, Number(settings.printWidth) || 576);
-    await ensureFonts();
-    /* Full-detail modes that print each section from the printer's memory,
-       then Light data (a quarter of the data) to compare against. */
-    const ids = ['page', 'buffer', 'light'];
-    toast('Printing 3 samples. Pick the sharpest one without lines.');
-    try{
-      for (let i = 0; i < ids.length; i++){
-        const c = document.createElement('canvas');
-        c.width = W; c.height = Math.round(W * .55);
-        const ctx = c.getContext('2d', { willReadFrequently:true });
-        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, c.height);
-        ctx.fillStyle = '#000'; ctx.textAlign = 'left';
-        ctx.font = '700 ' + Math.round(W * .07) + 'px sans-serif';
-        ctx.fillText(Printing.SPEED_NAMES[ids[i]].toUpperCase(), W * .04, W * .09);
-        const top = Math.round(W * .13), h = c.height - top - Math.round(W * .03);
-        const g = ctx.createLinearGradient(0, top, 0, top + h);
-        g.addColorStop(0, '#9a9a9a'); g.addColorStop(1, '#5a5a5a');
-        ctx.fillStyle = g; ctx.fillRect(0, top, W * .6, h);
-        /* fine detail on the right, to compare sharpness: thin lines, small text, a soft face-like gradient */
-        const x0 = W * .64;
-        ctx.fillStyle = '#000';
-        for (let k = 0; k < 6; k++) ctx.fillRect(x0, top + k * 6, W * .32, 1 + (k % 3));
-        ctx.font = '600 ' + Math.round(W * .03) + 'px sans-serif';
-        ctx.fillText('Fika Snaps 0123', x0, top + 52);
-        ctx.font = '400 ' + Math.round(W * .022) + 'px sans-serif';
-        ctx.fillText('small text 456789', x0, top + 74);
-        const rg = ctx.createRadialGradient(x0 + W * .16, top + h * .72, 4, x0 + W * .16, top + h * .72, W * .14);
-        rg.addColorStop(0, '#e8d0c0'); rg.addColorStop(1, '#3a3a3a');
-        ctx.fillStyle = rg; ctx.fillRect(x0, top + 86, W * .32, h - 86);
-        const t = Printing.fit(c, ids[i]);
-        binarize(t, null, settings.printDarkness);
-        await BT.send(BT.job(t, 1, ids[i]), null, ids[i]);
-      }
-      toast('Done. Choose the sample with no lines under Print speed.');
-    }catch(e){ toast(e.message || 'Speed test failed.', true); }
     Printing.paintBt();
   },
 
@@ -6001,6 +5788,9 @@ const Admin = {
 
   close(){ close_('admin-modal'); Admin.current = null; },
 
+  /** Inside a section, steps back to the settings menu; on the menu, closes. */
+  leave(){ if (Admin.current) Admin.home(); else Admin.close(); },
+
   section(id){
     const sec = document.querySelector('.section[data-id="' + id + '"]');
     if (!sec) return;
@@ -6014,6 +5804,7 @@ const Admin = {
     if (id === 'advanced') Admin.cameraStatus();
     if (id === 'payment') Gcash.paint();
     if (id === 'brand'){ Theme.renderGrid(); Wallpaper.renderGrid(); }
+    $('adm-left').textContent = '‹ Back to settings';
     $('adm-body').scrollTop = 0;
   },
 
@@ -6024,6 +5815,7 @@ const Admin = {
     $('adm-title').textContent = 'Booth settings';
     $('adm-sub').textContent = 'Everything your booth needs, in seven places.';
     Admin.current = null;
+    $('adm-left').textContent = 'Close';
     Admin.paintHome();
     $('adm-body').scrollTop = 0;
   },
@@ -6140,8 +5932,10 @@ const Admin = {
     toast('Settings reset.');
   },
 
+  /** Saves. Inside a section it returns to the settings menu; on the menu it closes. */
   save(){
     Admin.fields();
+    if (Admin.current){ Admin.home(); toast('Saved.'); return; }
     Admin.close();
     toast('Settings saved.');
   }
@@ -6151,7 +5945,7 @@ const Admin = {
 ['pin-modal','admin-modal','editor-modal','hd-modal','gcash-modal','bt-modal'].forEach(id => {
   $(id).addEventListener('click', e => {
     if (e.target.id !== id) return;
-    if (id === 'admin-modal') Admin.close();
+    if (id === 'admin-modal') Admin.leave();
     else if (id === 'gcash-modal') Booth.gcashCancel();
     else close_(id);
   });
