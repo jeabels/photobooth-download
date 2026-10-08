@@ -1186,9 +1186,11 @@ body.framing #frame-bar{display:flex}
               <button data-speed="light" onclick="Printing.setSpeed('light')">6 · Light data</button>
               <button data-speed="halfh" onclick="Printing.setSpeed('halfh')">7 · Half height</button>
               <button data-speed="halfw" onclick="Printing.setSpeed('halfw')">8 · Half width</button>
+              <button data-speed="page" onclick="Printing.setSpeed('page')">9 · Page mode</button>
+              <button data-speed="buffer" onclick="Printing.setSpeed('buffer')">10 · Buffered</button>
             </div>
             <button class="ghost" id="speed-test" onclick="Printing.speedTest()">Print speed test</button>
-            <p class="set-sub"><b>Steady ★</b> (recommended) prints at a normal pace with no lines over Bluetooth: the printer slows its head a little so Bluetooth always keeps ahead of it, and it never stops mid-photo. Full detail, normal darkness. If your printer still shows lines, try the other speeds. <b>5 · Bands</b> sends the photo in small strips the printer finishes one at a time. <b>6 · Light data</b> sends a quarter of the data (each dot printed a little bigger), so Bluetooth always keeps up. <b>7 · Half height</b> and <b>8 · Half width</b> send half the data and keep more detail. The speed test prints 6, 7 and 8 side by side: pick the sharpest one without lines. A <b>USB cable</b> never has lines.</p>
+            <p class="set-sub"><b>Steady ★</b> (recommended) prints at a normal pace with no lines over Bluetooth: the printer slows its head a little so Bluetooth always keeps ahead of it, and it never stops mid-photo. Full detail, normal darkness. If your printer still shows lines, try the other speeds. <b>5 · Bands</b> sends the photo in small strips the printer finishes one at a time. <b>6 · Light data</b> sends a quarter of the data (each dot printed a little bigger), so Bluetooth always keeps up. <b>7 · Half height</b> and <b>8 · Half width</b> send half the data and keep more detail. <b>9 · Page mode</b> and <b>10 · Buffered</b> keep full detail: the printer receives a whole section first, then prints it in one smooth pass, with sections split at the white gaps between photos. The speed test prints 9, 10 and 6 side by side: pick the sharpest one without lines. A <b>USB cable</b> never has lines.</p>
             <canvas id="tone-preview" width="260" height="44" style="width:100%;height:calc(var(--u)*38);border-radius:calc(var(--u)*6);border:1px solid var(--line)"></canvas>
             <p class="set-sub">Top is the tone curve, bottom is the real dot pattern. Lower the darkness if faces print as black blobs.</p>
           </div>
@@ -3948,7 +3950,7 @@ const BT = {
          printer without it skips it cleanly. */
       parts.push(new Uint8Array([0x1D, 0x28, 0x4B, 0x02, 0x00, 0x32, 0x01]));
     }
-    const bands = !BT.usb() && sp.band ? BT.bands(r) : null;
+    const bands = BT.usb() ? null : sp.band ? BT.bands(r) : sp.page ? BT.pageJob(r) : sp.buffered ? BT.bufferJob(r) : null;
     const mode = BT.usb() ? 0 : sp.quarter ? 3 : sp.half ? 2 : sp.halfW ? 1 : 0;
     for (let c = 0; c < Math.max(1, copies || 1); c++){
       if (bands) parts.push(...bands);
@@ -3971,9 +3973,10 @@ const BT = {
   /** The photo as 24-dot bands (ESC * 33). A band prints only once all of it
       has arrived, so the head never stops inside one: any wait for
       Bluetooth falls exactly between bands, at the same spot every time. */
-  bands(r){
+  bands(r, from, to){
+    from = from || 0; to = to == null ? r.height : to;
     const w = r.per * 8, out = [new Uint8Array([0x1B, 0x33, 24])];
-    for (let y0 = 0; y0 < r.height; y0 += 24){
+    for (let y0 = from; y0 < to; y0 += 24){
       const band = new Uint8Array(5 + w * 3 + 1);
       band.set([0x1B, 0x2A, 33, w & 255, (w >> 8) & 255]);
       for (let x = 0; x < w; x++){
@@ -3982,7 +3985,7 @@ const BT = {
           let v = 0;
           for (let b = 0; b < 8; b++){
             const y = y0 + k * 8 + b;
-            if (y < r.height && (r.bits[y * r.per + byte] & bit)) v |= 0x80 >> b;
+            if (y < to && (r.bits[y * r.per + byte] & bit)) v |= 0x80 >> b;
           }
           band[5 + x * 3 + k] = v;
         }
@@ -3991,6 +3994,55 @@ const BT = {
       out.push(band);
     }
     out.push(new Uint8Array([0x1B, 0x32]));
+    return out;
+  },
+
+  /** Splits the picture into sections that each print in one go, cutting on
+      an all-white row (the gaps between photos, the margins), so any pause
+      for Bluetooth between sections lands on blank paper. */
+  segments(r, maxH){
+    const blank = y => { for (let i = y * r.per, e = i + r.per; i < e; i++) if (r.bits[i]) return false; return true; };
+    const out = [];
+    let start = 0, lastBlank = -1;
+    for (let y = 0; y < r.height; y++){
+      if (blank(y)) lastBlank = y;
+      if (y - start + 1 >= maxH){
+        const cut = lastBlank > start + 24 ? lastBlank + 1 : y + 1;
+        out.push([start, cut]);
+        start = cut; lastBlank = -1;
+        y = cut - 1;
+      }
+    }
+    if (start < r.height) out.push([start, r.height]);
+    return out;
+  },
+
+  /** Page mode (ESC L): each section goes into the printer's page memory
+      and prints in one smooth pass on FF, after all of it has arrived. */
+  pageJob(r){
+    const w = r.per * 8, out = [];
+    for (const [a, b] of BT.segments(r, 1600)){
+      const h = Math.ceil((b - a) / 24) * 24;
+      out.push(new Uint8Array([0x1B, 0x4C,
+        0x1B, 0x57, 0, 0, 0, 0, w & 255, (w >> 8) & 255, h & 255, (h >> 8) & 255]));
+      out.push(...BT.bands(r, a, b).slice(0, -1));
+      out.push(new Uint8Array([0x0C]));
+    }
+    out.push(new Uint8Array([0x1B, 0x32]));
+    return out;
+  },
+
+  /** Print-buffer graphics (GS 8 L fn 112, then GS ( L fn 50): each section
+      is stored whole in the printer, then printed in one smooth pass. */
+  bufferJob(r){
+    const out = [], w = r.per * 8;
+    for (const [a, b] of BT.segments(r, 1600)){
+      const h = b - a, data = r.bits.subarray(a * r.per, b * r.per), len = 10 + data.length;
+      out.push(new Uint8Array([0x1D, 0x38, 0x4C, len & 255, (len >> 8) & 255, (len >> 16) & 255, (len >>> 24) & 255,
+        48, 112, 48, 1, 1, 49, w & 255, (w >> 8) & 255, h & 255, (h >> 8) & 255]));
+      out.push(data);
+      out.push(new Uint8Array([0x1D, 0x28, 0x4C, 2, 0, 48, 50]));
+    }
     return out;
   },
 
@@ -4244,10 +4296,13 @@ const Printing = {
     bands:    { rows:0, pace:8,  band:true },         // 24-dot bands: never stops inside a band
     light:    { rows:0, pace:8,  quarter:true },      // a quarter of the data: every dot printed 2x2
     halfh:    { rows:0, pace:8,  half:true },         // half the data: full width detail, each row printed twice
-    halfw:    { rows:0, pace:8,  halfW:true }         // half the data: full height detail, each dot printed twice as wide
+    halfw:    { rows:0, pace:8,  halfW:true },        // half the data: full height detail, each dot printed twice as wide
+    page:     { rows:0, pace:8,  page:true },         // full detail: each section collected in page memory, then printed in one pass
+    buffer:   { rows:0, pace:8,  buffered:true }      // full detail: each section stored in the print buffer, then printed in one pass
   },
   SPEED_NAMES:{ steady:'Steady', fast:'1 · Fast', smooth:'2 · Smooth', smoother:'3 · Smoother', slowest:'4 · Slowest',
-    bands:'5 · Bands', light:'6 · Light data', halfh:'7 · Half height', halfw:'8 · Half width' },
+    bands:'5 · Bands', light:'6 · Light data', halfh:'7 · Half height', halfw:'8 · Half width',
+    page:'9 · Page mode', buffer:'10 · Buffered' },
   speed(id){ return Printing.SPEEDS[id || settings.printSpeed] || Printing.SPEEDS.steady; },
   /** Shrinks the picture for speeds that print each dot bigger. */
   fit(src, id){
@@ -4329,9 +4384,9 @@ const Printing = {
   async speedTest(){
     const W = Math.max(200, Number(settings.printWidth) || 576);
     await ensureFonts();
-    /* Only the low-data modes: on printers whose Bluetooth is too slow for
-       full photos these are the ones that print without lines. */
-    const ids = ['light', 'halfh', 'halfw'];
+    /* Full-detail modes that print each section from the printer's memory,
+       then Light data (a quarter of the data) to compare against. */
+    const ids = ['page', 'buffer', 'light'];
     toast('Printing 3 samples. Pick the sharpest one without lines.');
     try{
       for (let i = 0; i < ids.length; i++){
