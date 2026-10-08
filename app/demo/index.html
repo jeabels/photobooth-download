@@ -3875,6 +3875,9 @@ const BT = {
   },
 
   async restore(){
+    /* On USB there is nothing to reconnect: a Bluetooth connect to a printer
+       that is off can run for minutes, so don't start one. */
+    if (BT.usb()) return false;
     if (Native.has('printerWrite')){
       if (!settings.btAddress) return false;
       if (BT.ready()) return true;
@@ -5756,9 +5759,21 @@ const Admin = {
 
   request(){ Pin.ask(Admin.open); },
 
+  /* Shows the settings menu straight away; the sections behind it are filled
+     a moment later, so the PIN screen never hangs while they are drawn. */
   open(){
     $('pin-now').value = '';
     $('pin-new').value = '';
+    Admin.filled = false;
+    Admin.home();
+    open_('admin-modal');
+    setTimeout(Admin.fill, 30);
+  },
+
+  filled:false,
+  fill(){
+    if (Admin.filled || !$('admin-modal').classList.contains('open')) return;
+    Admin.filled = true;
     Theme.renderGrid();
     Theme.fillHeaderForm();
     Wallpaper.renderGrid();
@@ -5782,8 +5797,7 @@ const Admin = {
     EventMode.paint();
     Sales.render();
     Admin.cameraStatus();
-    Admin.home();
-    open_('admin-modal');
+    Admin.paintHome();
   },
 
   close(){ close_('admin-modal'); Admin.current = null; },
@@ -5794,6 +5808,7 @@ const Admin = {
   section(id){
     const sec = document.querySelector('.section[data-id="' + id + '"]');
     if (!sec) return;
+    Admin.fill();
     document.querySelectorAll('.section').forEach(s => s.classList.toggle('on', s === sec));
     $('admin-sheet').classList.add('in-section');
     $('adm-title').innerHTML = sec.dataset.title;
