@@ -68,7 +68,7 @@ a{color:inherit}
 .vswitch button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 
 /* the two versions */
-.versions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:44px}
+.versions{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:44px}
 .version.newest{box-shadow:inset 0 0 0 2px var(--ink)}
 .version .badge{align-self:flex-start;background:var(--ink);color:var(--paper);font-size:11px;font-weight:800;letter-spacing:.12em;
   text-transform:uppercase;padding:4px 10px;border-radius:999px}
@@ -81,7 +81,7 @@ a{color:inherit}
 .version .btn{align-self:flex-start}
 
 /* version choice in the request form */
-.pick{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .pick label{margin:0;display:flex;gap:10px;align-items:flex-start;background:var(--paper);border:1.5px solid transparent;border-radius:12px;padding:12px 14px;cursor:pointer;font-weight:600}
 .pick label small{display:block;font-weight:500;color:var(--sub)}
 .pick input{width:auto;margin-top:4px;accent-color:var(--ink)}
@@ -133,7 +133,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
 
 @media (max-width:900px){
   .hero,.get{grid-template-columns:1fr;gap:44px}
-  .versions{grid-template-columns:1fr}
+  .versions{grid-template-columns:1fr 1fr}
   .hero{padding-top:12px}
   .features{grid-template-columns:1fr 1fr}
   .needs{grid-template-columns:1fr 1fr}
@@ -194,8 +194,8 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
 
 <section class="band" id="versions">
   <div class="wrap">
-    <h2>Three versions. Pick the one that fits your booth.</h2>
-    <p class="intro">All three have the core booth: layouts, stickers, printing, QR digital copies, sales and event mode. Version 3 is the newest app.</p>
+    <h2>Four versions. Pick the one that fits your booth.</h2>
+    <p class="intro">All four have the core booth: layouts, stickers, printing, QR digital copies, sales and event mode. Version 3 is the newest app, and Version 4 is the same app under your own name.</p>
     <div class="versions">
       <div class="version">
         <span class="tag">Version 1</span>
@@ -233,6 +233,18 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
         </ul>
         <p class="for"><b>Best for</b> complete booth packages: tablet, printer and app, ready to run.</p>
         <a class="btn ghost small" href="demo-pkg/" target="_blank" rel="noopener">Try Version 3</a>
+      </div>
+      <div class="version">
+        <span class="tag">Version 4</span>
+        <h3>Branded App · your name</h3>
+        <ul>
+          <li>Everything in Version 3</li>
+          <li>The app carries your booth's name on the tablet: under the icon, in the app list and in recent apps</li>
+          <li>Your own logo as the app icon (optional)</li>
+          <li>Built for you after purchase; your code downloads your own app</li>
+        </ul>
+        <p class="for"><b>Best for</b> studios that want the booth to look fully theirs, down to the app icon.</p>
+        <a class="btn ghost small" href="demo-pkg/" target="_blank" rel="noopener">Try Version 4</a>
       </div>
     </div>
   </div>
@@ -285,7 +297,12 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
               <label><input type="radio" name="edition" value="standard" checked><span>Version 1 · Cash + GCash<small>with an attendant</small></span></label>
               <label><input type="radio" name="edition" value="qrpay"><span>Version 2 · QR Pay<small>self-service, PayMongo</small></span></label>
               <label><input type="radio" name="edition" value="package"><span>Version 3 · Package<small>newest app</small></span></label>
+              <label><input type="radio" name="edition" value="branded"><span>Version 4 · Branded<small>the app named after you</small></span></label>
             </div>
+          </div>
+          <div id="brand-box" hidden>
+            <label for="f-appname">Name on the app <small>shown under the icon, up to 20 characters</small></label>
+            <input id="f-appname" name="app_name" maxlength="20" placeholder="e.g. Fika Snaps">
           </div>
           <div class="two">
             <div><label for="f-name">Your name</label><input id="f-name" name="name" autocomplete="name" maxlength="80" required></div>
@@ -395,6 +412,15 @@ var SELLER = {
     }, function(){ throw new Error('Could not connect. Check your internet and try again.'); });
   }
 
+  /* Version 4 asks for the name to put on the app. */
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=edition]'), function(r){
+    r.addEventListener('change', function(){
+      var branded = r.checked && r.value === 'branded';
+      if (r.checked) $('brand-box').hidden = !branded;
+      if (branded && !$('f-appname').value) $('f-appname').value = $('f-booth').value.trim().slice(0, 20);
+    });
+  });
+
   /* Step 1 — request */
   $('request-form').onsubmit = function(e){
     e.preventDefault();
@@ -404,7 +430,12 @@ var SELLER = {
     var btn = $('request-btn');
     btn.disabled = true; btn.textContent = 'Sending…'; say($('request-msg'), '');
     var picked = document.querySelector('input[name=edition]:checked');
-    call({ action:'request', edition: picked ? picked.value : 'standard', name:name, contact:contact, booth:$('f-booth').value.trim(), note:$('f-note').value.trim() })
+    var edition = picked ? picked.value : 'standard', appName = $('f-appname').value.trim();
+    if (edition === 'branded' && !appName){
+      say($('request-msg'), 'Please add the name you want on your app.', 'bad'); $('f-appname').focus();
+      btn.disabled = false; btn.textContent = 'Send request'; return;
+    }
+    call({ action:'request', edition: edition, app_name: edition === 'branded' ? appName : '', name:name, contact:contact, booth:$('f-booth').value.trim(), note:$('f-note').value.trim() })
       .then(function(body){
         remember(body.id);
         showCodeForm('Request sent. We’ll contact you at ' + contact + ' with payment details. After payment you’ll receive a 6-digit code — enter it here. You can open this page on your tablet later to download.');
