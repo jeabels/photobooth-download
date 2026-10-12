@@ -218,6 +218,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
           <li>Pay with GCash, Maya or any bank app</li>
           <li>The booth starts only when PayMongo confirms the payment. Screenshots and fake "I paid" don't work</li>
           <li>Money goes straight to your own PayMongo account</li>
+          <li>Optional: the app named after your booth, like Version 4</li>
         </ul>
         <p class="for"><b>Best for</b> unattended booths: malls, cafés, lobbies. Needs a verified PayMongo account and internet. PayMongo charges a small fee per payment.</p>
         <a class="btn ghost small" href="demo-qr/" target="_blank" rel="noopener">Try Version 2</a>
@@ -255,6 +256,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
           <li>Print voucher tickets per layout (e.g. 15 Solo, 5 of your design) and sell them at the cashier</li>
           <li>Each code works once; see which codes are used or unused, per batch</li>
           <li>No payment account or fees needed</li>
+          <li>Optional: the app named after your booth, like Version 4</li>
         </ul>
         <p class="for"><b>Best for</b> booths with a cashier or counter: cafés, shops, events with ticketing.</p>
         <a class="btn ghost small" href="demo-voucher/" target="_blank" rel="noopener">Try Version 5</a>
@@ -308,14 +310,14 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
             <label>Which version?</label>
             <div class="pick">
               <label><input type="radio" name="edition" value="standard" checked><span>Version 1 · Cash + GCash<small>with an attendant</small></span></label>
-              <label><input type="radio" name="edition" value="qrpay"><span>Version 2 · QR Pay<small>self-service, PayMongo</small></span></label>
+              <label><input type="radio" name="edition" value="qrpay"><span>Version 2 · QR Pay<small>self-service, PayMongo · your name optional</small></span></label>
               <label><input type="radio" name="edition" value="package"><span>Version 3 · Package<small>newest app</small></span></label>
               <label><input type="radio" name="edition" value="branded"><span>Version 4 · Branded<small>the app named after you</small></span></label>
-              <label><input type="radio" name="edition" value="voucher"><span>Version 5 · Vouchers<small>cash, GCash &amp; voucher codes</small></span></label>
+              <label><input type="radio" name="edition" value="voucher"><span>Version 5 · Vouchers<small>cash, GCash &amp; vouchers · your name optional</small></span></label>
             </div>
           </div>
           <div id="brand-box" hidden>
-            <label for="f-appname">Name on the app <small>shown under the icon, up to 20 characters</small></label>
+            <label for="f-appname">Name on the app <small id="f-appname-hint">shown under the icon, up to 20 characters</small></label>
             <input id="f-appname" name="app_name" maxlength="20" placeholder="e.g. Fika Snaps">
           </div>
           <div class="two">
@@ -426,11 +428,15 @@ var SELLER = {
     }, function(){ throw new Error('Could not connect. Check your internet and try again.'); });
   }
 
-  /* Version 4 asks for the name to put on the app. */
+  /* Version 4 asks for the name to put on the app; Version 5 may have one too. */
   Array.prototype.forEach.call(document.querySelectorAll('input[name=edition]'), function(r){
     r.addEventListener('change', function(){
-      var branded = r.checked && r.value === 'branded';
-      if (r.checked) $('brand-box').hidden = !branded;
+      if (!r.checked) return;
+      var branded = r.value === 'branded', optional = r.value === 'voucher' || r.value === 'qrpay';
+      $('brand-box').hidden = !(branded || optional);
+      $('f-appname-hint').textContent = optional
+        ? '(optional) your own name under the icon, up to 20 characters. Leave empty for the standard app.'
+        : 'shown under the icon, up to 20 characters';
       if (branded && !$('f-appname').value) $('f-appname').value = $('f-booth').value.trim().slice(0, 20);
     });
   });
@@ -449,7 +455,7 @@ var SELLER = {
       say($('request-msg'), 'Please add the name you want on your app.', 'bad'); $('f-appname').focus();
       btn.disabled = false; btn.textContent = 'Send request'; return;
     }
-    call({ action:'request', edition: edition, app_name: edition === 'branded' ? appName : '', name:name, contact:contact, booth:$('f-booth').value.trim(), note:$('f-note').value.trim() })
+    call({ action:'request', edition: edition, app_name: (edition === 'branded' || edition === 'voucher' || edition === 'qrpay') ? appName : '', name:name, contact:contact, booth:$('f-booth').value.trim(), note:$('f-note').value.trim() })
       .then(function(body){
         remember(body.id);
         showCodeForm('Request sent. We’ll contact you at ' + contact + ' with payment details. After payment you’ll receive a 6-digit code — enter it here. You can open this page on your tablet later to download.');
