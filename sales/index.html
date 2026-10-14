@@ -97,6 +97,7 @@ button{font:inherit;color:inherit}
 .booth.all{background:var(--ink);color:var(--bg);border-color:transparent}
 .booth.all .bs,.booth.all .bl{color:inherit;opacity:.7}
 .booth.all[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent),var(--shadow)}
+.booth.locked{opacity:.75}
 .booth.add{border:1.5px dashed var(--accent);background:transparent;box-shadow:none;color:var(--accent);display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:4px}
 .booth.add .plus{width:28px;height:28px;border-radius:9px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800}
 
@@ -288,6 +289,11 @@ button{font:inherit;color:inherit}
       <div id="recent"></div>
     </div>
 
+    <div class="card" id="locked-card" hidden>
+      <p class="empty">🔒 This booth hasn't activated the Sales Tracker yet.</p>
+      <p style="text-align:center;color:var(--sub);font-size:14px;font-weight:600">On the tablet: Settings → Sales → <b>Request Sales Tracker</b>, then enter the unlock code from the seller.</p>
+    </div>
+
     <div class="card" id="no-booths" hidden>
       <p class="empty">No booths on this tracker yet.</p>
       <div style="text-align:center;margin-top:4px"><button class="btn" type="button" id="add-first">Scan a booth QR</button></div>
@@ -406,8 +412,10 @@ var SELLER = {
     }
     l.forEach(function(b){
       var online = isOn(lastOf(b));
-      card(b.id, '', '<div class="bn">' + esc(nm[b.id]) + '</div><div class="bs"><span class="dot' + (online ? ' on' : '') + '"></span>' + (online ? 'Online' : 'Offline') + '</div>' +
-        '<div class="bv">' + peso(today(b.sales)) + '</div><div class="bl">today</div>')
+      card(b.id, b.locked ? 'locked' : '', '<div class="bn">' + esc(nm[b.id]) + '</div>' + (b.locked
+        ? '<div class="bs">🔒 Not activated</div><div class="bv">—</div><div class="bl">ask the seller</div>'
+        : '<div class="bs"><span class="dot' + (online ? ' on' : '') + '"></span>' + (online ? 'Online' : 'Offline') + '</div>' +
+          '<div class="bv">' + peso(today(b.sales)) + '</div><div class="bl">today</div>'))
         .onclick = function(){ state.key = b.id; put(PICK, b.id); show(); };
     });
     card(null, 'add', '<span class="plus">+</span><div class="bn">Add booth</div><div class="bl" style="color:inherit;opacity:.8">scan its QR</div>').onclick = addBooth;
@@ -417,6 +425,8 @@ var SELLER = {
     $('no-booths').hidden = !state.loaded || l.length > 0;
     Array.prototype.forEach.call(document.querySelectorAll('#ranges button'), function(c){ c.setAttribute('aria-pressed', String(c.dataset.r === state.range)); });
     pick();
+    var sb = l.find(function(b){ return b.id === state.key; });
+    $('locked-card').hidden = !(sb && sb.locked);
     if (state.data) render();
   }
 
@@ -428,7 +438,7 @@ var SELLER = {
     state.data = {
       all: true,
       booth: 'All booths',
-      booths: l.map(function(b){ return { key:b.id, name:nm[b.id], lastSeen:b.lastSeen, lastSales:b.lastSales, sales:b.sales || [], error:'' }; }),
+      booths: l.map(function(b){ return { key:b.id, name:nm[b.id], lastSeen:b.lastSeen, lastSales:b.lastSales, sales:b.sales || [], error:'', locked:!!b.locked }; }),
       sales: [].concat.apply([], l.map(function(b){ return (b.sales || []).map(function(e){ return Object.assign({ booth:nm[b.id] }, e); }); }))
     };
   }
@@ -495,9 +505,9 @@ var SELLER = {
       $('online-dot').className = 'dot' + (on ? ' on' : '');
       $('online-text').textContent = on + ' of ' + d.booths.length + ' booths online';
     } else {
-      var last = lastOf(d), online = isOn(last);
+      var last = lastOf(d), online = isOn(last) && !d.locked;
       $('online-dot').className = 'dot' + (online ? ' on' : '');
-      $('online-text').textContent = !last ? 'Waiting for this tablet to go online'
+      $('online-text').textContent = d.locked ? 'Sales Tracker not activated' : !last ? 'Waiting for this tablet to go online'
         : (online ? 'Online · ' : 'Offline · last seen ') + ago(last);
     }
 
@@ -542,7 +552,7 @@ var SELLER = {
     var max = Math.max.apply(null, list.map(function(x){ return x.s.total; }).concat([1]));
     $('by-booth-sub').textContent = d.booths.length + ' booths';
     $('by-booth').innerHTML = list.map(function(x){
-      var status = x.b.error ? esc(x.b.error) : !x.last ? 'not online yet' : (isOn(x.last) ? 'online' : 'last seen ' + ago(x.last));
+      var status = x.b.locked ? '🔒 not activated' : x.b.error ? esc(x.b.error) : !x.last ? 'not online yet' : (isOn(x.last) ? 'online' : 'last seen ' + ago(x.last));
       return '<div class="row"><span class="dot' + (isOn(x.last) && !x.b.error ? ' on' : '') + '"></span><div class="grow"><div class="t">' + esc(x.b.name) + '</div>' +
         '<div class="s">' + x.s.paid + ' session' + (x.s.paid === 1 ? '' : 's') + ' · ' + x.s.prints + ' print' + (x.s.prints === 1 ? '' : 's') + ' · ' + status + '</div>' +
         '<div class="meter"><i style="width:' + (x.s.total ? Math.max(2, x.s.total / max * 100) : 0) + '%"></i></div></div><div class="amt">' + peso(x.s.total) + '</div></div>';
