@@ -130,12 +130,13 @@ h2{font-size:15px;font-weight:800}
     <p>See your photobooth's sales from anywhere.</p>
     <ol>
       <li>On the booth, open <b>Settings → Sales</b>.</li>
-      <li>Tap <b>Show my tracker QR</b> and scan it with this phone.</li>
+      <li>Tap <b>Show my tracker QR</b> and scan it, with the button below or this phone's camera.</li>
+      <li>Add your other booths here with <b>+ Add booth</b>: one tracker holds them all.</li>
       <li>Tap <b>Add to Home Screen</b> in your browser's menu, so it opens like an app.</li>
     </ol>
     <div class="paste" style="justify-content:center"><button class="btn" type="button" id="scan-first">Scan the booth's QR</button></div>
     <form class="paste" id="paste-form">
-      <input id="paste" placeholder="…or paste your tracker link" autocomplete="off" aria-label="Tracker link">
+      <input id="paste" placeholder="…or paste a tracker or booth link" autocomplete="off" aria-label="Tracker or booth link">
       <button class="btn" type="submit">Add</button>
     </form>
     <p class="msg" id="paste-msg"></p>
@@ -196,6 +197,22 @@ h2{font-size:15px;font-weight:800}
       <div id="recent"></div>
     </div>
 
+    <div class="card" id="no-booths" hidden>
+      <p class="empty">No booths on this tracker yet.</p>
+      <div class="paste" style="justify-content:center;margin-top:4px"><button class="btn" type="button" id="add-first">Scan a booth's QR</button></div>
+    </div>
+
+    <div class="card share-card">
+      <div class="card-head"><h2>Open on another phone</h2></div>
+      <p class="s" style="color:var(--sub);font-size:14px">This tracker's own link shows all its booths on any phone or computer. Keep it private.</p>
+      <div class="paste" style="justify-content:flex-start;margin-top:12px"><button class="btn" type="button" id="share">Show my tracker link</button></div>
+      <div id="share-box" hidden style="text-align:center;margin-top:14px">
+        <div id="share-qr" style="display:inline-block;background:#fff;padding:10px;border-radius:12px"></div>
+        <p id="share-link" style="word-break:break-all;font-size:12px;color:var(--sub);margin-top:8px"></p>
+        <div class="paste" style="justify-content:center"><button class="btn" type="button" id="share-copy">Copy link</button><button class="chip" type="button" id="share-close">Close</button></div>
+      </div>
+    </div>
+
     <div class="foot">
       <span id="updated">Not updated yet</span>
       <span><button class="link" id="add-booth" type="button">Add a booth</button> · <button class="link" id="remove-booth" type="button">Remove this booth</button></span>
@@ -222,50 +239,55 @@ var SELLER = {
 
 (function(){
   var FN = 'https://' + SELLER.project + '.supabase.co/functions/v1/download-gate';
-  var STORE = 'snaps_tracker_booths', PICK = 'snaps_tracker_pick', RANGE = 'snaps_tracker_range';
+  /* The tracker account's key lives in the link (#t=…) and on this phone. Its
+     booths are kept by the seller's service, so the same link shows the same
+     booths on every phone. */
+  var ACCOUNT = 'snaps_tracker_account', LEGACY = 'snaps_tracker_booths', PICK = 'snaps_tracker_pick', RANGE = 'snaps_tracker_range';
   var $ = function(id){ return document.getElementById(id); };
   var peso = function(n){ return '₱' + Math.round(n).toLocaleString('en-PH'); };
   var esc = function(s){ return String(s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); };
   var get = function(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } };
-  var put = function(k, v){ try{ localStorage.setItem(k, v); }catch(e){} };
-
-  function booths(){ try{ var l = JSON.parse(get(STORE) || '[]'); return Array.isArray(l) ? l : []; }catch(e){ return []; } }
-  function saveBooths(l){ put(STORE, JSON.stringify(l)); }
-  function keyFrom(text){
-    var m = String(text || '').match(/[#&?]k=([A-Za-z0-9_-]{20,64})/) || String(text || '').trim().match(/^([A-Za-z0-9_-]{20,64})$/);
+  var put = function(k, v){ try{ v ? localStorage.setItem(k, v) : localStorage.removeItem(k); }catch(e){} };
+  var KEY_RE = '([A-Za-z0-9_-]{20,64})';
+  function boothKeyFrom(text){
+    var m = String(text || '').match(new RegExp('[#&?]k=' + KEY_RE)) || String(text || '').trim().match(new RegExp('^' + KEY_RE + '$'));
     return m ? m[1] : '';
   }
-  function addKey(key){
-    var l = booths();
-    if (!l.some(function(b){ return b.key === key; })) l.push({ key:key, name:'' });
-    saveBooths(l);
-    put(PICK, key);
+  function trackerKeyFrom(text){ var m = String(text || '').match(new RegExp('[#&?]t=' + KEY_RE)); return m ? m[1] : ''; }
+  function call(body){
+    return fetch(FN, { method:'POST', headers:{ 'Content-Type':'application/json', apikey:SELLER.key }, body: JSON.stringify(body) })
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(b){ if (!r.ok){ var e = new Error(b.error || 'Something went wrong.'); e.status = r.status; throw e; } return b; }); },
+        function(){ throw new Error('No internet connection.'); });
   }
 
-  /* A link opened from the booth's QR: keep its key here, take it out of the address bar. */
-  var fromLink = keyFrom(location.hash);
-  if (fromLink){ addKey(fromLink); history.replaceState(null, '', location.pathname); }
-
   var ALL = '*';
-  var state = { key: get(PICK) || '', range: get(RANGE) || 'today', data: null, cache: {}, errors: {}, loading: false };
+  var state = { tracker:'', key: get(PICK) || ALL, range: get(RANGE) || 'today', booths:[], loaded:false, data:null, loading:false };
 
-  /* Names as shown: a booth without a name, or two with the same one, get a number. */
+  function trackerLink(){ return location.origin + location.pathname + '#t=' + state.tracker; }
+  function setTracker(k){
+    state.tracker = k;
+    put(ACCOUNT, k);
+    /* Kept in the address bar, so a bookmark or "Add to Home Screen" keeps the tracker. */
+    if (k) history.replaceState(null, '', location.pathname + '#t=' + k);
+  }
+
+  /* Names as shown: two booths with the same name get a number. */
   function names(){
-    var l = booths(), seen = {}, out = {};
-    l.forEach(function(b, i){
-      var n = (state.cache[b.key] && state.cache[b.key].booth) || b.name || 'Booth ' + (i + 1);
+    var seen = {}, out = {};
+    state.booths.forEach(function(b, i){
+      var n = b.booth || 'Booth ' + (i + 1);
       seen[n] = (seen[n] || 0) + 1;
-      out[b.key] = seen[n] > 1 ? n + ' ' + seen[n] : n;
+      out[b.id] = seen[n] > 1 ? n + ' ' + seen[n] : n;
     });
     return out;
   }
 
   function show(){
-    var l = booths();
-    if (!l.length){ $('welcome').hidden = false; $('dash').hidden = true; return; }
+    if (!state.tracker){ $('welcome').hidden = false; $('dash').hidden = true; return; }
     $('welcome').hidden = true; $('dash').hidden = false;
-    if (state.key === ALL && l.length < 2) state.key = l[0].key;
-    if (state.key !== ALL && !l.some(function(b){ return b.key === state.key; })) state.key = l.length > 1 ? ALL : l[0].key;
+    var l = state.booths;
+    if (state.key === ALL && l.length < 2 && l.length) state.key = l[0].id;
+    if (state.key !== ALL && !l.some(function(b){ return b.id === state.key; })) state.key = l.length > 1 ? ALL : (l[0] ? l[0].id : ALL);
     var box = $('booths'), nm = names();
     box.innerHTML = '';
     var chip = function(text, key, extra){
@@ -277,11 +299,10 @@ var SELLER = {
       return c;
     };
     if (l.length > 1) chip('All booths', ALL).onclick = function(){ state.key = ALL; put(PICK, ALL); show(); };
-    l.forEach(function(b){
-      chip(nm[b.key], b.key).onclick = function(){ state.key = b.key; put(PICK, b.key); show(); };
-    });
+    l.forEach(function(b){ chip(nm[b.id], b.id).onclick = function(){ state.key = b.id; put(PICK, b.id); show(); }; });
     chip('+ Add booth', null, 'add').onclick = addBooth;
-    $('remove-booth').hidden = state.key === ALL;
+    $('remove-booth').hidden = state.key === ALL || !l.length;
+    $('no-booths').hidden = !state.loaded || l.length > 0;
     Array.prototype.forEach.call(document.querySelectorAll('#ranges .chip'), function(c){ c.setAttribute('aria-pressed', String(c.dataset.r === state.range)); });
     pick();
     if (state.data) render();
@@ -289,40 +310,44 @@ var SELLER = {
 
   /* The data for what is chosen: one booth, or every booth together. */
   function pick(){
-    var l = booths(), nm = names();
-    if (state.key !== ALL){ state.data = state.cache[state.key] || null; return; }
-    var got = l.filter(function(b){ return state.cache[b.key]; });
-    if (!got.length){ state.data = null; return; }
+    var l = state.booths, nm = names();
+    if (!l.length){ state.data = null; return; }
+    if (state.key !== ALL){ state.data = l.find(function(b){ return b.id === state.key; }) || null; return; }
     state.data = {
       all: true,
       booth: 'All booths',
-      booths: l.map(function(b){ var d = state.cache[b.key] || {}; return { key:b.key, name:nm[b.key], lastSeen:d.lastSeen, lastSales:d.lastSales, sales:d.sales || [], error:state.errors[b.key] || '' }; }),
-      sales: [].concat.apply([], got.map(function(b){ return (state.cache[b.key].sales || []).map(function(e){ return Object.assign({ booth:nm[b.key] }, e); }); }))
+      booths: l.map(function(b){ return { key:b.id, name:nm[b.id], lastSeen:b.lastSeen, lastSales:b.lastSales, sales:b.sales || [], error:'' }; }),
+      sales: [].concat.apply([], l.map(function(b){ return (b.sales || []).map(function(e){ return Object.assign({ booth:nm[b.id] }, e); }); }))
     };
   }
 
-  function fetchBooth(key){
-    return fetch(FN, { method:'POST', headers:{ 'Content-Type':'application/json', apikey:SELLER.key }, body: JSON.stringify({ action:'tracker', key:key }) })
-      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(b){ if (!r.ok) throw new Error(b.error || 'Could not load the sales.'); return b; }); });
-  }
-
-  /* Every booth on this phone, together, so switching is instant. */
+  /* Every booth on the tracker, together, so switching is instant. */
   function load(){
-    var l = booths();
-    if (!l.length || state.loading) return;
+    if (!state.tracker || state.loading) return Promise.resolve();
     state.loading = true;
     $('refresh').classList.add('spin');
-    Promise.all(l.map(function(b){
-      return fetchBooth(b.key).then(function(d){ state.cache[b.key] = d; delete state.errors[b.key]; if (b.name !== d.booth) b.name = d.booth; },
-        function(e){ state.errors[b.key] = navigator.onLine === false ? 'No internet' : e.message; });
-    })).then(function(){
-      saveBooths(l.map(function(b){ return { key:b.key, name:b.name }; }));
-      state.at = Date.now();
-      var err = state.key === ALL ? '' : state.errors[state.key] || '';
-      if (state.key === ALL && Object.keys(state.errors).length === l.length) err = navigator.onLine === false ? 'No internet. Showing the last sales loaded.' : 'Could not load the sales.';
-      $('err').textContent = err;
+    return call({ action:'tracker', tracker:state.tracker })
+      .then(function(d){ state.booths = d.booths || []; state.loaded = true; state.at = Date.now(); $('err').textContent = ''; show(); },
+        function(e){
+          if (e.status === 404){ $('err').textContent = 'This tracker link no longer works. Open your tracker link again, or scan a booth to start a new tracker.'; return; }
+          $('err').textContent = (navigator.onLine === false ? 'No internet. ' : e.message + ' ') + (state.data ? 'Showing the last sales loaded.' : '');
+        })
+      .then(function(){ state.loading = false; $('refresh').classList.remove('spin'); });
+  }
+
+  /* A booth link (from its QR) joins this tracker, or starts one. */
+  function addBoothKey(bk){
+    var before = state.booths.map(function(b){ return b.id; });
+    var go = state.tracker
+      ? call({ action:'tracker-add', tracker:state.tracker, booth:bk })
+      : call({ action:'tracker-new', booth:bk }).then(function(r){ setTracker(r.tracker); });
+    return go.then(load).then(function(){
+      var added = state.booths.filter(function(b){ return before.indexOf(b.id) < 0; })[0];
+      state.key = state.booths.length > 1 ? ALL : (added ? added.id : state.key);
+      put(PICK, state.key);
       show();
-    }).then(function(){ state.loading = false; $('refresh').classList.remove('spin'); });
+      if (!added && before.length) alert('This booth is already on this tracker.');
+    }).catch(function(e){ alert(e.message); show(); });
   }
 
   /* ---- periods ---- */
@@ -492,34 +517,29 @@ var SELLER = {
     c.onclick = function(){ state.range = c.dataset.r; put(RANGE, state.range); show(); };
   });
   $('refresh').onclick = load;
+  /* Welcome: a tracker link opens that tracker; a booth link starts one. */
   $('paste-form').onsubmit = function(e){
     e.preventDefault();
-    var k = keyFrom($('paste').value);
-    if (!k){ $('paste-msg').textContent = 'That is not a tracker link. Copy it from the booth: Settings → Sales.'; $('paste-msg').className = 'msg bad'; return; }
-    addKey(k); state.key = k; $('paste').value = ''; show(); load();
+    var text = $('paste').value, tk = trackerKeyFrom(text), bk = boothKeyFrom(text);
+    if (tk){ setTracker(tk); $('paste').value = ''; show(); load(); return; }
+    if (!bk){ $('paste-msg').textContent = 'That is not a tracker or booth link.'; $('paste-msg').className = 'msg bad'; return; }
+    $('paste').value = ''; addBoothKey(bk);
   };
-  function useKey(k){
-    if (booths().some(function(b){ return b.key === k; })){ alert('This booth is already on this phone.'); return; }
-    addKey(k); state.key = booths().length > 1 ? ALL : k; put(PICK, state.key); show(); load();
-  }
   function pasteBooth(){
-    var t = prompt('Paste the tracker link from the booth (Settings → Sales → Show my tracker QR):');
+    var t = prompt('Paste the booth link (on the booth: Settings → Sales → Show my tracker QR):');
     if (t === null) return;
-    var k = keyFrom(t);
-    if (!k){ alert('That is not a tracker link.'); return; }
-    useKey(k);
+    var k = boothKeyFrom(t);
+    if (!k){ alert('That is not a booth link.'); return; }
+    addBoothKey(k);
   }
 
-  /* Scans a booth's QR with this phone's camera, inside the app, so it works
-     from the home screen on iPhone too (its home-screen apps keep their own
-     storage, apart from Safari). */
+  /* Scans a booth's QR with this phone's camera, inside the app. */
   var scan = { stream:null, timer:0, detector:null };
-  function loadJsQR(){
-    if (window.jsQR) return Promise.resolve();
+  function loadScript(src, ready){
+    if (ready()) return Promise.resolve();
     return new Promise(function(ok, no){
       var sc = document.createElement('script');
-      sc.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
-      sc.onload = ok; sc.onerror = no;
+      sc.src = src; sc.onload = ok; sc.onerror = no;
       document.head.appendChild(sc);
     });
   }
@@ -537,12 +557,13 @@ var SELLER = {
     if ('BarcodeDetector' in window){ try{ scan.detector = new BarcodeDetector({ formats:['qr_code'] }); }catch(e){ scan.detector = null; } }
     navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false })
       .then(function(st){ scan.stream = st; v.srcObject = st; return v.play(); })
-      .then(function(){ return scan.detector ? null : loadJsQR(); })
+      .then(function(){ return scan.detector ? null : loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js', function(){ return !!window.jsQR; }); })
       .then(function(){
         var found = function(text){
-          var k = keyFrom(text);
-          if (!k){ $('scan-text').textContent = 'That QR is not a booth tracker. Use the one in the booth: Settings → Sales.'; return false; }
-          stopScan(); useKey(k); return true;
+          var tk = trackerKeyFrom(text), bk = boothKeyFrom(text);
+          if (tk && !state.tracker){ stopScan(); setTracker(tk); show(); load(); return true; }
+          if (!bk){ $('scan-text').textContent = 'That QR is not a booth. Use the one on the booth: Settings → Sales.'; return false; }
+          stopScan(); addBoothKey(bk); return true;
         };
         var tick = function(){
           if ($('scan').hidden) return;
@@ -566,19 +587,50 @@ var SELLER = {
   $('scan-paste').onclick = function(){ stopScan(); pasteBooth(); };
   $('scan-first').onclick = addBooth;
   $('add-booth').onclick = addBooth;
+  $('add-first').onclick = addBooth;
   $('remove-booth').onclick = function(){
-    if (!confirm('Remove this booth from this phone? You can add it again by scanning its QR.')) return;
-    saveBooths(booths().filter(function(b){ return b.key !== state.key; }));
-    delete state.cache[state.key];
-    state.key = ''; state.data = null; show(); load();
+    var b = state.booths.find(function(x){ return x.id === state.key; });
+    if (!b || !confirm('Remove ' + (names()[b.id] || 'this booth') + ' from this tracker? It leaves it on every phone. You can add it again by scanning its QR.')) return;
+    call({ action:'tracker-remove', tracker:state.tracker, id:b.id })
+      .then(function(){ state.key = ALL; put(PICK, ALL); return load(); })
+      .catch(function(e){ alert(e.message); });
   };
+
+  /* Open on another phone: this tracker's own link and QR. */
+  $('share').onclick = function(){
+    $('share-link').textContent = trackerLink();
+    $('share-box').hidden = false;
+    loadScript('../app/demo/vendor/qrcode.js', function(){ return !!window.QRCode; }).then(function(){
+      var box = $('share-qr'); box.innerHTML = '';
+      new QRCode(box, { text:trackerLink(), width:220, height:220, colorDark:'#000000', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M });
+    }).catch(function(){ $('share-qr').innerHTML = ''; });
+  };
+  $('share-copy').onclick = function(){
+    var t = trackerLink();
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function(){ $('share-copy').textContent = 'Copied'; }, function(){ prompt('Copy your tracker link:', t); });
+  };
+  $('share-close').onclick = function(){ $('share-box').hidden = true; $('share-copy').textContent = 'Copy link'; };
+
   document.addEventListener('visibilitychange', function(){ if (!document.hidden) load(); });
   setInterval(function(){ if (!document.hidden) load(); }, 60000);
   setInterval(function(){ if (state.data) render(); }, 30000);
 
+  /* ---- start ---- */
+  var linkTracker = trackerKeyFrom(location.hash), linkBooth = boothKeyFrom(location.hash);
+  setTracker(linkTracker || get(ACCOUNT) || '');
+  var legacy = [];
+  try{ legacy = (JSON.parse(get(LEGACY) || '[]') || []).map(function(b){ return b.key; }).filter(Boolean); }catch(e){}
   show();
-  load();
+  var start;
+  if (legacy.length && !state.tracker){
+    /* Booths added on this phone before tracker accounts: they become one. */
+    start = call({ action:'tracker-new', booths:legacy }).then(function(r){ setTracker(r.tracker); put(LEGACY, ''); });
+  } else if (legacy.length){
+    start = Promise.all(legacy.map(function(k){ return call({ action:'tracker-add', tracker:state.tracker, booth:k }).catch(function(){}); })).then(function(){ put(LEGACY, ''); });
+  } else start = Promise.resolve();
+  start.catch(function(){}).then(function(){ if (linkBooth) return addBoothKey(linkBooth); return load(); });
 })();
 </script>
+
 </body>
 </html>
