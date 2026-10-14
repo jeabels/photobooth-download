@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sales Tracker</title>
+<meta name="description" content="Follow your photobooth's sales from anywhere.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0F1115">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sales">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   Sales Tracker — the booth owner's phone view of a booth's sales.
+   Opened from the private link the booth shows (Settings → Sales → Check
+   sales from your phone). The link's key is kept on this phone only.
+   ========================================================================== */
+:root{
+  --bg:#F4F5F7; --card:#FFFFFF; --ink:#14161B; --sub:#5E6470; --muted:#8B919C; --line:rgba(20,22,27,.08);
+  --accent:#2F5BEA; --accent-soft:rgba(47,91,234,.12); --good:#1F8A57; --bad:#C2413B; --grid:rgba(20,22,27,.07);
+  --sans:'Manrope',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0F1115; --card:#181B21; --ink:#F2F3F5; --sub:#A4A9B3; --muted:#787E8A; --line:rgba(255,255,255,.08);
+    --accent:#6F93FF; --accent-soft:rgba(111,147,255,.16); --good:#4FC98B; --bad:#FF7A72; --grid:rgba(255,255,255,.07);
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans);min-height:100vh;
+  padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 24px)}
+button{font:inherit;color:inherit}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px}
+[hidden]{display:none!important}
+
+/* top */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0 10px}
+.top h1{font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.status{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--sub);margin-top:2px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.on{background:var(--good);box-shadow:0 0 0 3px rgba(31,138,87,.18)}
+.icon-btn{flex:none;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.icon-btn svg{width:18px;height:18px}
+.icon-btn.spin svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* chips */
+.chips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:999px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-top:12px}
+.hero .label{font-size:13px;font-weight:700;color:var(--sub)}
+.hero .big{font-size:42px;font-weight:800;letter-spacing:-.02em;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.hero .meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:14px;color:var(--sub)}
+.delta{font-weight:700}
+.delta.up{color:var(--good)} .delta.down{color:var(--bad)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.tile .l{font-size:12px;font-weight:700;color:var(--sub)}
+.tile .v{font-size:22px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+.tile .n{font-size:12px;color:var(--muted)}
+h2{font-size:15px;font-weight:800}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:12px}
+.card-head span{font-size:12px;color:var(--muted)}
+
+/* bar chart: one series, one hue */
+.chart{position:relative;height:150px;display:flex;align-items:flex-end;gap:2px;border-bottom:1px solid var(--grid);
+  background:repeating-linear-gradient(to top,transparent 0 49px,var(--grid) 49px 50px)}
+.bar{flex:1;min-width:2px;height:100%;display:flex;align-items:flex-end;cursor:pointer;position:relative}
+.bar i{display:block;width:100%;background:var(--accent);border-radius:4px 4px 0 0;min-height:0}
+.bar:hover i,.bar.sel i{filter:brightness(1.15)}
+.bar.zero i{background:transparent}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}
+.tip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:12px;font-weight:700;
+  padding:6px 9px;border-radius:8px;white-space:nowrap;pointer-events:none;z-index:2}
+
+/* lists */
+.row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row .grow{flex:1;min-width:0}
+.row .t{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .s{font-size:12px;color:var(--muted)}
+.row .amt{font-weight:800;font-variant-numeric:tabular-nums}
+.meter{height:6px;border-radius:999px;background:var(--accent-soft);margin-top:6px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.pill{font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);flex:none}
+.empty{color:var(--muted);font-size:14px;text-align:center;padding:14px 0}
+
+/* welcome */
+.welcome{text-align:center;padding:40px 8px}
+.welcome .logo{width:64px;height:64px;border-radius:18px;margin:0 auto 18px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:30px}
+.welcome h1{font-size:24px;font-weight:800}
+.welcome p{color:var(--sub);margin-top:10px}
+.welcome ol{text-align:left;max-width:420px;margin:20px auto 0;color:var(--sub);padding-left:20px;display:grid;gap:8px}
+.welcome b{color:var(--ink)}
+.paste{display:flex;gap:8px;max-width:440px;margin:22px auto 0}
+.paste input{flex:1;min-width:0;font:15px var(--sans);color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.btn{border:0;background:var(--accent);color:#fff;font-weight:800;border-radius:12px;padding:12px 16px;cursor:pointer}
+.msg{font-size:13px;margin-top:10px;min-height:20px}
+.msg.bad{color:var(--bad)}
+.foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:16px}
+.link{background:none;border:0;color:var(--sub);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- no booth yet -->
+  <section class="welcome" id="welcome" hidden>
+    <div class="logo" aria-hidden="true">₱</div>
+    <h1>Sales Tracker</h1>
+    <p>See your photobooth's sales from anywhere.</p>
+    <ol>
+      <li>On the booth, open <b>Settings → Sales</b>.</li>
+      <li>Tap <b>Show my tracker QR</b> and scan it with this phone.</li>
+      <li>Tap <b>Add to Home Screen</b> in your browser's menu, so it opens like an app.</li>
+    </ol>
+    <form class="paste" id="paste-form">
+      <input id="paste" placeholder="…or paste your tracker link" autocomplete="off" aria-label="Tracker link">
+      <button class="btn" type="submit">Add</button>
+    </form>
+    <p class="msg" id="paste-msg"></p>
+  </section>
+
+  <!-- dashboard -->
+  <section id="dash" hidden>
+    <div class="top">
+      <div style="min-width:0">
+        <h1 id="booth-name">Your booth</h1>
+        <div class="status"><span class="dot" id="online-dot"></span><span id="online-text">Checking…</span></div>
+      </div>
+      <button class="icon-btn" id="refresh" type="button" aria-label="Refresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </button>
+    </div>
+
+    <div class="chips" id="booths" role="group" aria-label="Booth"></div>
+    <div class="chips" id="ranges" role="group" aria-label="Period">
+      <button class="chip" data-r="today" aria-pressed="true">Today</button>
+      <button class="chip" data-r="yesterday" aria-pressed="false">Yesterday</button>
+      <button class="chip" data-r="7d" aria-pressed="false">Last 7 days</button>
+      <button class="chip" data-r="month" aria-pressed="false">This month</button>
+      <button class="chip" data-r="lastmonth" aria-pressed="false">Last month</button>
+    </div>
+
+    <div class="card hero">
+      <div class="label" id="hero-label">Collected today</div>
+      <div class="big" id="hero-total">₱0</div>
+      <div class="meta"><span id="hero-sessions">0 sessions</span><span id="hero-prints">0 prints</span><span class="delta" id="hero-delta"></span></div>
+    </div>
+
+    <div class="tiles">
+      <div class="tile"><div class="l">Cash &amp; vouchers</div><div class="v" id="t-cash">₱0</div><div class="n" id="t-cash-n">0 sessions</div></div>
+      <div class="tile"><div class="l">GCash / QR</div><div class="v" id="t-gcash">₱0</div><div class="n" id="t-gcash-n">0 sessions</div></div>
+      <div class="tile"><div class="l">Average sale</div><div class="v" id="t-avg">₱0</div><div class="n">per paid session</div></div>
+      <div class="tile"><div class="l">Event sessions</div><div class="v" id="t-event">0</div><div class="n" id="t-event-n">rentals, not per print</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2 id="chart-title">Sales by hour</h2><span id="chart-sub">tap a bar</span></div>
+      <div class="chart" id="chart" role="img" aria-label="Sales chart"></div>
+      <div class="axis" id="axis"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Best layouts</h2><span id="layouts-sub"></span></div>
+      <div id="layouts"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Latest sales</h2><span id="recent-sub"></span></div>
+      <div id="recent"></div>
+    </div>
+
+    <div class="foot">
+      <span id="updated">Not updated yet</span>
+      <span><button class="link" id="add-booth" type="button">Add a booth</button> · <button class="link" id="remove-booth" type="button">Remove this booth</button></span>
+    </div>
+    <p class="msg bad" id="err"></p>
+  </section>
+</div>
+
+<script>
+/* The seller's download service, which keeps the booths' sales. */
+var SELLER = {
+  project: 'cucddnghxshhmudkwdcl',
+  key: 'sb_publishable_s5YJq6xkBafqakqGgealLw_0wmq2we-'
+};
+
+(function(){
+  var FN = 'https://' + SELLER.project + '.supabase.co/functions/v1/download-gate';
+  var STORE = 'snaps_tracker_booths', PICK = 'snaps_tracker_pick', RANGE = 'snaps_tracker_range';
+  var $ = function(id){ return document.getElementById(id); };
+  var peso = function(n){ return '₱' + Math.round(n).toLocaleString('en-PH'); };
+  var esc = function(s){ return String(s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); };
+  var get = function(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } };
+  var put = function(k, v){ try{ localStorage.setItem(k, v); }catch(e){} };
+
+  function booths(){ try{ var l = JSON.parse(get(STORE) || '[]'); return Array.isArray(l) ? l : []; }catch(e){ return []; } }
+  function saveBooths(l){ put(STORE, JSON.stringify(l)); }
+  function keyFrom(text){
+    var m = String(text || '').match(/[#&?]k=([A-Za-z0-9_-]{20,64})/) || String(text || '').trim().match(/^([A-Za-z0-9_-]{20,64})$/);
+    return m ? m[1] : '';
+  }
+  function addKey(key){
+    var l = booths();
+    if (!l.some(function(b){ return b.key === key; })) l.push({ key:key, name:'' });
+    saveBooths(l);
+    put(PICK, key);
+  }
+
+  /* A link opened from the booth's QR: keep its key here, take it out of the address bar. */
+  var fromLink = keyFrom(location.hash);
+  if (fromLink){ addKey(fromLink); history.replaceState(null, '', location.pathname); }
+
+  var state = { key: get(PICK) || '', range: get(RANGE) || 'today', data: null, loading: false };
+
+  function show(){
+    var l = booths();
+    if (!l.length){ $('welcome').hidden = false; $('dash').hidden = true; return; }
+    $('welcome').hidden = true; $('dash').hidden = false;
+    if (!l.some(function(b){ return b.key === state.key; })) state.key = l[0].key;
+    var box = $('booths');
+    box.hidden = l.length < 2;
+    box.innerHTML = '';
+    l.forEach(function(b, i){
+      var c = document.createElement('button');
+      c.className = 'chip'; c.type = 'button';
+      c.textContent = b.name || 'Booth ' + (i + 1);
+      c.setAttribute('aria-pressed', String(b.key === state.key));
+      c.onclick = function(){ state.key = b.key; put(PICK, b.key); state.data = null; show(); load(); };
+      box.appendChild(c);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#ranges .chip'), function(c){ c.setAttribute('aria-pressed', String(c.dataset.r === state.range)); });
+    if (state.data) render();
+  }
+
+  function load(){
+    if (!state.key || state.loading) return;
+    state.loading = true;
+    $('refresh').classList.add('spin');
+    fetch(FN, { method:'POST', headers:{ 'Content-Type':'application/json', apikey:SELLER.key }, body: JSON.stringify({ action:'tracker', key:state.key }) })
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(b){ if (!r.ok) throw new Error(b.error || 'Could not load the sales.'); return b; }); })
+      .then(function(b){
+        state.data = b; state.at = Date.now(); $('err').textContent = '';
+        var l = booths(), me = l.find(function(x){ return x.key === state.key; });
+        if (me && me.name !== b.booth){ me.name = b.booth; saveBooths(l); show(); }
+        render();
+      })
+      .catch(function(e){ $('err').textContent = navigator.onLine === false ? 'No internet. Showing the last sales loaded.' : e.message; })
+      .then(function(){ state.loading = false; $('refresh').classList.remove('spin'); });
+  }
+
+  /* ---- periods ---- */
+  function dayStart(d){ var x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); }
+  function period(r){
+    var now = new Date(), today = dayStart(now), DAY = 86400000;
+    if (r === 'yesterday') return { from: today - DAY, to: today, prevFrom: today - 2 * DAY, label: 'yesterday', prevLabel: 'the day before', hourly: true };
+    if (r === '7d') return { from: today - 6 * DAY, to: Date.now() + 1, prevFrom: today - 13 * DAY, label: 'in the last 7 days', prevLabel: 'the 7 days before', hourly: false };
+    if (r === 'month'){ var m = new Date(now.getFullYear(), now.getMonth(), 1).getTime(); var pm = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+      return { from: m, to: Date.now() + 1, prevFrom: pm, prevTo: pm + (Date.now() - m), label: 'this month', prevLabel: 'same days last month', hourly: false }; }
+    if (r === 'lastmonth'){ var a = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime(), b = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+      return { from: a, to: b, prevFrom: new Date(now.getFullYear(), now.getMonth() - 2, 1).getTime(), prevTo: a, label: 'last month', prevLabel: 'the month before', hourly: false }; }
+    return { from: today, to: Date.now() + 1, prevFrom: today - DAY, prevTo: Date.now() - DAY, label: 'today', prevLabel: 'yesterday by now', hourly: true };
+  }
+  function sum(rows){
+    var s = { total:0, paid:0, prints:0, cash:0, cashN:0, gcash:0, gcashN:0, events:0, eventPrints:0 };
+    rows.forEach(function(e){
+      s.prints += e.copies;
+      if (e.mode === 'event'){ s.events++; s.eventPrints += e.copies; return; }
+      s.paid++; s.total += Number(e.amount) || 0;
+      if (e.method === 'gcash' || e.method === 'qr'){ s.gcash += Number(e.amount) || 0; s.gcashN++; } else { s.cash += Number(e.amount) || 0; s.cashN++; }
+    });
+    return s;
+  }
+
+  /* ---- render ---- */
+  function render(){
+    var d = state.data; if (!d) return;
+    $('booth-name').textContent = d.booth || 'Your booth';
+    var seen = Date.parse(d.lastSeen || '') || 0, sent = Date.parse(d.lastSales || '') || 0, last = Math.max(seen, sent);
+    var online = last && Date.now() - last < 45 * 60000;
+    $('online-dot').className = 'dot' + (online ? ' on' : '');
+    $('online-text').textContent = !last ? 'Waiting for the booth to go online'
+      : (online ? 'Online · ' : 'Offline · last seen ') + ago(last);
+
+    var p = period(state.range);
+    var all = (d.sales || []).map(function(e){ return { t:Number(e.t), mode:e.mode, method:e.method, layout:e.layout || 'Layout', copies:Number(e.copies) || 1, amount:Number(e.amount) || 0 }; });
+    var rows = all.filter(function(e){ return e.t >= p.from && e.t < p.to; });
+    var prev = all.filter(function(e){ return e.t >= p.prevFrom && e.t < (p.prevTo || p.from); });
+    var s = sum(rows), ps = sum(prev);
+
+    $('hero-label').textContent = 'Collected ' + p.label;
+    $('hero-total').textContent = peso(s.total);
+    $('hero-sessions').textContent = s.paid + ' paid session' + (s.paid === 1 ? '' : 's');
+    $('hero-prints').textContent = s.prints + ' print' + (s.prints === 1 ? '' : 's');
+    var dl = $('hero-delta');
+    if (ps.total > 0){
+      var pct = Math.round((s.total - ps.total) / ps.total * 100);
+      dl.textContent = (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct) + '% vs ' + p.prevLabel;
+      dl.className = 'delta ' + (pct >= 0 ? 'up' : 'down');
+    } else { dl.textContent = ''; dl.className = 'delta'; }
+
+    $('t-cash').textContent = peso(s.cash); $('t-cash-n').textContent = s.cashN + ' session' + (s.cashN === 1 ? '' : 's');
+    $('t-gcash').textContent = peso(s.gcash); $('t-gcash-n').textContent = s.gcashN + ' session' + (s.gcashN === 1 ? '' : 's');
+    $('t-avg').textContent = peso(s.paid ? s.total / s.paid : 0);
+    $('t-event').textContent = s.events; $('t-event-n').textContent = s.events ? s.eventPrints + ' prints, rentals' : 'rentals, not per print';
+
+    chart(rows, p);
+    layouts(rows);
+    recent(rows);
+    $('updated').textContent = 'Updated ' + new Date(state.at).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+  }
+
+  function ago(t){
+    var m = Math.round((Date.now() - t) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + ' min ago';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + ' h ago';
+    return new Date(t).toLocaleDateString([], { month:'short', day:'numeric' });
+  }
+
+  function chart(rows, p){
+    var buckets = [], labels = [];
+    if (p.hourly){
+      for (var h = 0; h < 24; h++){ buckets.push({ v:0, n:0, label: (h % 12 || 12) + (h < 12 ? ' AM' : ' PM') }); }
+      rows.forEach(function(e){ if (e.mode === 'event') return; var b = buckets[new Date(e.t).getHours()]; b.v += e.amount; b.n++; });
+      $('chart-title').textContent = 'Sales by hour';
+      labels = ['12 AM', '6 AM', '12 PM', '6 PM', '11 PM'];
+    } else {
+      for (var dd = new Date(dayStart(p.from)); dd.getTime() < p.to; dd.setDate(dd.getDate() + 1)){
+        buckets.push({ from:dd.getTime(), v:0, n:0, label: dd.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' }) });
+      }
+      rows.forEach(function(e){ if (e.mode === 'event') return; for (var i = buckets.length - 1; i >= 0; i--){ if (e.t >= buckets[i].from){ buckets[i].v += e.amount; buckets[i].n++; break; } } });
+      $('chart-title').textContent = 'Sales by day';
+      var first = buckets[0], lastB = buckets[buckets.length - 1];
+      labels = [first ? new Date(first.from).toLocaleDateString([], { month:'short', day:'numeric' }) : '', lastB ? new Date(lastB.from).toLocaleDateString([], { month:'short', day:'numeric' }) : ''];
+    }
+    var max = Math.max.apply(null, buckets.map(function(b){ return b.v; }).concat([1]));
+    var box = $('chart'); box.innerHTML = '';
+    buckets.forEach(function(b){
+      var el = document.createElement('div');
+      el.className = 'bar' + (b.v ? '' : ' zero');
+      el.setAttribute('aria-label', b.label + ': ' + peso(b.v) + ', ' + b.n + ' sessions');
+      el.innerHTML = '<i style="height:' + (b.v ? Math.max(3, b.v / max * 100) : 0) + '%"></i>';
+      var tip = function(){
+        Array.prototype.forEach.call(box.querySelectorAll('.tip'), function(x){ x.remove(); });
+        Array.prototype.forEach.call(box.querySelectorAll('.bar.sel'), function(x){ x.classList.remove('sel'); });
+        el.classList.add('sel');
+        var t = document.createElement('div'); t.className = 'tip';
+        t.textContent = b.label + ' · ' + peso(b.v) + ' · ' + b.n + ' session' + (b.n === 1 ? '' : 's');
+        el.appendChild(t);
+        var r = t.getBoundingClientRect(), br = box.getBoundingClientRect();
+        if (r.left < br.left) t.style.transform = 'translateX(' + (-50 + (br.left - r.left) / r.width * 100) + '%)';
+        if (r.right > br.right) t.style.transform = 'translateX(' + (-50 - (r.right - br.right) / r.width * 100) + '%)';
+      };
+      el.onclick = tip; el.onmouseenter = tip;
+      box.appendChild(el);
+    });
+    box.onmouseleave = function(){ Array.prototype.forEach.call(box.querySelectorAll('.tip'), function(x){ x.remove(); }); };
+    $('axis').innerHTML = labels.map(function(l){ return '<span>' + esc(l) + '</span>'; }).join('');
+  }
+
+  function layouts(rows){
+    var by = {};
+    rows.forEach(function(e){ var l = by[e.layout] || (by[e.layout] = { name:e.layout, n:0, v:0, prints:0 }); l.n++; l.v += e.amount; l.prints += e.copies; });
+    var list = Object.keys(by).map(function(k){ return by[k]; }).sort(function(a, b){ return b.v - a.v || b.n - a.n; }).slice(0, 6);
+    var max = Math.max.apply(null, list.map(function(l){ return l.v; }).concat([1]));
+    $('layouts-sub').textContent = list.length ? Object.keys(by).length + ' layout' + (Object.keys(by).length === 1 ? '' : 's') : '';
+    $('layouts').innerHTML = list.length ? list.map(function(l){
+      return '<div class="row"><div class="grow"><div class="t">' + esc(l.name) + '</div><div class="s">' + l.n + ' session' + (l.n === 1 ? '' : 's') + ' · ' + l.prints + ' print' + (l.prints === 1 ? '' : 's') + '</div>' +
+        '<div class="meter"><i style="width:' + Math.max(2, l.v / max * 100) + '%"></i></div></div><div class="amt">' + peso(l.v) + '</div></div>';
+    }).join('') : '<p class="empty">No sales yet.</p>';
+  }
+
+  function recent(rows){
+    var list = rows.slice().sort(function(a, b){ return b.t - a.t; }).slice(0, 30);
+    $('recent-sub').textContent = rows.length > 30 ? 'latest 30 of ' + rows.length : '';
+    var name = function(e){ return e.mode === 'event' ? 'Event' : (e.method === 'gcash' || e.method === 'qr') ? 'GCash / QR' : 'Cash / voucher'; };
+    $('recent').innerHTML = list.length ? list.map(function(e){
+      var d = new Date(e.t);
+      return '<div class="row"><div class="grow"><div class="t">' + esc(e.layout) + '</div><div class="s">' +
+        d.toLocaleDateString([], { month:'short', day:'numeric' }) + ' · ' + d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' }) + ' · ' + e.copies + ' print' + (e.copies === 1 ? '' : 's') + '</div></div>' +
+        '<span class="pill">' + name(e) + '</span><div class="amt">' + (e.mode === 'event' ? '—' : peso(e.amount)) + '</div></div>';
+    }).join('') : '<p class="empty">No sales ' + period(state.range).label + '.</p>';
+  }
+
+  /* ---- controls ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('#ranges .chip'), function(c){
+    c.onclick = function(){ state.range = c.dataset.r; put(RANGE, state.range); show(); };
+  });
+  $('refresh').onclick = load;
+  $('paste-form').onsubmit = function(e){
+    e.preventDefault();
+    var k = keyFrom($('paste').value);
+    if (!k){ $('paste-msg').textContent = 'That is not a tracker link. Copy it from the booth: Settings → Sales.'; $('paste-msg').className = 'msg bad'; return; }
+    addKey(k); state.key = k; $('paste').value = ''; show(); load();
+  };
+  $('add-booth').onclick = function(){
+    var t = prompt('Paste the tracker link from the other booth (Settings → Sales → Show my tracker QR):');
+    var k = keyFrom(t);
+    if (t && !k){ alert('That is not a tracker link.'); return; }
+    if (k){ addKey(k); state.key = k; state.data = null; show(); load(); }
+  };
+  $('remove-booth').onclick = function(){
+    if (!confirm('Remove this booth from this phone? You can add it again by scanning its QR.')) return;
+    saveBooths(booths().filter(function(b){ return b.key !== state.key; }));
+    state.key = ''; state.data = null; show(); load();
+  };
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) load(); });
+  setInterval(function(){ if (!document.hidden) load(); }, 60000);
+  setInterval(function(){ if (state.data) render(); }, 30000);
+
+  show();
+  load();
+})();
+</script>
+</body>
+</html>
