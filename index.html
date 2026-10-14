@@ -167,6 +167,13 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   var variant = q.get('v') === 'b' ? 'b' : q.get('v') === 'g' ? 'g' : 'c';
   /* g=1: this strip also has an animated GIF of the shots */
   if (q.get('g') === '1' || variant === 'g') document.getElementById('gif-btn').hidden = false;
+  /* m=0: this booth makes colour only (Snaps Pro). a=b: the animated copy is a Boomerang. */
+  if (q.get('m') === '0'){
+    document.querySelector('[data-v="b"]').hidden = true;
+    if (variant === 'b') variant = 'c';
+  }
+  var animName = q.get('a') === 'b' ? 'Boomerang' : 'GIF';
+  document.getElementById('gif-btn').textContent = animName;
   var top = (q.get('n') || '').slice(0, 40);
   var bottom = (q.get('s') || '').slice(0, 50);
   var themeId = ALIASES[q.get('t')] || q.get('t');
@@ -252,7 +259,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
     }
     if (!print.querySelector('img')) print.innerHTML = '<div class="placeholder loading">Loading your photo…</div>';
     var img = new Image();
-    img.alt = v === 'b' ? 'Your photo strip in black and white' : v === 'g' ? 'Your animated GIF' : 'Your photo strip in colour';
+    img.alt = v === 'b' ? 'Your photo strip in black and white' : v === 'g' ? 'Your ' + (animName === 'GIF' ? 'animated GIF' : animName) : 'Your photo strip in colour';
     img.onload = function(){
       print.innerHTML = '';
       print.appendChild(img);
