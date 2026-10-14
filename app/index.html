@@ -167,7 +167,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
         <a class="btn ghost" href="#versions">Compare versions</a>
       </div>
       <div class="facts">
-        <div><b>5 versions</b>attended or self-service</div>
+        <div><b>6 versions</b>tablet, or Windows with a DSLR</div>
         <div><b>Any printer</b>receipt or photo paper</div>
         <div><b>Your brand</b>themes, header, live wallpaper</div>
       </div>
@@ -195,8 +195,8 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
 
 <section class="band" id="versions">
   <div class="wrap">
-    <h2>Five versions. Pick the one that fits your booth.</h2>
-    <p class="intro">All five have the core booth: layouts, stickers, printing, QR digital copies, sales and event mode. Version 3 is the newest app, Version 4 is the same app under your own name, and Version 5 adds voucher codes to cash and GCash.</p>
+    <h2>Six versions. Pick the one that fits your booth.</h2>
+    <p class="intro">All six have the core booth: layouts, stickers, printing, QR digital copies, sales and event mode. Version 3 is the newest app, Version 4 is the same app under your own name, Version 5 adds voucher codes to cash and GCash, and Version 6 is the pro booth for a Windows laptop with a DSLR and a real photo printer.</p>
     <div class="versions">
       <div class="version">
         <span class="tag">Version 1</span>
@@ -259,6 +259,18 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
         <p class="for"><b>Best for</b> booths with a cashier or counter: cafés, shops, events with ticketing.</p>
         <a class="btn ghost small" href="demo-voucher/" target="_blank" rel="noopener">Try Version 5</a>
       </div>
+      <div class="version newest">
+        <span class="badge">Pro</span>
+        <span class="tag">Version 6</span>
+        <h3>Photobooth Pro · Windows</h3>
+        <ul>
+          <li>Runs on a Windows laptop or PC, full screen, on any monitor or touch screen</li>
+          <li>DSLR or mirrorless camera through an HDMI capture card, a DSLR in webcam mode, or any webcam, up to 4K; camera can be mounted sideways</li>
+          <li>Prints with no dialog to DNP (DS620, RX1, QW410), Epson or Canon Selphy on 2×6, 4×6, 5×7, 6×8 or A6. 2×6 prints two strips per 4×6 sheet on a DNP with 2-inch cut</li>
+          <li>Everything in Version 5: layouts, stickers, GIFs, QR copies, cash, GCash and vouchers. Buy once: no subscription</li>
+        </ul>
+        <p class="for"><b>Best for</b> professional event booths with a DSLR and a dye-sub printer.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -312,6 +324,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
               <label><input type="radio" name="edition" value="package"><span>Version 3 · Package<small>newest app</small></span></label>
               <label><input type="radio" name="edition" value="branded"><span>Version 4 · Branded<small>the app named after you</small></span></label>
               <label><input type="radio" name="edition" value="voucher"><span>Version 5 · Vouchers<small>cash, GCash &amp; voucher codes</small></span></label>
+              <label><input type="radio" name="edition" value="pro"><span>Version 6 · Pro for Windows<small>DSLR &amp; photo printers</small></span></label>
             </div>
           </div>
           <div id="brand-box" hidden>
@@ -341,11 +354,16 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
         <button class="btn" type="submit" id="code-btn">Download the app</button>
         <p class="msg" id="code-msg"></p>
         <div class="install" id="install" hidden>
-          <b>Installing on your tablet</b>
-          <ol>
+          <b id="install-title">Installing on your tablet</b>
+          <ol id="install-android">
             <li>Open <b id="apk-name">the downloaded .apk file</b> from your downloads.</li>
             <li>If asked, allow installing apps from this source.</li>
             <li>Open Snaps Photobooth and follow the setup guide we sent you.</li>
+          </ol>
+          <ol id="install-windows" hidden>
+            <li>Open <b>SnapsPro-Setup.exe</b> from your Downloads on the Windows laptop.</li>
+            <li>If Windows says "Windows protected your PC", click <b>More info</b>, then <b>Run anyway</b>.</li>
+            <li>Photobooth Pro opens full screen. Enter the same 6-digit code to unlock it.</li>
           </ol>
         </div>
         <button class="switch-link" type="button" id="new-request">Send a new request instead</button>
@@ -471,6 +489,10 @@ var SELLER = {
       .then(function(body){
         say($('code-msg'), 'Code accepted. Your download is starting.', 'good');
         if (body.file) $('apk-name').textContent = body.file;
+        var win = /\.exe$/i.test(body.file || '');
+        $('install-title').textContent = win ? 'Installing on your Windows laptop' : 'Installing on your tablet';
+        $('install-android').hidden = win;
+        $('install-windows').hidden = !win;
         $('install').hidden = false;
         window.location.href = body.url;
       })
