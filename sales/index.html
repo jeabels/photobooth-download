@@ -58,6 +58,7 @@ button{font:inherit;color:inherit}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:999px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.add{border-style:dashed;color:var(--accent)}
 
 /* cards */
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-top:12px}
@@ -110,6 +111,11 @@ h2{font-size:15px;font-weight:800}
 .btn{border:0;background:var(--accent);color:#fff;font-weight:800;border-radius:12px;padding:12px 16px;cursor:pointer}
 .msg{font-size:13px;margin-top:10px;min-height:20px}
 .msg.bad{color:var(--bad)}
+.scan{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;color:#fff;text-align:center}
+.scan video{width:min(100%,360px);aspect-ratio:1;object-fit:cover;border-radius:20px;background:#000;box-shadow:0 0 0 3px rgba(255,255,255,.25)}
+.scan p{max-width:340px;color:#d6d8de;font-size:14px}
+.scan .row2{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.scan .ghost{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:12px;padding:12px 16px;font-weight:800;cursor:pointer}
 .foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:16px}
 .link{background:none;border:0;color:var(--sub);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:12px}
 </style>
@@ -127,6 +133,7 @@ h2{font-size:15px;font-weight:800}
       <li>Tap <b>Show my tracker QR</b> and scan it with this phone.</li>
       <li>Tap <b>Add to Home Screen</b> in your browser's menu, so it opens like an app.</li>
     </ol>
+    <div class="paste" style="justify-content:center"><button class="btn" type="button" id="scan-first">Scan the booth's QR</button></div>
     <form class="paste" id="paste-form">
       <input id="paste" placeholder="…or paste your tracker link" autocomplete="off" aria-label="Tracker link">
       <button class="btn" type="submit">Add</button>
@@ -168,6 +175,11 @@ h2{font-size:15px;font-weight:800}
       <div class="tile"><div class="l">Event sessions</div><div class="v" id="t-event">0</div><div class="n" id="t-event-n">rentals, not per print</div></div>
     </div>
 
+    <div class="card" id="by-booth-card" hidden>
+      <div class="card-head"><h2>By booth</h2><span id="by-booth-sub"></span></div>
+      <div id="by-booth"></div>
+    </div>
+
     <div class="card">
       <div class="card-head"><h2 id="chart-title">Sales by hour</h2><span id="chart-sub">tap a bar</span></div>
       <div class="chart" id="chart" role="img" aria-label="Sales chart"></div>
@@ -190,6 +202,15 @@ h2{font-size:15px;font-weight:800}
     </div>
     <p class="msg bad" id="err"></p>
   </section>
+</div>
+
+<div class="scan" id="scan" hidden>
+  <video id="scan-video" playsinline muted></video>
+  <p id="scan-text">Point the camera at the QR on the booth: Settings → Sales → Show my tracker QR.</p>
+  <div class="row2">
+    <button class="ghost" type="button" id="scan-paste">Paste a link instead</button>
+    <button class="ghost" type="button" id="scan-close">Cancel</button>
+  </div>
 </div>
 
 <script>
@@ -225,42 +246,83 @@ var SELLER = {
   var fromLink = keyFrom(location.hash);
   if (fromLink){ addKey(fromLink); history.replaceState(null, '', location.pathname); }
 
-  var state = { key: get(PICK) || '', range: get(RANGE) || 'today', data: null, loading: false };
+  var ALL = '*';
+  var state = { key: get(PICK) || '', range: get(RANGE) || 'today', data: null, cache: {}, errors: {}, loading: false };
+
+  /* Names as shown: a booth without a name, or two with the same one, get a number. */
+  function names(){
+    var l = booths(), seen = {}, out = {};
+    l.forEach(function(b, i){
+      var n = (state.cache[b.key] && state.cache[b.key].booth) || b.name || 'Booth ' + (i + 1);
+      seen[n] = (seen[n] || 0) + 1;
+      out[b.key] = seen[n] > 1 ? n + ' ' + seen[n] : n;
+    });
+    return out;
+  }
 
   function show(){
     var l = booths();
     if (!l.length){ $('welcome').hidden = false; $('dash').hidden = true; return; }
     $('welcome').hidden = true; $('dash').hidden = false;
-    if (!l.some(function(b){ return b.key === state.key; })) state.key = l[0].key;
-    var box = $('booths');
-    box.hidden = l.length < 2;
+    if (state.key === ALL && l.length < 2) state.key = l[0].key;
+    if (state.key !== ALL && !l.some(function(b){ return b.key === state.key; })) state.key = l.length > 1 ? ALL : l[0].key;
+    var box = $('booths'), nm = names();
     box.innerHTML = '';
-    l.forEach(function(b, i){
+    var chip = function(text, key, extra){
       var c = document.createElement('button');
-      c.className = 'chip'; c.type = 'button';
-      c.textContent = b.name || 'Booth ' + (i + 1);
-      c.setAttribute('aria-pressed', String(b.key === state.key));
-      c.onclick = function(){ state.key = b.key; put(PICK, b.key); state.data = null; show(); load(); };
+      c.className = 'chip' + (extra ? ' ' + extra : ''); c.type = 'button';
+      c.textContent = text;
+      if (key !== null) c.setAttribute('aria-pressed', String(key === state.key));
       box.appendChild(c);
+      return c;
+    };
+    if (l.length > 1) chip('All booths', ALL).onclick = function(){ state.key = ALL; put(PICK, ALL); show(); };
+    l.forEach(function(b){
+      chip(nm[b.key], b.key).onclick = function(){ state.key = b.key; put(PICK, b.key); show(); };
     });
+    chip('+ Add booth', null, 'add').onclick = addBooth;
+    $('remove-booth').hidden = state.key === ALL;
     Array.prototype.forEach.call(document.querySelectorAll('#ranges .chip'), function(c){ c.setAttribute('aria-pressed', String(c.dataset.r === state.range)); });
+    pick();
     if (state.data) render();
   }
 
+  /* The data for what is chosen: one booth, or every booth together. */
+  function pick(){
+    var l = booths(), nm = names();
+    if (state.key !== ALL){ state.data = state.cache[state.key] || null; return; }
+    var got = l.filter(function(b){ return state.cache[b.key]; });
+    if (!got.length){ state.data = null; return; }
+    state.data = {
+      all: true,
+      booth: 'All booths',
+      booths: l.map(function(b){ var d = state.cache[b.key] || {}; return { key:b.key, name:nm[b.key], lastSeen:d.lastSeen, lastSales:d.lastSales, sales:d.sales || [], error:state.errors[b.key] || '' }; }),
+      sales: [].concat.apply([], got.map(function(b){ return (state.cache[b.key].sales || []).map(function(e){ return Object.assign({ booth:nm[b.key] }, e); }); }))
+    };
+  }
+
+  function fetchBooth(key){
+    return fetch(FN, { method:'POST', headers:{ 'Content-Type':'application/json', apikey:SELLER.key }, body: JSON.stringify({ action:'tracker', key:key }) })
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(b){ if (!r.ok) throw new Error(b.error || 'Could not load the sales.'); return b; }); });
+  }
+
+  /* Every booth on this phone, together, so switching is instant. */
   function load(){
-    if (!state.key || state.loading) return;
+    var l = booths();
+    if (!l.length || state.loading) return;
     state.loading = true;
     $('refresh').classList.add('spin');
-    fetch(FN, { method:'POST', headers:{ 'Content-Type':'application/json', apikey:SELLER.key }, body: JSON.stringify({ action:'tracker', key:state.key }) })
-      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(b){ if (!r.ok) throw new Error(b.error || 'Could not load the sales.'); return b; }); })
-      .then(function(b){
-        state.data = b; state.at = Date.now(); $('err').textContent = '';
-        var l = booths(), me = l.find(function(x){ return x.key === state.key; });
-        if (me && me.name !== b.booth){ me.name = b.booth; saveBooths(l); show(); }
-        render();
-      })
-      .catch(function(e){ $('err').textContent = navigator.onLine === false ? 'No internet. Showing the last sales loaded.' : e.message; })
-      .then(function(){ state.loading = false; $('refresh').classList.remove('spin'); });
+    Promise.all(l.map(function(b){
+      return fetchBooth(b.key).then(function(d){ state.cache[b.key] = d; delete state.errors[b.key]; if (b.name !== d.booth) b.name = d.booth; },
+        function(e){ state.errors[b.key] = navigator.onLine === false ? 'No internet' : e.message; });
+    })).then(function(){
+      saveBooths(l.map(function(b){ return { key:b.key, name:b.name }; }));
+      state.at = Date.now();
+      var err = state.key === ALL ? '' : state.errors[state.key] || '';
+      if (state.key === ALL && Object.keys(state.errors).length === l.length) err = navigator.onLine === false ? 'No internet. Showing the last sales loaded.' : 'Could not load the sales.';
+      $('err').textContent = err;
+      show();
+    }).then(function(){ state.loading = false; $('refresh').classList.remove('spin'); });
   }
 
   /* ---- periods ---- */
@@ -289,15 +351,22 @@ var SELLER = {
   /* ---- render ---- */
   function render(){
     var d = state.data; if (!d) return;
-    $('booth-name').textContent = d.booth || 'Your booth';
-    var seen = Date.parse(d.lastSeen || '') || 0, sent = Date.parse(d.lastSales || '') || 0, last = Math.max(seen, sent);
-    var online = last && Date.now() - last < 45 * 60000;
-    $('online-dot').className = 'dot' + (online ? ' on' : '');
-    $('online-text').textContent = !last ? 'Waiting for the booth to go online'
-      : (online ? 'Online · ' : 'Offline · last seen ') + ago(last);
+    $('booth-name').textContent = d.all ? 'All booths' : names()[state.key] || d.booth || 'Your booth';
+    var lastOf = function(x){ return Math.max(Date.parse(x.lastSeen || '') || 0, Date.parse(x.lastSales || '') || 0); };
+    var isOn = function(t){ return t && Date.now() - t < 45 * 60000; };
+    if (d.all){
+      var on = d.booths.filter(function(b){ return isOn(lastOf(b)); }).length;
+      $('online-dot').className = 'dot' + (on ? ' on' : '');
+      $('online-text').textContent = on + ' of ' + d.booths.length + ' booths online';
+    } else {
+      var last = lastOf(d), online = isOn(last);
+      $('online-dot').className = 'dot' + (online ? ' on' : '');
+      $('online-text').textContent = !last ? 'Waiting for the booth to go online'
+        : (online ? 'Online · ' : 'Offline · last seen ') + ago(last);
+    }
 
     var p = period(state.range);
-    var all = (d.sales || []).map(function(e){ return { t:Number(e.t), mode:e.mode, method:e.method, layout:e.layout || 'Layout', copies:Number(e.copies) || 1, amount:Number(e.amount) || 0 }; });
+    var all = (d.sales || []).map(function(e){ return { t:Number(e.t), mode:e.mode, method:e.method, layout:e.layout || 'Layout', copies:Number(e.copies) || 1, amount:Number(e.amount) || 0, booth:e.booth || '' }; });
     var rows = all.filter(function(e){ return e.t >= p.from && e.t < p.to; });
     var prev = all.filter(function(e){ return e.t >= p.prevFrom && e.t < (p.prevTo || p.from); });
     var s = sum(rows), ps = sum(prev);
@@ -318,10 +387,30 @@ var SELLER = {
     $('t-avg').textContent = peso(s.paid ? s.total / s.paid : 0);
     $('t-event').textContent = s.events; $('t-event-n').textContent = s.events ? s.eventPrints + ' prints, rentals' : 'rentals, not per print';
 
+    byBooth(d, p, lastOf, isOn);
     chart(rows, p);
     layouts(rows);
     recent(rows);
     $('updated').textContent = 'Updated ' + new Date(state.at).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+  }
+
+  /* All booths: each booth's total for the period, best first. */
+  function byBooth(d, p, lastOf, isOn){
+    $('by-booth-card').hidden = !d.all;
+    if (!d.all) return;
+    var list = d.booths.map(function(b){
+      var s = sum(b.sales.map(function(e){ return { t:Number(e.t), mode:e.mode, method:e.method, copies:Number(e.copies) || 1, amount:Number(e.amount) || 0 }; })
+        .filter(function(e){ return e.t >= p.from && e.t < p.to; }));
+      return { b:b, s:s, last:lastOf(b) };
+    }).sort(function(x, y){ return y.s.total - x.s.total; });
+    var max = Math.max.apply(null, list.map(function(x){ return x.s.total; }).concat([1]));
+    $('by-booth-sub').textContent = d.booths.length + ' booths';
+    $('by-booth').innerHTML = list.map(function(x){
+      var status = x.b.error ? esc(x.b.error) : !x.last ? 'not online yet' : (isOn(x.last) ? 'online' : 'last seen ' + ago(x.last));
+      return '<div class="row"><span class="dot' + (isOn(x.last) && !x.b.error ? ' on' : '') + '"></span><div class="grow"><div class="t">' + esc(x.b.name) + '</div>' +
+        '<div class="s">' + x.s.paid + ' session' + (x.s.paid === 1 ? '' : 's') + ' · ' + x.s.prints + ' print' + (x.s.prints === 1 ? '' : 's') + ' · ' + status + '</div>' +
+        '<div class="meter"><i style="width:' + (x.s.total ? Math.max(2, x.s.total / max * 100) : 0) + '%"></i></div></div><div class="amt">' + peso(x.s.total) + '</div></div>';
+    }).join('');
   }
 
   function ago(t){
@@ -393,7 +482,7 @@ var SELLER = {
     $('recent').innerHTML = list.length ? list.map(function(e){
       var d = new Date(e.t);
       return '<div class="row"><div class="grow"><div class="t">' + esc(e.layout) + '</div><div class="s">' +
-        d.toLocaleDateString([], { month:'short', day:'numeric' }) + ' · ' + d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' }) + ' · ' + e.copies + ' print' + (e.copies === 1 ? '' : 's') + '</div></div>' +
+        (e.booth ? esc(e.booth) + ' · ' : '') + d.toLocaleDateString([], { month:'short', day:'numeric' }) + ' · ' + d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' }) + ' · ' + e.copies + ' print' + (e.copies === 1 ? '' : 's') + '</div></div>' +
         '<span class="pill">' + name(e) + '</span><div class="amt">' + (e.mode === 'event' ? '—' : peso(e.amount)) + '</div></div>';
     }).join('') : '<p class="empty">No sales ' + period(state.range).label + '.</p>';
   }
@@ -409,15 +498,78 @@ var SELLER = {
     if (!k){ $('paste-msg').textContent = 'That is not a tracker link. Copy it from the booth: Settings → Sales.'; $('paste-msg').className = 'msg bad'; return; }
     addKey(k); state.key = k; $('paste').value = ''; show(); load();
   };
-  $('add-booth').onclick = function(){
-    var t = prompt('Paste the tracker link from the other booth (Settings → Sales → Show my tracker QR):');
+  function useKey(k){
+    if (booths().some(function(b){ return b.key === k; })){ alert('This booth is already on this phone.'); return; }
+    addKey(k); state.key = booths().length > 1 ? ALL : k; put(PICK, state.key); show(); load();
+  }
+  function pasteBooth(){
+    var t = prompt('Paste the tracker link from the booth (Settings → Sales → Show my tracker QR):');
+    if (t === null) return;
     var k = keyFrom(t);
-    if (t && !k){ alert('That is not a tracker link.'); return; }
-    if (k){ addKey(k); state.key = k; state.data = null; show(); load(); }
-  };
+    if (!k){ alert('That is not a tracker link.'); return; }
+    useKey(k);
+  }
+
+  /* Scans a booth's QR with this phone's camera, inside the app, so it works
+     from the home screen on iPhone too (its home-screen apps keep their own
+     storage, apart from Safari). */
+  var scan = { stream:null, timer:0, detector:null };
+  function loadJsQR(){
+    if (window.jsQR) return Promise.resolve();
+    return new Promise(function(ok, no){
+      var sc = document.createElement('script');
+      sc.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+      sc.onload = ok; sc.onerror = no;
+      document.head.appendChild(sc);
+    });
+  }
+  function stopScan(){
+    clearTimeout(scan.timer);
+    if (scan.stream) scan.stream.getTracks().forEach(function(t){ t.stop(); });
+    scan.stream = null;
+    $('scan').hidden = true;
+  }
+  function addBooth(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ pasteBooth(); return; }
+    $('scan').hidden = false;
+    $('scan-text').textContent = 'Point the camera at the QR on the booth: Settings → Sales → Show my tracker QR.';
+    var v = $('scan-video'), c = document.createElement('canvas'), ctx = c.getContext('2d', { willReadFrequently:true });
+    if ('BarcodeDetector' in window){ try{ scan.detector = new BarcodeDetector({ formats:['qr_code'] }); }catch(e){ scan.detector = null; } }
+    navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false })
+      .then(function(st){ scan.stream = st; v.srcObject = st; return v.play(); })
+      .then(function(){ return scan.detector ? null : loadJsQR(); })
+      .then(function(){
+        var found = function(text){
+          var k = keyFrom(text);
+          if (!k){ $('scan-text').textContent = 'That QR is not a booth tracker. Use the one in the booth: Settings → Sales.'; return false; }
+          stopScan(); useKey(k); return true;
+        };
+        var tick = function(){
+          if ($('scan').hidden) return;
+          if (v.videoWidth){
+            if (scan.detector){
+              scan.detector.detect(v).then(function(r){ if (!(r[0] && found(r[0].rawValue))) scan.timer = setTimeout(tick, 250); }, function(){ scan.timer = setTimeout(tick, 250); });
+              return;
+            }
+            var w = 480, h = Math.round(w * v.videoHeight / v.videoWidth);
+            c.width = w; c.height = h; ctx.drawImage(v, 0, 0, w, h);
+            var r = window.jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts:'dontInvert' });
+            if (r && found(r.data)) return;
+          }
+          scan.timer = setTimeout(tick, 250);
+        };
+        tick();
+      })
+      .catch(function(){ stopScan(); pasteBooth(); });
+  }
+  $('scan-close').onclick = stopScan;
+  $('scan-paste').onclick = function(){ stopScan(); pasteBooth(); };
+  $('scan-first').onclick = addBooth;
+  $('add-booth').onclick = addBooth;
   $('remove-booth').onclick = function(){
     if (!confirm('Remove this booth from this phone? You can add it again by scanning its QR.')) return;
     saveBooths(booths().filter(function(b){ return b.key !== state.key; }));
+    delete state.cache[state.key];
     state.key = ''; state.data = null; show(); load();
   };
   document.addEventListener('visibilitychange', function(){ if (!document.hidden) load(); });
