@@ -55,6 +55,7 @@ main{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:c
 .print{width:min(300px,100%);background:#fff;padding:10px;border-radius:3px;
   box-shadow:0 1px 2px rgba(0,0,0,.08),0 18px 40px -12px rgba(0,0,0,.35)}
 .print img{display:block;width:100%;height:auto;-webkit-touch-callout:default}
+.print video{display:block;width:100%;height:auto;background:#000}
 .placeholder{aspect-ratio:1/2.6;background:color-mix(in srgb,var(--accent) 9%,var(--paper));display:flex;align-items:center;justify-content:center;
   color:var(--sub);font-size:14px;padding:24px;line-height:1.45}
 @media (prefers-reduced-motion:no-preference){
@@ -164,7 +165,14 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   var ref = clean('r', /[^a-z0-9]/gi);
   var bucket = clean('b', /[^a-z0-9_-]/gi) || 'photos';
   var id = clean('id', /[^a-z0-9-]/gi);
-  var variant = q.get('v') === 'b' ? 'b' : q.get('v') === 'g' ? 'g' : 'c';
+  var variant = q.get('v') === 'b' ? 'b' : q.get('v') === 'g' ? 'g' : q.get('v') === 'v' ? 'v' : 'c';
+  /* v=v: a Snaps Pro video message, x=m (MP4) or x=w (WebM). It has no other versions. */
+  var videoExt = q.get('x') === 'w' ? '.webm' : '.mp4';
+  if (variant === 'v'){
+    document.querySelector('.switch').style.display = 'none';
+    document.querySelector('.lede').textContent = 'Your video message is ready to keep.';
+    document.querySelector('#print .placeholder').textContent = 'Loading your video…';
+  }
   /* g=1: this strip also has an animated GIF of the shots */
   if (q.get('g') === '1' || variant === 'g') document.getElementById('gif-btn').hidden = false;
   /* m=0: this booth makes colour only (Snaps Pro). a=b: the animated copy is a Boomerang. */
@@ -210,7 +218,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 
   if (top){
     document.getElementById('top').textContent = top;
-    document.title = top + ' — your photo strip';
+    document.title = top + (variant === 'v' ? ' — your video' : ' — your photo strip');
   }
   document.getElementById('bottom').textContent = bottom;
   if (top) document.getElementById('thanks').textContent = 'Thank you for snapping with ' + top + '.';
@@ -242,8 +250,10 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-  function ext(v){ return v === 'g' ? '.gif' : '.jpg'; }
-  function fileName(){ return (top ? top.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '-' : 'photo-strip-') + id + (variant === 'b' ? '-bw' : variant === 'g' ? '-gif' : '') + ext(variant); }
+  function ext(v){ return v === 'v' ? videoExt : v === 'g' ? '.gif' : '.jpg'; }
+  function fileName(){ return (top ? top.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '-' : variant === 'v' ? 'video-' : 'photo-strip-') + id + (variant === 'b' ? '-bw' : variant === 'g' ? '-gif' : '') + ext(variant); }
+  function mime(){ return variant === 'v' ? (videoExt === '.webm' ? 'video/webm' : 'video/mp4') : variant === 'g' ? 'image/gif' : 'image/jpeg'; }
+  var what = variant === 'v' ? 'video' : 'photo';
   function photoUrl(v){ return 'https://' + ref + '.supabase.co/storage/v1/object/public/' + bucket + '/p/' + id + '-' + v + ext(v); }
   /* Supabase serves the file as a download when ?download= is added. */
   function downloadUrl(){ return photoUrl(variant) + '?download=' + encodeURIComponent(fileName()); }
@@ -257,33 +267,42 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
       print.innerHTML = '<div class="placeholder">This link is incomplete. Scan the QR code at the booth again.</div>';
       return;
     }
-    if (!print.querySelector('img')) print.innerHTML = '<div class="placeholder loading">Loading your photo…</div>';
-    var img = new Image();
-    img.alt = v === 'b' ? 'Your photo strip in black and white' : v === 'g' ? 'Your ' + (animName === 'GIF' ? 'animated GIF' : animName) : 'Your photo strip in colour';
-    img.onload = function(){
+    if (!print.querySelector('img,video')) print.innerHTML = '<div class="placeholder loading">Loading your ' + what + '…</div>';
+    var img;
+    if (v === 'v'){
+      img = document.createElement('video');
+      img.controls = true; img.playsInline = true; img.preload = 'auto';
+      img.setAttribute('playsinline', '');
+      img.setAttribute('aria-label', 'Your video message');
+    } else {
+      img = new Image();
+      img.alt = v === 'b' ? 'Your photo strip in black and white' : v === 'g' ? 'Your ' + (animName === 'GIF' ? 'animated GIF' : animName) : 'Your photo strip in colour';
+    }
+    var loaded = function(){
       print.innerHTML = '';
       print.appendChild(img);
       open.href = photoUrl(variant);
       save.href = downloadUrl();
       enable(true);
     };
+    if (v === 'v') img.onloadeddata = loaded; else img.onload = loaded;
     img.onerror = function(){
       if (v !== variant) return;
       if (expiresAt && Date.now() > expiresAt){
-        print.innerHTML = '<div class="placeholder">This link has expired. Photos stay online for ' + keepText +
+        print.innerHTML = '<div class="placeholder">This link has expired. ' + (what === 'video' ? 'Videos' : 'Photos') + ' stay online for ' + keepText +
           ' after they are taken. Ask the booth if you need a copy.</div>';
         return;
       }
       /* Just taken, or the booth lost its internet: the photo is still on its
          way, so keep looking for it instead of giving up. */
       if (waited < 120){
-        print.innerHTML = '<div class="placeholder loading">Your photo is on its way… this page updates by itself.</div>';
+        print.innerHTML = '<div class="placeholder loading">Your ' + what + ' is on its way… this page updates by itself.</div>';
         waited++;
         clearTimeout(retry);
         retry = setTimeout(function(){ if (v === variant) show(v); }, 5000);
         return;
       }
-      print.innerHTML = '<div class="placeholder">The booth hasn’t sent this photo yet. Keep this page and reload it later.</div>';
+      print.innerHTML = '<div class="placeholder">The booth hasn’t sent this ' + what + ' yet. Keep this page and reload it later.</div>';
     };
     img.src = photoUrl(v) + (waited ? '?w=' + waited : '');
   }
@@ -303,7 +322,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
       if (!r.ok) throw new Error(String(r.status));
       return r.blob();
     }).then(function(blob){
-      var file = new File([blob], fileName(), { type: variant === 'g' ? 'image/gif' : 'image/jpeg' });
+      var file = new File([blob], fileName(), { type: mime() });
       if (navigator.canShare && navigator.canShare({ files:[file] })){
         return navigator.share({ files:[file] }).then(function(){
           hint.textContent = 'Saved. You’ll find it in Photos.';
@@ -314,7 +333,8 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
     }).catch(function(){ location.href = photoUrl(variant); });
   };
 
-  if (ios) hint.textContent = 'Tap Save, then choose “Save Image”. Or press and hold the photo.';
+  if (variant === 'v') hint.textContent = ios ? 'Tap Save, then choose “Save Video”.' : 'Nothing happened? Tap Open full size, then use the ⋮ menu to download.';
+  else if (ios) hint.textContent = 'Tap Save, then choose “Save Image”. Or press and hold the photo.';
 
   show(variant);
 })();
