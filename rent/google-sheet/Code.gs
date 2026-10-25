@@ -37,8 +37,7 @@ var SHEET_NAME = 'Website Bookings';
 var TZ = 'Asia/Manila';
 var HEADERS = ['Ref', 'Submitted', 'Status', 'Unit ID', 'Unit', 'Pick-up', 'Return', 'Days', 'Estimate',
   'Hand-over', 'Name', 'Address', 'Mobile', 'Social (FB/IG)', 'Purpose',
-  'Emergency name', 'Emergency relationship', 'Emergency mobile', 'Emergency address', 'Notes', 'Added to',
-  'Photos', 'Copy for tracker'];
+  'Emergency name', 'Emergency relationship', 'Emergency mobile', 'Emergency address', 'Notes', 'Added to', 'Photos'];
 var COL = { status: 3, unitId: 4, pickup: 6, ret: 7, addedTo: 21, photos: 22 };
 var PHOTO_FOLDER = 'Snaps MNL booking requirements';
 var STATUSES = ['Pending', 'Confirmed', 'Cancelled', 'Returned'];
@@ -132,8 +131,7 @@ function doPost(e) {
     if (taken) return json_({ ok: false, error: 'taken', until: taken.end, busy: busy_() });
     sheet_().appendRow([text_(d.ref), new Date(), 'Pending', d.unitId, text_(d.unit), start, end, Number(d.days) || '',
       Number(d.estimate) || '', text_(d.handover), text_(d.name), text_(d.address), text_(d.mobile), text_(d.social),
-      text_(d.purpose), text_(d.ecName), text_(d.ecRel), text_(d.ecMobile), text_(d.ecAddress), text_(d.notes), '', '',
-      "'" + String(d.message || '').slice(0, 4000)]);
+      text_(d.purpose), text_(d.ecName), text_(d.ecRel), text_(d.ecMobile), text_(d.ecAddress), text_(d.notes), '', '']);
     return json_({ ok: true, ref: d.ref, busy: busy_() });
   } finally {
     lock.releaseLock();
