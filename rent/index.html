@@ -94,24 +94,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .wrap{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
 
 /* ---- hero band ---- */
-.hero{background:var(--brand);color:var(--on-brand);padding-top:env(safe-area-inset-top);position:relative;overflow:hidden}
-.hero::after{content:"";position:absolute;inset:auto -10% -60% 40%;height:120%;border-radius:50%;
-  background:radial-gradient(closest-side,rgba(255,255,255,.14),transparent);pointer-events:none}
-.hero .wrap{padding-block:20px 30px;position:relative;z-index:1}
-.brandrow{display:flex;align-items:center;gap:10px}
-.logo{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.12);display:grid;place-items:center;flex:none}
-.logo svg{width:22px;height:22px}
-.brandrow b{font-family:var(--display);font-weight:800;font-stretch:112%;font-size:17px;letter-spacing:.01em}
-.brandrow span{display:block;font-size:12.5px;opacity:.8;line-height:1.3}
-.hero h1{font-family:var(--display);font-weight:900;font-stretch:125%;font-size:clamp(30px,8vw,48px);line-height:1;
-  letter-spacing:-.01em;text-transform:uppercase;margin-top:24px;text-wrap:balance}
-.hero p{margin-top:12px;max-width:44ch;opacity:.92}
-.hero p b{font-weight:700}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
-.chips span{font-size:13px;font-weight:600;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.12)}
+/* The shop's banner on its own, across the full width. The page title stays for screen readers only. */
+.hero{background:#7C0507;padding-top:env(safe-area-inset-top)}
+.banner{display:block;width:100%;max-width:none;height:auto;aspect-ratio:3/1}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 /* ---- form ---- */
-main{margin-top:-14px;position:relative;z-index:2}
+main.wrap{margin-top:18px;position:relative;z-index:2}
 .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px 18px;box-shadow:0 18px 40px -30px rgba(60,10,14,.5)}
 .step + .step{margin-top:26px;padding-top:24px;border-top:1px dashed var(--line)}
 .step h2{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:18px;display:flex;align-items:baseline;gap:10px}
@@ -226,17 +215,8 @@ footer b{color:var(--ink)}
 <body>
 
 <header class="hero">
-  <div class="wrap">
-    <div class="brandrow">
-      <div class="logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>
-      </div>
-      <div><b id="shopName">Snaps MNL</b><span id="shopArea">Phone rentals · Sampaloc, Manila</span></div>
-    </div>
-    <h1>Phone Rental Booking Form</h1>
-    <p><b>Hello, Renters! 🤍</b> Thank you for choosing Snaps MNL. To ensure a smooth and seamless transaction, please fill out this form completely and provide the necessary requirements. We can't wait to help you capture your golden moments!</p>
-    <div class="chips"><span>2 government IDs</span><span id="depChip">Refundable deposit</span><span>25 hours per rental day</span><span>Pick-up at Zukiya Residences or delivery</span></div>
-  </div>
+  <img class="banner" src="units/banner.webp" width="960" height="320" alt="Rent an iPhone with Snaps MNL. Your most trusted and affordable rental phone.">
+  <h1 class="sr-only">Snaps MNL | Phone Rental Booking Form</h1>
 </header>
 
 <main class="wrap">
@@ -414,9 +394,7 @@ footer b{color:var(--ink)}
   }
 
   /* ---- shop details ---- */
-  $('shopName').textContent = SHOP.name;
   $('footName').textContent = SHOP.name;
-  $('shopArea').textContent = 'Phone rentals · ' + SHOP.area;
   $('footArea').textContent = SHOP.area;
   $('footMobile').textContent = prettyMobile(SHOP.mobile);
   if(SHOP.facebookUrl){
@@ -426,8 +404,7 @@ footer b{color:var(--ink)}
     $('footFb').textContent = 'Facebook: ' + SHOP.name;
   }
   $('smsLabel').textContent = 'Or text it to ' + prettyMobile(SHOP.mobile);
-  if(SHOP.deposit){ $('depChip').textContent = peso(SHOP.deposit) + ' refundable deposit'; $('depStep').textContent = peso(SHOP.deposit) + ' refundable deposit'; }
-  else { $('depChip').hidden = true; }
+  if(SHOP.deposit) $('depStep').textContent = peso(SHOP.deposit) + ' refundable deposit';
   $('placeStep').textContent = SHOP.pickupPlace;
   $('schedHint').textContent = 'One rental day is ' + SHOP.hoursPerDay + ' hours from pick-up. Late returns are charged ' + peso(SHOP.lateFeePerHour) + ' per hour.';
   if(SHOP.messenger) $('sendMessenger').hidden = false;
