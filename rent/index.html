@@ -77,6 +77,7 @@ var SHOP = {
   --bg:#F7F2EE; --card:#FFFFFF; --ink:#1C1012; --sub:#6E5A5C; --line:rgba(60,14,18,.12);
   --brand:#8E1016; --brand-2:#B3161D; --on-brand:#FFFFFF; --brand-soft:rgba(142,16,22,.08);
   --gold:#FFC22E; --on-gold:#3A1A00; --good:#18794E; --bad:#C0262D;
+  --free:rgba(24,121,78,.12); --some:rgba(214,140,0,.20); --full:rgba(192,38,45,.22); --some-ink:#9A5800;
   --display:'Archivo',system-ui,sans-serif; --body:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
   color-scheme:light;
@@ -86,6 +87,7 @@ var SHOP = {
     --bg:#140A0B; --card:#1F1213; --ink:#F7ECEC; --sub:#BFA6A8; --line:rgba(255,220,220,.12);
     --brand:#C42A31; --brand-2:#E0434A; --on-brand:#FFFFFF; --brand-soft:rgba(224,67,74,.14);
     --gold:#FFC941; --on-gold:#2E1500; --good:#4CC38A; --bad:#FF6B70;
+    --free:rgba(76,195,138,.14); --some:rgba(240,180,76,.20); --full:rgba(255,107,112,.24); --some-ink:#F0B44C;
     color-scheme:dark;
   }
 }
@@ -203,6 +205,49 @@ main.wrap{margin-top:18px;position:relative;z-index:2}
 .photos{display:flex;gap:8px;margin-top:12px}
 .photos div{width:64px;height:64px;border-radius:10px;background:var(--bg) center/cover no-repeat;border:1px solid var(--line)}
 .toast{font-size:13.5px;font-weight:600;color:var(--good);text-align:center;min-height:1.4em;margin-top:8px}
+/* ---- availability calendar ---- */
+.cal{margin-bottom:18px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cal-head h2{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:18px}
+.toggle{display:flex;border:1.5px solid var(--line);border-radius:999px;padding:2px}
+.toggle button{appearance:none;border:0;background:none;border-radius:999px;padding:6px 14px;font-weight:700;font-size:13.5px;cursor:pointer;color:var(--sub)}
+.toggle button[aria-pressed="true"]{background:var(--brand);color:var(--on-brand)}
+.cal-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px}
+.cal-bar select{padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);font-size:15px;max-width:100%}
+.cal-nav{display:flex;align-items:center;gap:8px}
+.cal-nav b{min-width:120px;text-align:center;font-weight:700}
+.cal-nav button{appearance:none;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line);background:var(--card);font-size:18px;line-height:1;cursor:pointer}
+.cal-nav button:disabled{opacity:.35;cursor:default}
+.month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:12px}
+.month .wd{text-align:center;font-size:11.5px;font-weight:700;color:var(--sub);padding-bottom:2px}
+.day{appearance:none;border:0;border-radius:10px;min-height:48px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;font-variant-numeric:tabular-nums;color:var(--ink)}
+.day b{font-size:14px;font-weight:700}
+.day small{font-size:10.5px;font-weight:700;line-height:1}
+.day.free{background:var(--free)} .day.free small{color:var(--good)}
+.day.some{background:var(--some)} .day.some small{color:var(--some-ink)}
+.day.full{background:var(--full)} .day.full small{color:var(--bad)}
+.day.past{background:none;opacity:.35;cursor:default}
+.day.today{outline:2px solid var(--brand-2);outline-offset:-2px}
+.day.sel{box-shadow:0 0 0 2px var(--ink) inset}
+.day:focus-visible{outline:2px solid var(--brand-2)}
+.year{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:12px}
+.mini h4{appearance:none;font:inherit;font-weight:700;font-size:13.5px;margin-bottom:4px}
+.mini h4 button{appearance:none;border:0;background:none;font:inherit;color:var(--ink);cursor:pointer;padding:0}
+.mini h4 button:hover{color:var(--brand-2)}
+.mini .g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.mini .g i{aspect-ratio:1;border-radius:3px;font-style:normal;font-size:9px;display:grid;place-items:center;color:var(--sub)}
+.mini .g i.free{background:var(--free)} .mini .g i.some{background:var(--some)} .mini .g i.full{background:var(--full)} .mini .g i.past{opacity:.35}
+.cal-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12.5px;color:var(--sub)}
+.cal-legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:5px}
+.cal-day{margin-top:14px;padding:14px;border-radius:14px;background:var(--bg);border:1px solid var(--line)}
+.cal-day h3{font-size:15px;font-weight:700;margin-bottom:8px}
+.unit-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+.unit-row:first-of-type{border-top:0}
+.unit-row b{display:block;font-size:14px}
+.unit-row span{color:var(--sub)}
+.unit-row .bk{color:var(--bad);font-weight:600}
+.unit-row .ok{color:var(--good);font-weight:600}
+.mini-btn{appearance:none;border:0;border-radius:999px;padding:7px 12px;background:var(--gold);color:var(--on-gold);font-weight:800;font-size:12.5px;cursor:pointer;white-space:nowrap}
 .summary{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;padding:14px;border-radius:14px;background:var(--bg);border:1px solid var(--line);font-size:14px}
 .summary dt{color:var(--sub)}
 .summary dd{margin:0;text-align:right;font-weight:600;min-width:0;overflow-wrap:anywhere}
@@ -235,6 +280,21 @@ footer b{color:var(--ink)}
 </header>
 
 <main class="wrap">
+  <section class="card cal" id="cal" hidden>
+    <div class="cal-head">
+      <h2>Availability calendar</h2>
+      <div class="toggle" role="group" aria-label="Calendar view"><button type="button" data-view="month" aria-pressed="true">Month</button><button type="button" data-view="year" aria-pressed="false">Year</button></div>
+    </div>
+    <p class="hint">Check which units are free before you book. Tap a day to see each unit.</p>
+    <div class="cal-bar">
+      <select id="calUnit" aria-label="Unit"><option value="">All units</option></select>
+      <div class="cal-nav"><button type="button" id="calPrev" aria-label="Previous">‹</button><b id="calTitle"></b><button type="button" id="calNext" aria-label="Next">›</button></div>
+    </div>
+    <div id="calBody"><p class="hint" style="margin-top:14px">Loading bookings…</p></div>
+    <div class="cal-legend" id="calLegend"></div>
+    <div class="cal-day" id="calDay" hidden></div>
+  </section>
+
   <form class="card" id="form" novalidate>
     <section class="step">
       <h2><i>01</i>iPhone model to rent</h2>
@@ -555,9 +615,113 @@ footer b{color:var(--ink)}
   function loadBusy(){
     if(!SHOP.bookingSheet) return;
     fetch(SHOP.bookingSheet).then(function(r){ return r.json(); }).then(function(d){
-      busy = (d && d.busy) || []; markUnits();
-    }).catch(function(){});
+      busy = (d && d.busy) || []; markUnits(); renderCal();
+    }).catch(function(){ $('cal').hidden = true; });
   }
+
+  /* ---- availability calendar (month and year views) ----
+     Days are Manila calendar days. A unit counts as booked on a day if any of its
+     booked slots overlaps that day. Only current and future bookings are known. */
+  var cal = { view:'month', unit:'', y:0, m:0, sel:'' };
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  function manilaToday(){ return new Date(Date.now() + 8 * 36e5).toISOString().slice(0, 10); }
+  function ymd(y, m, d){ return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+  function daysIn(y, m){ return new Date(Date.UTC(y, m + 1, 0)).getUTCDate(); }
+  function firstDow(y, m){ return new Date(Date.UTC(y, m, 1)).getUTCDay(); }
+  function bookingsOn(ds, unitId){
+    var a = new Date(ds + 'T00:00:00+08:00'), b = new Date(a.getTime() + 864e5);
+    return busy.filter(function(x){ return (!unitId || x.unit === unitId) && new Date(x.start) < b && a < new Date(x.end); });
+  }
+  /* free / some / full for a day: one unit when a unit is picked, otherwise how many of the units are booked. */
+  function dayLevel(ds){
+    var on = bookingsOn(ds, cal.unit);
+    if(cal.unit) return { lv: on.length ? 'full' : 'free', n: on.length ? 1 : 0 };
+    var units = {}; on.forEach(function(x){ units[x.unit] = 1; });
+    var n = Object.keys(units).length, total = SHOP.models.length;
+    return { lv: n === 0 ? 'free' : n >= total ? 'full' : 'some', n: n };
+  }
+  function renderCal(){
+    if(!SHOP.bookingSheet) return;
+    $('cal').hidden = false;
+    var today = manilaToday(), ty = +today.slice(0, 4), tm = +today.slice(5, 7) - 1;
+    if(!cal.y){ cal.y = ty; cal.m = tm; }
+    document.querySelectorAll('.toggle button').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.view === cal.view); });
+    var html = '';
+    if(cal.view === 'month'){
+      $('calTitle').textContent = MONTHS[cal.m] + ' ' + cal.y;
+      $('calPrev').disabled = cal.y < ty || (cal.y === ty && cal.m <= tm);
+      html = '<div class="month">' + ['S','M','T','W','T','F','S'].map(function(w){ return '<div class="wd">' + w + '</div>'; }).join('');
+      for(var i = 0; i < firstDow(cal.y, cal.m); i++) html += '<div></div>';
+      for(var d = 1; d <= daysIn(cal.y, cal.m); d++){
+        var ds = ymd(cal.y, cal.m, d), past = ds < today, L = past ? { lv:'past', n:0 } : dayLevel(ds);
+        var tag = past ? '' : cal.unit ? (L.n ? 'Booked' : 'Free') : (L.n ? L.n + '/' + SHOP.models.length : 'Free');
+        html += '<button type="button" class="day ' + L.lv + (ds === today ? ' today' : '') + (ds === cal.sel ? ' sel' : '') + '" data-day="' + ds + '"' +
+          (past ? ' disabled' : '') + ' aria-label="' + ds + (past ? '' : ', ' + tag) + '"><b>' + d + '</b><small>' + tag + '</small></button>';
+      }
+      html += '</div>';
+    } else {
+      $('calTitle').textContent = String(cal.y);
+      $('calPrev').disabled = cal.y <= ty;
+      html = '<div class="year">';
+      for(var m = 0; m < 12; m++){
+        html += '<div class="mini"><h4><button type="button" data-month="' + m + '">' + MONTHS[m] + '</button></h4><div class="g">';
+        for(var k = 0; k < firstDow(cal.y, m); k++) html += '<i></i>';
+        for(var dd = 1; dd <= daysIn(cal.y, m); dd++){
+          var s2 = ymd(cal.y, m, dd), p2 = s2 < today;
+          html += '<i class="' + (p2 ? 'past' : dayLevel(s2).lv) + '">' + dd + '</i>';
+        }
+        html += '</div></div>';
+      }
+      html += '</div>';
+    }
+    $('calBody').innerHTML = html;
+    $('calLegend').innerHTML = cal.unit
+      ? '<span><i style="background:var(--free)"></i>Free</span><span><i style="background:var(--full)"></i>Booked</span>'
+      : '<span><i style="background:var(--free)"></i>All units free</span><span><i style="background:var(--some)"></i>Some units booked</span><span><i style="background:var(--full)"></i>All units booked</span>';
+    if(cal.sel) showDay(cal.sel);
+  }
+  /* Each unit on one day: booked (with times) or free, with a button to start a booking from that day. */
+  function showDay(ds){
+    cal.sel = ds;
+    var box = $('calDay'), d = new Date(ds + 'T12:00:00+08:00');
+    var html = '<h3>' + d.toLocaleDateString('en-PH', { timeZone:'Asia/Manila', weekday:'long', month:'long', day:'numeric', year:'numeric' }) + '</h3>';
+    SHOP.models.forEach(function(m, i){
+      if(cal.unit && cal.unit !== m.id) return;
+      var on = bookingsOn(ds, m.id);
+      html += '<div class="unit-row"><div><b>' + label(m) + '</b>' +
+        (on.length ? '<span class="bk">Booked ' + on.map(function(x){ return when(x.start) + ' – ' + when(x.end); }).join(', ') + '</span>'
+                   : '<span class="ok">Free all day</span>') + '</div>' +
+        (on.length ? '' : '<button type="button" class="mini-btn" data-book="' + i + '">Book</button>') + '</div>';
+    });
+    box.innerHTML = html; box.hidden = false;
+  }
+  $('cal').addEventListener('click', function(e){
+    var t = e.target.closest('[data-view],[data-day],[data-month],[data-book]');
+    if(!t) return;
+    if(t.dataset.view){ cal.view = t.dataset.view; renderCal(); }
+    else if(t.dataset.day){ cal.sel = t.dataset.day; renderCal(); }
+    else if(t.dataset.month){ cal.m = +t.dataset.month; cal.view = 'month'; renderCal(); }
+    else if(t.dataset.book){
+      /* Start a booking for this unit from the chosen day; the renter then sets the times. */
+      var r = $('m' + t.dataset.book);
+      $('start').value = cal.sel;
+      var next = new Date(Date.UTC(+cal.sel.slice(0, 4), +cal.sel.slice(5, 7) - 1, +cal.sel.slice(8, 10) + 1));
+      if(!$('end').value || $('end').value <= cal.sel) $('end').value = next.toISOString().slice(0, 10);
+      r.checked = true; r.dispatchEvent(new Event('change', { bubbles:true }));
+      if(!r.checked){ $('models').scrollIntoView({ block:'start', behavior:'smooth' }); return; }
+      $('start').closest('.step').scrollIntoView({ block:'start', behavior:'smooth' });
+    }
+  });
+  $('calUnit').addEventListener('change', function(){ cal.unit = this.value; renderCal(); });
+  $('calPrev').addEventListener('click', function(){
+    if(cal.view === 'month'){ cal.m--; if(cal.m < 0){ cal.m = 11; cal.y--; } } else cal.y--;
+    renderCal();
+  });
+  $('calNext').addEventListener('click', function(){
+    if(cal.view === 'month'){ cal.m++; if(cal.m > 11){ cal.m = 0; cal.y++; } } else cal.y++;
+    renderCal();
+  });
+  SHOP.models.forEach(function(m){ var o = document.createElement('option'); o.value = m.id; o.textContent = label(m); $('calUnit').appendChild(o); });
   loadBusy();
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) loadBusy(); });
 
@@ -689,8 +853,7 @@ footer b{color:var(--ink)}
       name: $('name').value.trim(), address: $('address').value.trim(), mobile: prettyMobile($('mobile').value.trim()),
       social: $('social').value.trim(), purpose: $('purpose').value.trim(),
       ecName: $('ecName').value.trim(), ecRel: $('ecRel').value.trim(), ecMobile: prettyMobile($('ecMobile').value.trim()),
-      ecAddress: $('ecAddress').value.trim(), notes: $('notes').value.trim(), website: $('website').value,
-      message: buildMessage(ref)
+      ecAddress: $('ecAddress').value.trim(), notes: $('notes').value.trim(), website: $('website').value
     };
     /* Sent as plain text so the browser makes a simple request the Apps Script web app accepts. */
     return fetch(SHOP.bookingSheet, { method:'POST', body: JSON.stringify(body) })
@@ -813,7 +976,7 @@ footer b{color:var(--ink)}
     $('photoHint').textContent = canShare
       ? 'Tap the button, choose Messenger, then pick the ' + SHOP.name + ' chat. Or attach them yourself from your gallery.'
       : 'In the same Messenger chat, tap the photo button and choose your selfie with 2 IDs, proof of billing and signed ID.';
-    $('form').hidden = true; $('sent').hidden = false;
+    $('form').hidden = true; $('cal').hidden = true; $('sent').hidden = false;
     $('sent').scrollIntoView({ block:'start', behavior:'smooth' });
   }
 
@@ -849,6 +1012,7 @@ footer b{color:var(--ink)}
   if(!SHOP.messenger) $('followUp').closest('.sendstep').querySelector('.actions').hidden = true;
   $('edit').addEventListener('click', function(){
     $('sent').hidden = true; $('form').hidden = false; $('toast').textContent = '';
+    if(SHOP.bookingSheet) $('cal').hidden = false;
     $('form').scrollIntoView({ block:'start', behavior:'smooth' });
   });
 })();
