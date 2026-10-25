@@ -24,15 +24,16 @@ var SHOP = {
   name: "Snaps MNL",
   area: "Sampaloc, Manila",
   mobile: "09562086962",
-  /* Facebook page username, the part after facebook.com/ (e.g. "snapsmnl").
+  /* Facebook page username or numeric page id, used for the m.me Messenger link.
      Empty hides the Messenger button and customers send by SMS instead. */
-  messenger: "",
-  facebookUrl: "",
+  messenger: "100095276233681",
+  facebookUrl: "https://www.facebook.com/profile.php?id=100095276233681",
+  deposit: 500,
   models: [
     { name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000 },
     { name: "iPhone 14 Pro Max", detail: "128GB · Deep Purple",     rate: 800 },
     { name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700 },
-    { name: "iPhone 13 Pro Max", detail: "256GB · Space Black",     rate: 700 },
+    { name: "iPhone 13 Pro Max", detail: "256GB · Graphite",        rate: 700 },
     { name: "iPhone 13",         detail: "128GB · Starlight",       rate: 600 }
   ],
   inclusions: ["iPhone with case", "Unit pouch", "64GB OTG file transfer", "Cleaning wipes", "Power bank", "Fast charger"],
@@ -166,7 +167,7 @@ footer b{color:var(--ink)}
     </div>
     <h1>Rent an iPhone</h1>
     <p>Pick your phone and dates. We'll confirm on Messenger or by text, usually within the day.</p>
-    <div class="chips"><span>Valid ID needed</span><span>Pickup, meet-up or delivery</span><span>Pay after we confirm</span></div>
+    <div class="chips"><span>Valid ID needed</span><span id="depChip">Refundable deposit</span><span>Pickup, meet-up or delivery</span><span>Pay after we confirm</span></div>
   </div>
 </header>
 
@@ -254,7 +255,8 @@ footer b{color:var(--ink)}
     <ol>
       <li><div><b>Send your booking</b><span>Fill in the form and send the message on Messenger or by text.</span></div></li>
       <li><div><b>We confirm</b><span>We check that the phone is free on your dates and send the total and payment details.</span></div></li>
-      <li><div><b>Get your phone</b><span>Show your valid ID at pickup, meet-up or delivery. We check the phone with you before handing it over.</span></div></li>
+      <li><div><b>Get your phone</b><span>Show your valid ID and pay the <span id="depStep">refundable deposit</span> at pickup, meet-up or delivery. We check the phone with you before handing it over.</span></div></li>
+      <li><div><b>Get your deposit back</b><span>Return the phone on time and in the same condition, and we give the deposit back on the spot.</span></div></li>
       <li><div><b>Return it on time</b><span>Bring it back on your return date, with everything that came with it. We'll send a reminder the day before.</span></div></li>
     </ol>
   </section>
@@ -299,6 +301,8 @@ footer b{color:var(--ink)}
     $('footFb').textContent = 'Facebook: ' + SHOP.name;
   }
   $('smsLabel').textContent = 'Text it to ' + prettyMobile(SHOP.mobile);
+  if(SHOP.deposit){ $('depChip').textContent = peso(SHOP.deposit) + ' refundable deposit'; $('depStep').textContent = peso(SHOP.deposit) + ' refundable deposit'; }
+  else { $('depChip').hidden = true; }
   if(SHOP.messenger) $('sendMessenger').hidden = false;
 
   /* ---- build choices ---- */
@@ -340,7 +344,7 @@ footer b{color:var(--ink)}
       var n = daysBetween(s, e), m = model();
       $('tallyDays').textContent = n + (n === 1 ? ' day' : ' days');
       $('tallyCost').textContent = m && m.rate
-        ? 'about ' + peso(m.rate * n) + ' rental · deposit and delivery are confirmed with you'
+        ? peso(m.rate * n) + ' rental' + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' refundable deposit' : '') + (val('handover') === 'Delivery' ? ' + delivery fee' : '')
         : nice(s) + ' to ' + nice(e);
     }
     $('addrRow').hidden = val('handover') === SHOP.handover[0];
@@ -407,7 +411,7 @@ footer b{color:var(--ink)}
       'Return: ' + nice(e) + ' (' + e + ')',
       'Days: ' + n
     ];
-    if(m.rate) lines.push('Estimate: ' + peso(m.rate * n));
+    if(m.rate) lines.push('Estimate: ' + peso(m.rate * n) + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' deposit' : ''));
     lines.push('Handover: ' + h + (h !== SHOP.handover[0] ? ' - ' + $('address').value.trim() : ''));
     lines.push('Name: ' + $('name').value.trim());
     lines.push('Mobile: ' + prettyMobile($('mobile').value.trim()));
