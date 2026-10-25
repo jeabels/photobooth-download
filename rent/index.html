@@ -94,10 +94,16 @@ button,input,select,textarea{font:inherit;color:inherit}
 .wrap{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
 
 /* ---- hero band ---- */
-.hero{background:var(--brand);color:var(--on-brand);padding-top:env(safe-area-inset-top);position:relative;overflow:hidden}
-.hero::after{content:"";position:absolute;inset:auto -10% -60% 40%;height:120%;border-radius:50%;
-  background:radial-gradient(closest-side,rgba(255,255,255,.14),transparent);pointer-events:none}
-.hero .wrap{padding-block:20px 30px;position:relative;z-index:1}
+/* The shop's banner sits behind the heading, under a dark red wash so the text stays readable. */
+.hero{background:#8E1016 url("units/banner.webp") center/cover no-repeat;color:#FFFFFF;padding-top:env(safe-area-inset-top);position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(92,6,12,.80) 0%,rgba(110,8,14,.74) 45%,rgba(92,6,12,.88) 100%)}
+/* On phones the banner is zoomed in and its own lettering is large, so wash it a little more. */
+@media (max-width:640px){
+  .hero::before{background:linear-gradient(180deg,rgba(92,6,12,.86) 0%,rgba(110,8,14,.82) 45%,rgba(92,6,12,.92) 100%)}
+}
+.hero .wrap{padding-block:20px 30px;position:relative;z-index:1;text-shadow:0 1px 10px rgba(40,0,4,.45)}
+.hero .chips span{background:rgba(40,0,4,.45);backdrop-filter:blur(2px)}
 .brandrow{display:flex;align-items:center;gap:10px}
 .logo{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.12);display:grid;place-items:center;flex:none}
 .logo svg{width:22px;height:22px}
