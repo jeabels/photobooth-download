@@ -17,10 +17,16 @@
  *   The month tab is found by name (e.g. "October" or "OCT…"). If there is none
  *   yet, the previous month's tab is copied, emptied and renamed.
  *
+ * Requirement photos
+ *   The renter's 3 photos are saved to a Google Drive folder, "Snaps MNL booking
+ *   requirements / <ref> <name>", which only you can open. Its link goes in the
+ *   booking's Photos column.
+ *
  * Web app
  *   GET  -> booked time slots per unit (unit id, start, end); no renter details.
  *   POST -> a booking from the website; refused with "taken" if that unit is
  *           already booked for an overlapping time.
+ *   POST {action: "photos"} -> the 3 photos for a booking just saved.
  *
  * Set up (once): paste this file into Extensions > Apps Script, run setup(),
  * then Deploy > New deployment > Web app, Execute as: Me, Who has access:
@@ -31,8 +37,10 @@ var SHEET_NAME = 'Website Bookings';
 var TZ = 'Asia/Manila';
 var HEADERS = ['Ref', 'Submitted', 'Status', 'Unit ID', 'Unit', 'Pick-up', 'Return', 'Days', 'Estimate',
   'Hand-over', 'Name', 'Address', 'Mobile', 'Social (FB/IG)', 'Purpose',
-  'Emergency name', 'Emergency relationship', 'Emergency mobile', 'Emergency address', 'Notes', 'Added to'];
-var COL = { status: 3, unitId: 4, pickup: 6, ret: 7, addedTo: 21 };
+  'Emergency name', 'Emergency relationship', 'Emergency mobile', 'Emergency address', 'Notes', 'Added to',
+  'Photos', 'Copy for tracker'];
+var COL = { status: 3, unitId: 4, pickup: 6, ret: 7, addedTo: 21, photos: 22 };
+var PHOTO_FOLDER = 'Snaps MNL booking requirements';
 var STATUSES = ['Pending', 'Confirmed', 'Cancelled', 'Returned'];
 var BLOCKING = ['Pending', 'Confirmed'];
 /* Unit IDs must match the `id` of each unit in SHOP.models on the booking page.
@@ -65,6 +73,12 @@ function setup() {
   sh.getRange(2, COL.pickup, rows, 2).setNumberFormat('ddd mmm d, yyyy h:mm am/pm');
   sh.getRange(2, 13, rows, 1).setNumberFormat('@');
   sh.getRange(2, 18, rows, 1).setNumberFormat('@');
+  photoFolder_();   // asks for Drive access now, so photo uploads work later
+}
+
+function photoFolder_() {
+  var found = DriveApp.getFoldersByName(PHOTO_FOLDER);
+  return found.hasNext() ? found.next() : DriveApp.createFolder(PHOTO_FOLDER);
 }
 
 function sheet_() {
@@ -104,6 +118,7 @@ function doPost(e) {
   var d;
   try { d = JSON.parse(e.postData.contents); } catch (err) { return json_({ ok: false, error: 'bad_request' }); }
   if (d.website) return json_({ ok: true, ref: d.ref });   // filled-in hidden field: a bot, not a renter
+  if (d.action === 'photos') return savePhotos_(d);
   var start = new Date(d.start), end = new Date(d.end);
   if (UNIT_IDS.indexOf(d.unitId) < 0 || isNaN(start) || isNaN(end) || end <= start || !d.name || !d.mobile) {
     return json_({ ok: false, error: 'missing' });
@@ -117,11 +132,34 @@ function doPost(e) {
     if (taken) return json_({ ok: false, error: 'taken', until: taken.end, busy: busy_() });
     sheet_().appendRow([text_(d.ref), new Date(), 'Pending', d.unitId, text_(d.unit), start, end, Number(d.days) || '',
       Number(d.estimate) || '', text_(d.handover), text_(d.name), text_(d.address), text_(d.mobile), text_(d.social),
-      text_(d.purpose), text_(d.ecName), text_(d.ecRel), text_(d.ecMobile), text_(d.ecAddress), text_(d.notes), '']);
+      text_(d.purpose), text_(d.ecName), text_(d.ecRel), text_(d.ecMobile), text_(d.ecAddress), text_(d.notes), '', '',
+      "'" + String(d.message || '').slice(0, 4000)]);
     return json_({ ok: true, ref: d.ref, busy: busy_() });
   } finally {
     lock.releaseLock();
   }
+}
+
+/* Saves up to 3 photos (base64) for a booking that has none yet, in its own Drive folder. */
+function savePhotos_(d) {
+  var files = (d.files || []).slice(0, 3);
+  if (!d.ref || !files.length) return json_({ ok: false, error: 'missing' });
+  var sh = sheet_(), last = sh.getLastRow(), row = -1;
+  if (last >= 2) {
+    var refs = sh.getRange(2, 1, last - 1, 1).getValues();
+    for (var i = refs.length - 1; i >= 0; i--) { if (plain_(refs[i][0]) === d.ref) { row = i + 2; break; } }
+  }
+  if (row < 0) return json_({ ok: false, error: 'not_found' });
+  if (sh.getRange(row, COL.photos).getValue()) return json_({ ok: false, error: 'exists' });
+  var folder = photoFolder_().createFolder(d.ref + ' ' + plain_(sh.getRange(row, 11).getValue()));
+  files.forEach(function (f, n) {
+    var bytes = Utilities.base64Decode(String(f.data || ''));
+    if (!bytes.length || bytes.length > 8e6) return;
+    var label = String(f.label || 'Photo ' + (n + 1)).replace(/[\\\/:*?"<>|]/g, '').slice(0, 80);
+    folder.createFile(Utilities.newBlob(bytes, /^image\//.test(f.type) ? f.type : 'image/jpeg', label + '.jpg'));
+  });
+  sh.getRange(row, COL.photos).setValue(folder.getUrl());
+  return json_({ ok: true });
 }
 
 /** Runs when the sheet is edited: a Website Bookings row set to Confirmed goes into its month tab (once). */
@@ -170,7 +208,8 @@ function addToMonth_(r) {
   tab.appendRow(['', fmt_(start, 'MMM d, h:mm a'), duration, plain_(r[10]), unit, MONTH_STATUS, '', Number(r[8]) || '']);
   var nameCell = tab.getRange(tab.getLastRow(), 4);
   nameCell.setNote('Website booking ' + plain_(r[0]) + '\nMobile: ' + plain_(r[12]) + '\nHand-over: ' + plain_(r[9]) +
-    '\nReturn: ' + fmt_(end, 'MMM d, h:mm a') + '\nFull details: ' + SHEET_NAME + ' tab');
+    '\nReturn: ' + fmt_(end, 'MMM d, h:mm a') + (r[COL.photos - 1] ? '\nPhotos: ' + r[COL.photos - 1] : '') +
+    '\nFull details: ' + SHEET_NAME + ' tab');
   return tab.getName();
 }
 

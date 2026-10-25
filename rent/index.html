@@ -203,6 +203,11 @@ main.wrap{margin-top:18px;position:relative;z-index:2}
 .photos{display:flex;gap:8px;margin-top:12px}
 .photos div{width:64px;height:64px;border-radius:10px;background:var(--bg) center/cover no-repeat;border:1px solid var(--line)}
 .toast{font-size:13.5px;font-weight:600;color:var(--good);text-align:center;min-height:1.4em;margin-top:8px}
+.summary{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;padding:14px;border-radius:14px;background:var(--bg);border:1px solid var(--line);font-size:14px}
+.summary dt{color:var(--sub)}
+.summary dd{margin:0;text-align:right;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.next{margin:10px 0 0 20px;display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--sub)}
+.sent.saved h2{color:var(--good)}
 
 /* ---- how it works ---- */
 .how{margin-top:30px}
@@ -283,7 +288,7 @@ footer b{color:var(--ink)}
 
     <section class="step">
       <h2><i>06</i>Requirements</h2>
-      <p class="hint">Choose a photo for each. Your photos stay on your phone; you send them to us in Messenger with your booking.</p>
+      <p class="hint" id="upHint">Choose a photo for each. Your photos stay on your phone; you send them to us in Messenger with your booking.</p>
       <div class="uploads" id="uploads"></div>
       <div class="err" id="upErr" hidden>Add all three photos to continue.</div>
     </section>
@@ -316,11 +321,23 @@ footer b{color:var(--ink)}
   </form>
 
   <section class="card sent" id="sent" hidden>
-    <h2>Send this to us to book</h2>
+    <h2 id="sentTitle">Send this to us to book</h2>
     <span class="ref" id="refTag"></span>
     <p class="hint" id="sentHint">Your phone is <b>not reserved yet</b>. Send the message and your 3 photos, then we'll check availability and reply to confirm.</p>
 
-    <div class="sendstep">
+    <div class="sendstep" id="savedStep" hidden>
+      <dl class="summary" id="summary"></dl>
+      <h3 style="margin-top:18px">What happens next</h3>
+      <ol class="next">
+        <li>We check your details and photos.</li>
+        <li>We message you on Messenger or by text to confirm and send the payment details.</li>
+        <li>You get your phone at your booked pick-up time.</li>
+      </ol>
+      <div class="actions"><button class="btn ghost" type="button" id="followUp">Message us your booking ref</button></div>
+      <p class="hint">Optional: copies a short note with your reference and opens our Messenger.</p>
+    </div>
+
+    <div class="sendstep" id="msgStep">
       <h3><span>1</span>Send your booking message</h3>
       <div class="msg" id="msg"></div>
       <div class="actions">
@@ -332,8 +349,8 @@ footer b{color:var(--ink)}
       </div>
     </div>
 
-    <div class="sendstep">
-      <h3><span>2</span>Send your 3 photos in the same chat</h3>
+    <div class="sendstep" id="photoStep">
+      <h3><span id="photoNum">2</span><b id="photoTitle" style="font-weight:inherit">Send your 3 photos in the same chat</b></h3>
       <div class="photos" id="photoPreview"></div>
       <div class="actions">
         <button class="btn brand" type="button" id="sharePhotos" hidden>Share my 3 photos</button>
@@ -341,7 +358,7 @@ footer b{color:var(--ink)}
       <p class="hint" id="photoHint">In Messenger, tap the photo button and choose your selfie with 2 IDs, proof of billing and signed ID.</p>
     </div>
 
-    <div class="actions" style="margin-top:20px">
+    <div class="actions" style="margin-top:20px" id="editRow">
       <button class="btn ghost" type="button" id="edit">Change details</button>
     </div>
     <div class="toast" id="toast" role="status"></div>
@@ -355,7 +372,7 @@ footer b{color:var(--ink)}
   <section class="how">
     <h2>How renting works</h2>
     <ol>
-      <li><div><b>Send your booking</b><span>Fill in this form, then send the message and your 3 photos on Messenger.</span></div></li>
+      <li><div><b>Send your booking</b><span id="howSend">Fill in this form, then send the message and your 3 photos on Messenger.</span></div></li>
       <li><div><b>We confirm</b><span>We check that the phone is free on your dates and send the total and payment details. Down payments are non-refundable.</span></div></li>
       <li><div><b>Get your phone</b><span>Pick it up at <span id="placeStep">Zukiya Residences, Sampaloc</span>, or get it delivered (you pay shipping both ways). Pay the <span id="depStep">refundable deposit</span>, and we check the phone with you before handing it over.</span></div></li>
       <li><div><b>Return it on time</b><span>Each rental day is 25 hours from pick-up, and late returns are ₱100 per hour. Bring back everything that came with it. We'll send a reminder before your return time.</span></div></li>
@@ -672,7 +689,8 @@ footer b{color:var(--ink)}
       name: $('name').value.trim(), address: $('address').value.trim(), mobile: prettyMobile($('mobile').value.trim()),
       social: $('social').value.trim(), purpose: $('purpose').value.trim(),
       ecName: $('ecName').value.trim(), ecRel: $('ecRel').value.trim(), ecMobile: prettyMobile($('ecMobile').value.trim()),
-      ecAddress: $('ecAddress').value.trim(), notes: $('notes').value.trim(), website: $('website').value
+      ecAddress: $('ecAddress').value.trim(), notes: $('notes').value.trim(), website: $('website').value,
+      message: buildMessage(ref)
     };
     /* Sent as plain text so the browser makes a simple request the Apps Script web app accepts. */
     return fetch(SHOP.bookingSheet, { method:'POST', body: JSON.stringify(body) })
@@ -685,6 +703,38 @@ footer b{color:var(--ink)}
       }, function(){ return 'offline'; });
   }
 
+  /* Shrink a photo to at most 1600 px on its long side as a JPEG, so uploads stay quick on mobile data. */
+  function shrink(file){
+    return new Promise(function(resolve, reject){
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function(){
+        var k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/jpeg', 0.82).split(',')[1]);
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('unreadable')); };
+      img.src = url;
+    });
+  }
+  /* Upload the 3 requirement photos for a saved booking. Resolves true when they're in the sheet's Drive folder. */
+  function uploadPhotos(ref){
+    return Promise.all(SHOP.uploads.map(function(u){
+      return shrink(files[u.id]).then(function(data){ return { label: u.label, type: 'image/jpeg', data: data }; });
+    })).then(function(list){
+      return fetch(SHOP.bookingSheet, { method:'POST', body: JSON.stringify({ action:'photos', ref: ref, files: list }) });
+    }).then(function(r){ return r.json(); }).then(function(d){ return !!(d && d.ok); }, function(){ return false; });
+  }
+
+  var SUBMIT_LABEL = SHOP.bookingSheet ? 'Submit my booking ' : 'Review my booking ';
+  if(SHOP.bookingSheet){
+    $('upHint').textContent = 'Choose a photo for each. They are sent privately to ' + SHOP.name + ' with your booking.';
+    $('howSend').textContent = 'Fill in this form and submit it. Your details and photos come straight to us.';
+  }
+  document.querySelector('.submit').firstChild.textContent = SUBMIT_LABEL;
+
   $('form').addEventListener('submit', function(ev){
     ev.preventDefault();
     tried = true;
@@ -694,23 +744,63 @@ footer b{color:var(--ink)}
       return;
     }
     var btn = document.querySelector('.submit'), ref = newRef();
-    btn.disabled = true; btn.firstChild.textContent = 'Saving your booking… ';
+    btn.disabled = true; btn.firstChild.textContent = 'Sending your booking… ';
     saveToSheet(ref).then(function(result){
-      btn.disabled = false; btn.firstChild.textContent = 'Review my booking ';
-      if(result === 'taken'){
+      if(result !== 'saved') return { result: result, photos: false };
+      btn.firstChild.textContent = 'Uploading your photos… ';
+      return uploadPhotos(ref).then(function(ok){ return { result: result, photos: ok }; });
+    }).then(function(r){
+      btn.disabled = false; btn.firstChild.textContent = SUBMIT_LABEL;
+      if(r.result === 'taken'){
         $('formErr').textContent = 'Sorry, that unit was just booked for those times. Choose another unit or other times.';
         $('formErr').hidden = false;
         $('models').scrollIntoView({ block:'start', behavior:'smooth' });
         return;
       }
-      showSend(ref, result);
+      showSend(ref, r.result, r.photos);
     });
   });
 
-  function showSend(ref, result){
-    $('sentHint').innerHTML = result === 'saved'
-      ? 'Your booking is <b>saved and the unit is held for you</b> while we review it. Send the message and your 3 photos so we can confirm.'
+  /* Short summary of the booking for the "Booking received" screen. */
+  function fillSummary(){
+    var m = model(), sp = span(), rows = [
+      ['Phone', label(m)],
+      ['Pick-up', nice($('start').value) + ', ' + niceTime($('time').value)],
+      ['Return', nice($('end').value) + ', ' + niceTime($('rtime').value)],
+      ['Rental', sp.days + (sp.days === 1 ? ' day' : ' days') + (m.rate ? ' · ' + peso(m.rate * sp.days) : '')],
+      ['Deposit', SHOP.deposit ? peso(SHOP.deposit) + ' (refundable)' : 'None'],
+      ['Hand-over', val('handover') + (isDelivery() ? ' (you pay shipping)' : '')],
+      ['Name', $('name').value.trim()]
+    ];
+    var dl = $('summary'); dl.innerHTML = '';
+    rows.forEach(function(r){
+      var dt = document.createElement('dt'), dd = document.createElement('dd');
+      dt.textContent = r[0]; dd.textContent = r[1]; dl.appendChild(dt); dl.appendChild(dd);
+    });
+  }
+
+  var followNote = '';
+  /* result: 'saved' (in the sheet) or 'offline' (sheet off or unreachable); photos: true when uploaded. */
+  function showSend(ref, result, photosOk){
+    var saved = result === 'saved';
+    $('sent').classList.toggle('saved', saved);
+    $('sentTitle').textContent = saved ? 'Booking received' : 'Send this to us to book';
+    $('sentHint').innerHTML = saved
+      ? 'Thank you! Your booking' + (photosOk ? ' and photos were' : ' was') + ' sent to ' + SHOP.name + ', and the unit is <b>held for you</b> while we review it.' +
+        (photosOk ? '' : ' Your photos didn\'t upload, so please send them on Messenger (below).')
       : 'Your phone is <b>not reserved yet</b>. Send the message and your 3 photos, then we\'ll check availability and reply to confirm.';
+    $('savedStep').hidden = !saved;
+    $('msgStep').hidden = saved;
+    $('photoStep').hidden = saved && photosOk;
+    $('editRow').hidden = saved;
+    $('photoNum').textContent = saved ? '!' : '2';
+    $('photoTitle').textContent = saved ? 'Send your 3 photos on Messenger' : 'Send your 3 photos in the same chat';
+    if(saved){
+      fillSummary();
+      var m = model();
+      followNote = 'Hi ' + SHOP.name + '! I submitted booking ' + ref + ': ' + label(m) + ', ' +
+        nice($('start').value) + ' ' + niceTime($('time').value) + ' to ' + nice($('end').value) + ' ' + niceTime($('rtime').value) + '.';
+    }
     current = buildMessage(ref);
     $('refTag').textContent = 'Ref ' + ref;
     $('msg').textContent = current;
@@ -750,6 +840,13 @@ footer b{color:var(--ink)}
       $('toast').textContent = 'Couldn\'t share from here. Attach the photos in Messenger from your gallery.';
     });
   });
+  $('followUp').addEventListener('click', function(){
+    var go = function(){ window.location.href = 'https://m.me/' + encodeURIComponent(SHOP.messenger); };
+    var done = function(){ $('toast').textContent = 'Copied. Paste it in Messenger.'; go(); };
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(followNote).then(done, go);
+    else go();
+  });
+  if(!SHOP.messenger) $('followUp').closest('.sendstep').querySelector('.actions').hidden = true;
   $('edit').addEventListener('click', function(){
     $('sent').hidden = true; $('form').hidden = false; $('toast').textContent = '';
     $('form').scrollIntoView({ block:'start', behavior:'smooth' });
