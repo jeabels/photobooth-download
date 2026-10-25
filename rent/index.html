@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Book an iPhone · Snaps MNL</title>
+<meta name="description" content="Rent an iPhone from Snaps MNL in Sampaloc, Manila. Pick your phone and dates, then send your booking on Messenger or by text.">
+<meta name="theme-color" content="#8E1016">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,600;112,800;125,900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script>
+/* =============================================================================
+   Snaps MNL booking page — customers fill this in and send it to us.
+
+   There is no server: the page turns the form into one booking message that the
+   customer sends on Messenger or by SMS. The message has a "Ref" line and
+   labelled lines, so it can be pasted straight into the rental tracker
+   ("Paste a booking" on the tracker's New booking form).
+
+   EDIT THIS BLOCK to match the shop. Leave `rate` as null to hide prices.
+   ========================================================================== */
+var SHOP = {
+  name: "Snaps MNL",
+  area: "Sampaloc, Manila",
+  mobile: "09562086962",
+  /* Facebook page username or numeric page id, used for the m.me Messenger link.
+     Empty hides the Messenger button and customers send by SMS instead. */
+  messenger: "100095276233681",
+  facebookUrl: "https://www.facebook.com/profile.php?id=100095276233681",
+  deposit: 500,
+  models: [
+    { name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000 },
+    { name: "iPhone 14 Pro Max", detail: "128GB · Deep Purple",     rate: 800 },
+    { name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700 },
+    { name: "iPhone 13 Pro Max", detail: "256GB · Graphite",        rate: 700 },
+    { name: "iPhone 13",         detail: "128GB · Starlight",       rate: 600 }
+  ],
+  inclusions: ["iPhone with case", "Unit pouch", "64GB OTG file transfer", "Cleaning wipes", "Power bank", "Fast charger"],
+  handover: ["Pick up in Sampaloc", "Meet-up", "Delivery"],
+  ids: ["Driver's license", "Passport", "UMID", "National ID (PhilSys)", "Postal ID", "School ID"]
+};
+</script>
+<style>
+:root{
+  --bg:#F7F2EE; --card:#FFFFFF; --ink:#1C1012; --sub:#6E5A5C; --line:rgba(60,14,18,.12);
+  --brand:#8E1016; --brand-2:#B3161D; --on-brand:#FFFFFF; --brand-soft:rgba(142,16,22,.08);
+  --gold:#FFC22E; --on-gold:#3A1A00; --good:#18794E; --bad:#C0262D;
+  --display:'Archivo',system-ui,sans-serif; --body:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#140A0B; --card:#1F1213; --ink:#F7ECEC; --sub:#BFA6A8; --line:rgba(255,220,220,.12);
+    --brand:#C42A31; --brand-2:#E0434A; --on-brand:#FFFFFF; --brand-soft:rgba(224,67,74,.14);
+    --gold:#FFC941; --on-gold:#2E1500; --good:#4CC38A; --bad:#FF6B70;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;overflow-x:clip}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);min-height:100vh;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 40px)}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+.wrap{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+
+/* ---- hero band ---- */
+.hero{background:var(--brand);color:var(--on-brand);padding-top:env(safe-area-inset-top);position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:auto -10% -60% 40%;height:120%;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,255,255,.14),transparent);pointer-events:none}
+.hero .wrap{padding-block:20px 30px;position:relative;z-index:1}
+.brandrow{display:flex;align-items:center;gap:10px}
+.logo{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.12);display:grid;place-items:center;flex:none}
+.logo svg{width:22px;height:22px}
+.brandrow b{font-family:var(--display);font-weight:800;font-stretch:112%;font-size:17px;letter-spacing:.01em}
+.brandrow span{display:block;font-size:12.5px;opacity:.8;line-height:1.3}
+.hero h1{font-family:var(--display);font-weight:900;font-stretch:125%;font-size:clamp(34px,9vw,52px);line-height:.98;
+  letter-spacing:-.01em;text-transform:uppercase;margin-top:26px;text-wrap:balance}
+.hero p{margin-top:12px;max-width:34ch;opacity:.9}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chips span{font-size:13px;font-weight:600;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.12)}
+
+/* ---- form ---- */
+main{margin-top:-14px;position:relative;z-index:2}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px 18px;box-shadow:0 18px 40px -30px rgba(60,10,14,.5)}
+.step + .step{margin-top:26px;padding-top:24px;border-top:1px dashed var(--line)}
+.step h2{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:18px;display:flex;align-items:baseline;gap:10px}
+.step h2 i{font-style:normal;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--brand-2);letter-spacing:.06em}
+.hint{font-size:13.5px;color:var(--sub);margin-top:4px}
+.models{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:14px}
+.model{position:relative}
+.model input{position:absolute;opacity:0;pointer-events:none}
+.model label{display:flex;flex-direction:column;gap:2px;height:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;cursor:pointer;transition:border-color .15s,background .15s}
+.model label b{font-weight:700;font-size:15px;line-height:1.25}
+.model label small{font-size:12.5px;color:var(--sub)}
+.model label strong{margin-top:4px;font-family:var(--display);font-stretch:112%;font-weight:800;font-size:15px;color:var(--brand-2);font-variant-numeric:tabular-nums}
+.model input:checked + label{border-color:var(--brand-2);background:var(--brand-soft)}
+.model input:focus-visible + label{outline:2px solid var(--brand-2);outline-offset:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.grid .full{grid-column:1/-1}
+@media (max-width:420px){.grid{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field > span{font-size:13px;font-weight:600;color:var(--sub)}
+.field input,.field select,.field textarea{width:100%;min-width:0;padding:11px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);font-size:16px}
+.field textarea{min-height:76px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--brand-2)}
+.field.bad input,.field.bad select{border-color:var(--bad)}
+.err{font-size:12.5px;color:var(--bad);font-weight:600}
+.segs{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.seg{position:relative}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{display:block;padding:9px 14px;border:1.5px solid var(--line);border-radius:999px;font-weight:600;font-size:14.5px;cursor:pointer}
+.seg input:checked + label{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.seg input:focus-visible + label{outline:2px solid var(--brand-2);outline-offset:2px}
+.tally{margin-top:14px;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;padding:12px 14px;border-radius:14px;background:var(--brand-soft)}
+.tally b{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}
+.tally span{font-size:13.5px;color:var(--sub)}
+.checks{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;cursor:pointer}
+.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--brand-2);flex:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 20px;border-radius:999px;border:0;cursor:pointer;
+  font-family:var(--display);font-stretch:112%;font-weight:800;font-size:15px;letter-spacing:.02em;text-transform:uppercase;text-decoration:none}
+.btn:focus-visible{outline:2px solid var(--brand-2);outline-offset:3px}
+.btn.gold{background:var(--gold);color:var(--on-gold)}
+.btn.brand{background:var(--brand);color:var(--on-brand)}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn svg{width:18px;height:18px}
+.submit{margin-top:24px;width:100%}
+.formerr{margin-top:10px;text-align:center}
+
+/* ---- send panel ---- */
+.sent h2{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:22px}
+.ref{display:inline-block;margin-top:6px;font-family:var(--mono);font-weight:600;font-size:13px;padding:3px 9px;border-radius:8px;background:var(--brand-soft);color:var(--brand-2)}
+.msg{margin-top:14px;padding:14px;border-radius:14px;background:var(--bg);border:1px solid var(--line);font-family:var(--mono);font-size:12.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto;user-select:all}
+.actions{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.toast{font-size:13.5px;font-weight:600;color:var(--good);text-align:center;min-height:1.4em;margin-top:8px}
+
+/* ---- how it works ---- */
+.how{margin-top:30px}
+.how h2{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:18px}
+.how ol{list-style:none;counter-reset:s;margin-top:12px;display:flex;flex-direction:column;gap:12px}
+.how li{counter-increment:s;display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start}
+.how li::before{content:counter(s);width:30px;height:30px;border-radius:50%;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;
+  font-family:var(--display);font-weight:800;font-size:14px}
+.how li b{display:block}
+.incl{list-style:none;margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.incl li{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-weight:600;font-size:14.5px}
+.incl li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand-2);flex:none}
+.how li span{font-size:14px;color:var(--sub)}
+footer{margin-top:34px;font-size:13px;color:var(--sub);display:flex;flex-direction:column;gap:4px}
+footer b{color:var(--ink)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brandrow">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>
+      </div>
+      <div><b id="shopName">Snaps MNL</b><span id="shopArea">Phone rentals · Sampaloc, Manila</span></div>
+    </div>
+    <h1>Rent an iPhone</h1>
+    <p>Pick your phone and dates. We'll confirm on Messenger or by text, usually within the day.</p>
+    <div class="chips"><span>Valid ID needed</span><span id="depChip">Refundable deposit</span><span>Pickup, meet-up or delivery</span><span>Pay after we confirm</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <form class="card" id="form" novalidate>
+    <section class="step">
+      <h2><i>01</i>Choose your phone</h2>
+      <div class="models" id="models"></div>
+      <div class="err" id="modelErr" hidden>Pick a phone.</div>
+    </section>
+
+    <section class="step">
+      <h2><i>02</i>Rental dates</h2>
+      <p class="hint">Rental days are counted from pickup date to return date.</p>
+      <div class="grid">
+        <label class="field"><span>Pickup date</span><input type="date" id="start" required></label>
+        <label class="field"><span>Pickup time</span><input type="time" id="time" value="10:00" step="900"></label>
+        <label class="field full"><span>Return date</span><input type="date" id="end" required></label>
+      </div>
+      <div class="err" id="dateErr" hidden></div>
+      <div class="tally" id="tally" hidden><b id="tallyDays"></b><span id="tallyCost"></span></div>
+    </section>
+
+    <section class="step">
+      <h2><i>03</i>How you'll get it</h2>
+      <div class="segs" id="handover"></div>
+      <div class="grid" id="addrRow" hidden>
+        <label class="field full"><span>Delivery or meet-up place</span><input type="text" id="address" autocomplete="street-address" placeholder="e.g. UST España gate, or full address"></label>
+      </div>
+    </section>
+
+    <section class="step">
+      <h2><i>04</i>Your details</h2>
+      <div class="grid">
+        <label class="field full"><span>Full name (as on your ID)</span><input type="text" id="name" autocomplete="name" required></label>
+        <label class="field"><span>Mobile number</span><input type="tel" id="mobile" autocomplete="tel" inputmode="tel" placeholder="09XX XXX XXXX" required></label>
+        <label class="field"><span>Facebook name</span><input type="text" id="fb" placeholder="So we can find you on Messenger"></label>
+        <label class="field"><span>Valid ID you'll show</span><select id="idtype" required><option value="">Choose one</option></select></label>
+        <label class="field"><span>Event or use (optional)</span><input type="text" id="event" placeholder="Concert, trip, wedding…"></label>
+        <label class="field full"><span>Anything else? (optional)</span><textarea id="notes"></textarea></label>
+      </div>
+    </section>
+
+    <section class="step">
+      <h2><i>05</i>Agree to the rental terms</h2>
+      <div class="checks">
+        <label class="check"><input type="checkbox" id="t1"> I will show a valid ID and pay before the phone is released.</label>
+        <label class="check"><input type="checkbox" id="t2"> I will return the phone on the return date. Late returns are charged per extra day.</label>
+        <label class="check"><input type="checkbox" id="t3"> I will not sign out of, reset or remove the Apple ID on the phone, and I'll pay for any damage.</label>
+      </div>
+      <div class="err" id="termsErr" hidden>Tick all three to continue.</div>
+    </section>
+
+    <button class="btn gold submit" type="submit">Review my booking
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+    <div class="err formerr" id="formErr" hidden>Some details are missing. Check the fields marked in red.</div>
+  </form>
+
+  <section class="card sent" id="sent" hidden>
+    <h2>Send this to us to book</h2>
+    <span class="ref" id="refTag"></span>
+    <p class="hint">Your phone is <b>not reserved yet</b>. Send the message below. We'll check availability and reply to confirm.</p>
+    <div class="msg" id="msg"></div>
+    <div class="actions">
+      <button class="btn brand" type="button" id="sendMessenger" hidden>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.1 2 11.2c0 2.9 1.4 5.5 3.7 7.2V22l3.4-1.9c.9.3 1.9.4 2.9.4 5.5 0 10-4.1 10-9.2S17.5 2 12 2zm1 12.4-2.6-2.7-5 2.7 5.5-5.8 2.6 2.7 4.9-2.7-5.4 5.8z"/></svg>
+        Copy &amp; open Messenger</button>
+      <a class="btn brand" id="sendSms" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
+        <span id="smsLabel">Send by text</span></a>
+      <button class="btn ghost" type="button" id="copy">Copy message</button>
+      <button class="btn ghost" type="button" id="edit">Change details</button>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+  </section>
+
+  <section class="how">
+    <h2>Every rental includes</h2>
+    <ul class="incl" id="inclusions"></ul>
+  </section>
+
+  <section class="how">
+    <h2>How renting works</h2>
+    <ol>
+      <li><div><b>Send your booking</b><span>Fill in the form and send the message on Messenger or by text.</span></div></li>
+      <li><div><b>We confirm</b><span>We check that the phone is free on your dates and send the total and payment details.</span></div></li>
+      <li><div><b>Get your phone</b><span>Show your valid ID and pay the <span id="depStep">refundable deposit</span> at pickup, meet-up or delivery. We check the phone with you before handing it over.</span></div></li>
+      <li><div><b>Get your deposit back</b><span>Return the phone on time and in the same condition, and we give the deposit back on the spot.</span></div></li>
+      <li><div><b>Return it on time</b><span>Bring it back on your return date, with everything that came with it. We'll send a reminder the day before.</span></div></li>
+    </ol>
+  </section>
+
+  <footer>
+    <b id="footName">Snaps MNL</b>
+    <span id="footArea">Sampaloc, Manila</span>
+    <span>Text or call <span class="mono" id="footMobile"></span></span>
+    <span id="footFb"></span>
+  </footer>
+</main>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var DRAFT_KEY = 'snapsmnl_booking_draft';
+
+  /* ---- dates ---- */
+  function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function parse(s){ var p = s.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+  function addDays(s, n){ var d = parse(s); d.setDate(d.getDate()+n); return iso(d); }
+  function daysBetween(a, b){ return Math.round((parse(b) - parse(a)) / 864e5); }
+  function nice(s){ return parse(s).toLocaleDateString('en-PH', { weekday:'short', month:'short', day:'numeric', year:'numeric' }); }
+  function niceTime(t){
+    if(!t) return '';
+    var h = +t.slice(0,2), m = t.slice(3,5);
+    return ((h % 12) || 12) + ':' + m + (h < 12 ? ' AM' : ' PM');
+  }
+  function peso(n){ return '₱' + Number(n).toLocaleString('en-PH'); }
+  function prettyMobile(m){ var d = m.replace(/\D/g,''); return d.length === 11 ? d.slice(0,4)+' '+d.slice(4,7)+' '+d.slice(7) : m; }
+
+  /* ---- shop details ---- */
+  $('shopName').textContent = SHOP.name;
+  $('footName').textContent = SHOP.name;
+  $('shopArea').textContent = 'Phone rentals · ' + SHOP.area;
+  $('footArea').textContent = SHOP.area;
+  $('footMobile').textContent = prettyMobile(SHOP.mobile);
+  if(SHOP.facebookUrl){
+    var a = document.createElement('a'); a.href = SHOP.facebookUrl; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = 'Facebook: ' + SHOP.name; a.style.color = 'inherit'; $('footFb').appendChild(a);
+  } else {
+    $('footFb').textContent = 'Facebook: ' + SHOP.name;
+  }
+  $('smsLabel').textContent = 'Text it to ' + prettyMobile(SHOP.mobile);
+  if(SHOP.deposit){ $('depChip').textContent = peso(SHOP.deposit) + ' refundable deposit'; $('depStep').textContent = peso(SHOP.deposit) + ' refundable deposit'; }
+  else { $('depChip').hidden = true; }
+  if(SHOP.messenger) $('sendMessenger').hidden = false;
+
+  /* ---- build choices ---- */
+  SHOP.models.forEach(function(m, i){
+    var wrap = document.createElement('div'); wrap.className = 'model';
+    wrap.innerHTML = '<input type="radio" name="model" id="m'+i+'"><label for="m'+i+'"><b></b><small></small><strong></strong></label>';
+    wrap.querySelector('input').value = label(m);
+    wrap.querySelector('b').textContent = m.name;
+    wrap.querySelector('small').textContent = m.detail || '';
+    wrap.querySelector('strong').textContent = m.rate ? peso(m.rate) + ' / day' : 'Rate on confirmation';
+    $('models').appendChild(wrap);
+  });
+  SHOP.handover.forEach(function(h, i){
+    var wrap = document.createElement('div'); wrap.className = 'seg';
+    wrap.innerHTML = '<input type="radio" name="handover" id="h'+i+'"'+(i===0?' checked':'')+'><label for="h'+i+'"></label>';
+    wrap.querySelector('input').value = h;
+    wrap.querySelector('label').textContent = h;
+    $('handover').appendChild(wrap);
+  });
+  (SHOP.inclusions || []).forEach(function(t){ var li = document.createElement('li'); li.textContent = t; $('inclusions').appendChild(li); });
+  if(!(SHOP.inclusions || []).length) $('inclusions').closest('section').hidden = true;
+  SHOP.ids.forEach(function(t){ var o = document.createElement('option'); o.value = o.textContent = t; $('idtype').appendChild(o); });
+
+  var today = iso(new Date());
+  $('start').min = today;
+  $('end').min = addDays(today, 1);
+
+  function val(name){ var el = document.querySelector('input[name="'+name+'"]:checked'); return el ? el.value : ''; }
+  function label(m){ return m.name + (m.detail ? ' (' + m.detail + ')' : ''); }
+  function model(){ var n = val('model'); return SHOP.models.filter(function(m){ return label(m) === n; })[0]; }
+
+  /* ---- live tally ---- */
+  function refresh(){
+    var s = $('start').value, e = $('end').value;
+    if(s) $('end').min = addDays(s, 1);
+    var ok = s && e && daysBetween(s, e) >= 1;
+    $('tally').hidden = !ok;
+    if(ok){
+      var n = daysBetween(s, e), m = model();
+      $('tallyDays').textContent = n + (n === 1 ? ' day' : ' days');
+      $('tallyCost').textContent = m && m.rate
+        ? peso(m.rate * n) + ' rental' + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' refundable deposit' : '') + (val('handover') === 'Delivery' ? ' + delivery fee' : '')
+        : nice(s) + ' to ' + nice(e);
+    }
+    $('addrRow').hidden = val('handover') === SHOP.handover[0];
+  }
+
+  /* ---- draft (kept in this browser only) ---- */
+  var fields = ['start','time','end','address','name','mobile','fb','idtype','event','notes'];
+  function saveDraft(){
+    var d = { model: val('model'), handover: val('handover') };
+    fields.forEach(function(f){ d[f] = $(f).value; });
+    try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); }catch(e){}
+  }
+  function loadDraft(){
+    var d; try{ d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); }catch(e){}
+    if(!d) return;
+    fields.forEach(function(f){ if(d[f] != null) $(f).value = d[f]; });
+    if(d.start && d.start < today){ $('start').value = ''; $('end').value = ''; }
+    document.querySelectorAll('input[name="model"],input[name="handover"]').forEach(function(r){
+      if(r.value === d[r.name]) r.checked = true;
+    });
+  }
+  loadDraft();
+  refresh();
+  $('form').addEventListener('input', function(){ refresh(); saveDraft(); });
+  $('form').addEventListener('change', function(){ refresh(); saveDraft(); });
+
+  /* ---- validation ---- */
+  function mark(id, bad){ $(id).closest('.field').classList.toggle('bad', bad); return bad; }
+  function validate(){
+    var bad = false;
+    $('modelErr').hidden = !!val('model'); if(!val('model')) bad = true;
+    var s = $('start').value, e = $('end').value, msg = '';
+    if(!s || !e) msg = 'Choose your pickup and return dates.';
+    else if(s < today) msg = 'The pickup date has already passed.';
+    else if(daysBetween(s, e) < 1) msg = 'The return date must be after the pickup date.';
+    $('dateErr').textContent = msg; $('dateErr').hidden = !msg;
+    mark('start', !s || !!msg && msg.indexOf('pickup date') > -1); mark('end', !e || !!msg && msg.indexOf('return date') > -1);
+    if(msg) bad = true;
+    if(mark('name', $('name').value.trim().length < 3)) bad = true;
+    if(mark('mobile', $('mobile').value.replace(/\D/g,'').length < 10)) bad = true;
+    if(mark('idtype', !$('idtype').value)) bad = true;
+    if(val('handover') !== SHOP.handover[0] && mark('address', !$('address').value.trim())) bad = true;
+    if(val('handover') === SHOP.handover[0]) mark('address', false);
+    var terms = $('t1').checked && $('t2').checked && $('t3').checked;
+    $('termsErr').hidden = terms; if(!terms) bad = true;
+    $('formErr').hidden = !bad;
+    return !bad;
+  }
+
+  /* ---- booking message ---- */
+  function newRef(){
+    var abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r = '';
+    for(var i = 0; i < 4; i++) r += abc[Math.floor(Math.random() * abc.length)];
+    return 'SNP-' + r;
+  }
+  var current = '';
+  function buildMessage(ref){
+    var s = $('start').value, e = $('end').value, n = daysBetween(s, e), m = model(), h = val('handover');
+    var lines = [
+      SHOP.name.toUpperCase() + ' BOOKING REQUEST',
+      'Ref: ' + ref,
+      'Phone: ' + label(m),
+      'Pickup: ' + nice(s) + ' ' + niceTime($('time').value) + ' (' + s + ')',
+      'Return: ' + nice(e) + ' (' + e + ')',
+      'Days: ' + n
+    ];
+    if(m.rate) lines.push('Estimate: ' + peso(m.rate * n) + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' deposit' : ''));
+    lines.push('Handover: ' + h + (h !== SHOP.handover[0] ? ' - ' + $('address').value.trim() : ''));
+    lines.push('Name: ' + $('name').value.trim());
+    lines.push('Mobile: ' + prettyMobile($('mobile').value.trim()));
+    if($('fb').value.trim()) lines.push('Facebook: ' + $('fb').value.trim());
+    lines.push('Valid ID: ' + $('idtype').value);
+    if($('event').value.trim()) lines.push('Event: ' + $('event').value.trim());
+    if($('notes').value.trim()) lines.push('Notes: ' + $('notes').value.trim().replace(/\s*\n\s*/g, ' / '));
+    return lines.join('\n');
+  }
+
+  $('form').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    if(!validate()){
+      var first = document.querySelector('.field.bad input,.field.bad select,.err:not([hidden])');
+      if(first) first.scrollIntoView({ block:'center', behavior:'smooth' });
+      return;
+    }
+    var ref = newRef();
+    current = buildMessage(ref);
+    $('refTag').textContent = 'Ref ' + ref;
+    $('msg').textContent = current;
+    $('sendSms').href = 'sms:' + SHOP.mobile + '?body=' + encodeURIComponent(current);
+    $('form').hidden = true; $('sent').hidden = false;
+    $('sent').scrollIntoView({ block:'start', behavior:'smooth' });
+  });
+
+  function copy(then){
+    var done = function(){ $('toast').textContent = 'Copied. Paste it in your message to us.'; if(then) then(); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(current).then(done, function(){ selectMsg(); if(then) then(); });
+    } else { selectMsg(); if(then) then(); }
+  }
+  function selectMsg(){
+    var r = document.createRange(); r.selectNodeContents($('msg'));
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    $('toast').textContent = 'Message selected. Copy it, then paste it in your message to us.';
+  }
+  $('copy').addEventListener('click', function(){ copy(); });
+  $('sendMessenger').addEventListener('click', function(){
+    copy(function(){ window.location.href = 'https://m.me/' + encodeURIComponent(SHOP.messenger); });
+  });
+  $('edit').addEventListener('click', function(){
+    $('sent').hidden = true; $('form').hidden = false; $('toast').textContent = '';
+    $('form').scrollIntoView({ block:'start', behavior:'smooth' });
+  });
+})();
+</script>
+</body>
+</html>
