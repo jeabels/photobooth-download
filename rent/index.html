@@ -29,11 +29,13 @@ var SHOP = {
   messenger: "",
   facebookUrl: "",
   models: [
-    { name: "iPhone 15 Pro Max", rate: null },
-    { name: "iPhone 15 Pro",     rate: null },
-    { name: "iPhone 14 Pro Max", rate: null },
-    { name: "iPhone 13",         rate: null }
+    { name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000 },
+    { name: "iPhone 14 Pro Max", detail: "128GB · Deep Purple",     rate: 800 },
+    { name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700 },
+    { name: "iPhone 13 Pro Max", detail: "256GB · Space Black",     rate: 700 },
+    { name: "iPhone 13",         detail: "128GB · Starlight",       rate: 600 }
   ],
+  inclusions: ["iPhone with case", "Unit pouch", "64GB OTG file transfer", "Cleaning wipes", "Power bank", "Fast charger"],
   handover: ["Pick up in Sampaloc", "Meet-up", "Delivery"],
   ids: ["Driver's license", "Passport", "UMID", "National ID (PhilSys)", "Postal ID", "School ID"]
 };
@@ -92,6 +94,7 @@ main{margin-top:-14px;position:relative;z-index:2}
 .model label{display:flex;flex-direction:column;gap:2px;height:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;cursor:pointer;transition:border-color .15s,background .15s}
 .model label b{font-weight:700;font-size:15px;line-height:1.25}
 .model label small{font-size:12.5px;color:var(--sub)}
+.model label strong{margin-top:4px;font-family:var(--display);font-stretch:112%;font-weight:800;font-size:15px;color:var(--brand-2);font-variant-numeric:tabular-nums}
 .model input:checked + label{border-color:var(--brand-2);background:var(--brand-soft)}
 .model input:focus-visible + label{outline:2px solid var(--brand-2);outline-offset:2px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
@@ -141,6 +144,9 @@ main{margin-top:-14px;position:relative;z-index:2}
 .how li::before{content:counter(s);width:30px;height:30px;border-radius:50%;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;
   font-family:var(--display);font-weight:800;font-size:14px}
 .how li b{display:block}
+.incl{list-style:none;margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.incl li{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-weight:600;font-size:14.5px}
+.incl li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand-2);flex:none}
 .how li span{font-size:14px;color:var(--sub)}
 footer{margin-top:34px;font-size:13px;color:var(--sub);display:flex;flex-direction:column;gap:4px}
 footer b{color:var(--ink)}
@@ -239,12 +245,17 @@ footer b{color:var(--ink)}
   </section>
 
   <section class="how">
+    <h2>Every rental includes</h2>
+    <ul class="incl" id="inclusions"></ul>
+  </section>
+
+  <section class="how">
     <h2>How renting works</h2>
     <ol>
       <li><div><b>Send your booking</b><span>Fill in the form and send the message on Messenger or by text.</span></div></li>
       <li><div><b>We confirm</b><span>We check that the phone is free on your dates and send the total and payment details.</span></div></li>
       <li><div><b>Get your phone</b><span>Show your valid ID at pickup, meet-up or delivery. We check the phone with you before handing it over.</span></div></li>
-      <li><div><b>Return it on time</b><span>Bring it back on your return date, with the charger. We'll send a reminder the day before.</span></div></li>
+      <li><div><b>Return it on time</b><span>Bring it back on your return date, with everything that came with it. We'll send a reminder the day before.</span></div></li>
     </ol>
   </section>
 
@@ -293,10 +304,11 @@ footer b{color:var(--ink)}
   /* ---- build choices ---- */
   SHOP.models.forEach(function(m, i){
     var wrap = document.createElement('div'); wrap.className = 'model';
-    wrap.innerHTML = '<input type="radio" name="model" id="m'+i+'"><label for="m'+i+'"><b></b><small></small></label>';
-    wrap.querySelector('input').value = m.name;
+    wrap.innerHTML = '<input type="radio" name="model" id="m'+i+'"><label for="m'+i+'"><b></b><small></small><strong></strong></label>';
+    wrap.querySelector('input').value = label(m);
     wrap.querySelector('b').textContent = m.name;
-    wrap.querySelector('small').textContent = m.rate ? peso(m.rate) + ' / day' : 'Rate on confirmation';
+    wrap.querySelector('small').textContent = m.detail || '';
+    wrap.querySelector('strong').textContent = m.rate ? peso(m.rate) + ' / day' : 'Rate on confirmation';
     $('models').appendChild(wrap);
   });
   SHOP.handover.forEach(function(h, i){
@@ -306,6 +318,8 @@ footer b{color:var(--ink)}
     wrap.querySelector('label').textContent = h;
     $('handover').appendChild(wrap);
   });
+  (SHOP.inclusions || []).forEach(function(t){ var li = document.createElement('li'); li.textContent = t; $('inclusions').appendChild(li); });
+  if(!(SHOP.inclusions || []).length) $('inclusions').closest('section').hidden = true;
   SHOP.ids.forEach(function(t){ var o = document.createElement('option'); o.value = o.textContent = t; $('idtype').appendChild(o); });
 
   var today = iso(new Date());
@@ -313,7 +327,8 @@ footer b{color:var(--ink)}
   $('end').min = addDays(today, 1);
 
   function val(name){ var el = document.querySelector('input[name="'+name+'"]:checked'); return el ? el.value : ''; }
-  function model(){ var n = val('model'); return SHOP.models.filter(function(m){ return m.name === n; })[0]; }
+  function label(m){ return m.name + (m.detail ? ' (' + m.detail + ')' : ''); }
+  function model(){ var n = val('model'); return SHOP.models.filter(function(m){ return label(m) === n; })[0]; }
 
   /* ---- live tally ---- */
   function refresh(){
@@ -387,7 +402,7 @@ footer b{color:var(--ink)}
     var lines = [
       SHOP.name.toUpperCase() + ' BOOKING REQUEST',
       'Ref: ' + ref,
-      'Phone: ' + m.name,
+      'Phone: ' + label(m),
       'Pickup: ' + nice(s) + ' ' + niceTime($('time').value) + ' (' + s + ')',
       'Return: ' + nice(e) + ' (' + e + ')',
       'Days: ' + n
