@@ -94,27 +94,16 @@ button,input,select,textarea{font:inherit;color:inherit}
 .wrap{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
 
 /* ---- hero band ---- */
-/* The shop's banner sits behind the heading, under a dark red wash so the text stays readable. */
-.hero{background:#8E1016 url("units/banner.webp") center/cover no-repeat;color:#FFFFFF;padding-top:env(safe-area-inset-top);position:relative;overflow:hidden}
-.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(92,6,12,.80) 0%,rgba(110,8,14,.74) 45%,rgba(92,6,12,.88) 100%)}
-/* On phones the banner is zoomed in and its own lettering is large, so wash it a little more. */
-@media (max-width:640px){
-  .hero::before{background:linear-gradient(180deg,rgba(92,6,12,.86) 0%,rgba(110,8,14,.82) 45%,rgba(92,6,12,.92) 100%)}
-}
-.hero .wrap{padding-block:20px 30px;position:relative;z-index:1;text-shadow:0 1px 10px rgba(40,0,4,.45)}
-.hero .chips span{background:rgba(40,0,4,.45);backdrop-filter:blur(2px)}
-.brandrow{display:flex;align-items:center;gap:10px}
-.logo{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.12);display:grid;place-items:center;flex:none}
-.logo svg{width:22px;height:22px}
-.brandrow b{font-family:var(--display);font-weight:800;font-stretch:112%;font-size:17px;letter-spacing:.01em}
-.brandrow span{display:block;font-size:12.5px;opacity:.8;line-height:1.3}
-.hero h1{font-family:var(--display);font-weight:900;font-stretch:125%;font-size:clamp(30px,8vw,48px);line-height:1;
-  letter-spacing:-.01em;text-transform:uppercase;margin-top:24px;text-wrap:balance}
-.hero p{margin-top:12px;max-width:44ch;opacity:.92}
+/* The shop's banner shown as-is at the top; the heading and intro sit below it in smaller type. */
+.hero{background:#7C0507;color:#FFFFFF;padding-top:env(safe-area-inset-top)}
+.banner{display:block;width:100%;max-width:none;height:auto;aspect-ratio:3/1}
+.hero .wrap{padding-block:10px 26px}
+.hero h1{font-family:var(--display);font-weight:800;font-stretch:112%;font-size:16px;line-height:1.25;letter-spacing:.01em;text-wrap:balance}
+.hero h1 small{display:block;font-family:var(--body);font-weight:600;font-stretch:100%;font-size:12px;opacity:.8;letter-spacing:0;margin-top:1px}
+.hero p{margin-top:6px;max-width:70ch;font-size:13px;line-height:1.5;opacity:.92}
 .hero p b{font-weight:700}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
-.chips span{font-size:13px;font-weight:600;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.12)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.chips span{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.14)}
 
 /* ---- form ---- */
 main{margin-top:-14px;position:relative;z-index:2}
@@ -232,14 +221,9 @@ footer b{color:var(--ink)}
 <body>
 
 <header class="hero">
+  <img class="banner" src="units/banner.webp" width="960" height="320" alt="Rent an iPhone with Snaps MNL. Your most trusted and affordable rental phone.">
   <div class="wrap">
-    <div class="brandrow">
-      <div class="logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>
-      </div>
-      <div><b id="shopName">Snaps MNL</b><span id="shopArea">Phone rentals · Sampaloc, Manila</span></div>
-    </div>
-    <h1>Phone Rental Booking Form</h1>
+    <h1><span id="shopName">Snaps MNL</span> | Phone Rental Booking Form<small id="shopArea">Phone rentals · Sampaloc, Manila</small></h1>
     <p><b>Hello, Renters! 🤍</b> Thank you for choosing Snaps MNL. To ensure a smooth and seamless transaction, please fill out this form completely and provide the necessary requirements. We can't wait to help you capture your golden moments!</p>
     <div class="chips"><span>2 government IDs</span><span id="depChip">Refundable deposit</span><span>25 hours per rental day</span><span>Pick-up at Zukiya Residences or delivery</span></div>
   </div>
