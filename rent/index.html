@@ -33,12 +33,13 @@ var SHOP = {
   deposit: 500,
   hoursPerDay: 25,        /* one rental day = 25 hours from pick-up */
   lateFeePerHour: 100,
+  /* `poster` is the unit's rate-and-inclusions poster in rent/units/ (shown on the card, tap to enlarge). */
   models: [
-    { name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000 },
-    { name: "iPhone 14 Pro Max", detail: "128GB · Space Black",     rate: 800 },
-    { name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700 },
-    { name: "iPhone 13 Pro Max", detail: "256GB · Graphite",        rate: 700 },
-    { name: "iPhone 13",         detail: "128GB · Starlight",       rate: 600 }
+    { name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000, poster: "units/iphone-16-pro-desert-titanium.webp" },
+    { name: "iPhone 14 Pro Max", detail: "128GB · Space Black",     rate: 800,  poster: "units/iphone-14-pro-max.webp" },
+    { name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700,  poster: "units/iphone-13-pro-max-sierra-blue.webp" },
+    { name: "iPhone 13 Pro Max", detail: "256GB · Graphite",        rate: 700,  poster: "units/iphone-13-pro-max-graphite.webp" },
+    { name: "iPhone 13",         detail: "128GB · Starlight",       rate: 600,  poster: "units/iphone-13-starlight.webp" }
   ],
   inclusions: ["iPhone with case", "Unit pouch", "64GB OTG file transfer", "Cleaning wipes", "Power bank", "Fast charger"],
   handover: ["Pick up at Zukiya Residences", "Delivery"],
@@ -119,11 +120,22 @@ main{margin-top:-14px;position:relative;z-index:2}
 .models{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:14px}
 .model{position:relative}
 .model input{position:absolute;opacity:0;pointer-events:none}
-.model label{display:flex;flex-direction:column;gap:2px;height:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;cursor:pointer;transition:border-color .15s,background .15s}
+.model label{display:flex;flex-direction:column;gap:2px;height:100%;overflow:hidden;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;cursor:pointer;transition:border-color .15s,background .15s}
 .model label b{font-weight:700;font-size:15px;line-height:1.25}
 .model label small{font-size:12.5px;color:var(--sub)}
 .model label strong{margin-top:4px;font-family:var(--display);font-stretch:112%;font-weight:800;font-size:15px;color:var(--brand-2);font-variant-numeric:tabular-nums}
+.model label img{display:block;width:calc(100% + 28px);max-width:none;height:auto;aspect-ratio:4/5;flex:none;object-fit:cover;margin:-12px -14px 8px;border-radius:12px 12px 0 0;background:var(--bg)}
+.zoom{position:absolute;top:8px;right:8px;z-index:1;width:34px;height:34px;border-radius:50%;border:0;cursor:pointer;
+  background:rgba(20,6,8,.62);color:#fff;display:grid;place-items:center}
+.zoom svg{width:17px;height:17px}
+.zoom:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .model input:checked + label{border-color:var(--brand-2);background:var(--brand-soft)}
+.model input:checked + label::after{content:"✓ Selected";position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:999px;background:var(--brand-2);color:#fff;font-size:12px;font-weight:700}
+.lightbox{border:0;padding:0;background:transparent;max-width:min(560px,94vw);max-height:94vh;margin:auto}
+.lightbox::backdrop{background:rgba(10,4,5,.85)}
+.lightbox img{display:block;width:100%;max-height:86vh;object-fit:contain;border-radius:14px}
+.lightbox .lb-bar{display:flex;gap:8px;margin-top:10px}
+.lightbox .lb-bar .btn{flex:1;padding:12px 14px;font-size:14px}
 .model input:focus-visible + label{outline:2px solid var(--brand-2);outline-offset:2px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
 .grid .full{grid-column:1/-1}
@@ -230,6 +242,7 @@ footer b{color:var(--ink)}
   <form class="card" id="form" novalidate>
     <section class="step">
       <h2><i>01</i>iPhone model to rent</h2>
+      <p class="hint">Tap a unit to choose it. Tap the magnifier to see its full poster.</p>
       <div class="models" id="models"></div>
       <div class="err" id="modelErr" hidden>Pick a phone.</div>
     </section>
@@ -358,6 +371,14 @@ footer b{color:var(--ink)}
     </ol>
   </section>
 
+  <dialog class="lightbox" id="lightbox" aria-label="Unit poster">
+    <img id="lbImg" alt="">
+    <div class="lb-bar">
+      <button class="btn gold" type="button" id="lbPick">Rent this unit</button>
+      <button class="btn ghost" type="button" id="lbClose" style="background:var(--card)">Close</button>
+    </div>
+  </dialog>
+
   <footer>
     <b id="footName">Snaps MNL</b>
     <span id="footArea">Sampaloc, Manila</span>
@@ -413,12 +434,32 @@ footer b{color:var(--ink)}
   /* ---- build choices ---- */
   SHOP.models.forEach(function(m, i){
     var wrap = document.createElement('div'); wrap.className = 'model';
-    wrap.innerHTML = '<input type="radio" name="model" id="m'+i+'"><label for="m'+i+'"><b></b><small></small><strong></strong></label>';
+    wrap.innerHTML = '<input type="radio" name="model" id="m'+i+'"><label for="m'+i+'">' +
+      (m.poster ? '<img loading="lazy" width="864" height="1080" alt="">' : '') + '<b></b><small></small><strong></strong></label>' +
+      (m.poster ? '<button class="zoom" type="button" aria-label="See the full poster"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8M10.5 7.5v6M7.5 10.5h6"/></svg></button>' : '');
+    if(m.poster){
+      var img = wrap.querySelector('img'); img.src = m.poster; img.alt = label(m) + ' rate and inclusions';
+      wrap.querySelector('.zoom').addEventListener('click', function(){ openPoster(i); });
+    }
     wrap.querySelector('input').value = label(m);
     wrap.querySelector('b').textContent = m.name;
     wrap.querySelector('small').textContent = m.detail || '';
     wrap.querySelector('strong').textContent = m.rate ? peso(m.rate) + ' / day' : 'Rate on confirmation';
     $('models').appendChild(wrap);
+  });
+  /* Full-size poster, with a button to pick that unit. */
+  var lbIndex = -1;
+  function openPoster(i){
+    var m = SHOP.models[i]; lbIndex = i;
+    $('lbImg').src = m.poster; $('lbImg').alt = label(m) + ' rate and inclusions';
+    if($('lightbox').showModal) $('lightbox').showModal(); else $('lightbox').setAttribute('open', '');
+  }
+  function closePoster(){ if($('lightbox').close) $('lightbox').close(); else $('lightbox').removeAttribute('open'); }
+  $('lbClose').addEventListener('click', closePoster);
+  $('lightbox').addEventListener('click', function(e){ if(e.target === this) closePoster(); });
+  $('lbPick').addEventListener('click', function(){
+    var r = $('m' + lbIndex); r.checked = true; r.dispatchEvent(new Event('change', { bubbles:true }));
+    closePoster(); r.closest('.model').scrollIntoView({ block:'center', behavior:'smooth' });
   });
   SHOP.handover.forEach(function(h, i){
     var wrap = document.createElement('div'); wrap.className = 'seg';
