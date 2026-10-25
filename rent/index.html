@@ -34,14 +34,18 @@ var SHOP = {
   hoursPerDay: 25,        /* one rental day = 25 hours from pick-up */
   lateFeePerHour: 100,
   /* `poster` is the unit's rate-and-inclusions poster in rent/units/ (shown on the card, tap to enlarge). */
+  /* `id` must match UNIT_IDS in rent/google-sheet/Code.gs (the sheet's Unit ID column). */
   models: [
-    { name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000, poster: "units/iphone-16-pro-desert-titanium.webp" },
-    { name: "iPhone 14 Pro Max", detail: "128GB · Space Black",     rate: 800,  poster: "units/iphone-14-pro-max.webp" },
-    { name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700,  poster: "units/iphone-13-pro-max-sierra-blue.webp" },
-    { name: "iPhone 13 Pro Max", detail: "256GB · Graphite",        rate: 700,  poster: "units/iphone-13-pro-max-graphite.webp" },
-    { name: "iPhone 13",         detail: "128GB · Starlight #Z1",   rate: 600,  poster: "units/iphone-13-starlight.webp" },
-    { name: "iPhone 13",         detail: "128GB · Starlight #J2",   rate: 600,  poster: "units/iphone-13-starlight.webp" }
+    { id: "16pro-desert",    name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000, poster: "units/iphone-16-pro-desert-titanium.webp" },
+    { id: "14pm-black",      name: "iPhone 14 Pro Max", detail: "128GB · Space Black",     rate: 800,  poster: "units/iphone-14-pro-max.webp" },
+    { id: "13pm-blue",       name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700,  poster: "units/iphone-13-pro-max-sierra-blue.webp" },
+    { id: "13pm-graphite",   name: "iPhone 13 Pro Max", detail: "256GB · Graphite",        rate: 700,  poster: "units/iphone-13-pro-max-graphite.webp" },
+    { id: "13-starlight-z1", name: "iPhone 13",         detail: "128GB · Starlight #Z1",   rate: 600,  poster: "units/iphone-13-starlight.webp" },
+    { id: "13-starlight-j2", name: "iPhone 13",         detail: "128GB · Starlight #J2",   rate: 600,  poster: "units/iphone-13-starlight.webp" }
   ],
+  /* Google Sheet web app (rent/google-sheet/Code.gs). When set, bookings are saved to the
+     sheet and units already booked for the chosen times can't be picked. Empty turns this off. */
+  bookingSheet: "https://script.google.com/macros/s/AKfycbwRmFXakF4wRTaYUwm5BcgIwgAMEvOm4E7C4YDVSeqcHrE96X7QB1SWi_7gqboml73pwg/exec",
   inclusions: ["iPhone with case", "Unit pouch", "64GB OTG file transfer", "Cleaning wipes", "Power bank", "Fast charger"],
   handover: ["Pick up at Zukiya Residences", "Delivery"],
   uploads: [
@@ -119,6 +123,12 @@ main.wrap{margin-top:18px;position:relative;z-index:2}
   background:rgba(20,6,8,.62);color:#fff;display:grid;place-items:center}
 .zoom svg{width:17px;height:17px}
 .zoom:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.model label em{font-style:normal;font-size:12px;font-weight:700;margin-top:4px;color:var(--good)}
+.model label em:empty{display:none}
+.model.taken label{cursor:not-allowed}
+.model.taken label img{opacity:.45;filter:grayscale(.6)}
+.model.taken label em{color:var(--bad)}
+.model.taken label::after{content:"Booked";position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:999px;background:var(--bad);color:#fff;font-size:12px;font-weight:700}
 .model input:checked + label{border-color:var(--brand-2);background:var(--brand-soft)}
 .model input:checked + label::after{content:"✓ Selected";position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:999px;background:var(--brand-2);color:#fff;font-size:12px;font-weight:700}
 .lightbox{border:0;padding:0;background:transparent;max-width:min(560px,94vw);max-height:94vh;margin:auto}
@@ -298,6 +308,7 @@ footer b{color:var(--ink)}
       <div class="grid"><label class="field full"><span>Notes for us</span><textarea id="notes"></textarea></label></div>
     </section>
 
+    <input type="text" id="website" name="website" class="sr-only" tabindex="-1" autocomplete="off" aria-hidden="true">
     <button class="btn gold submit" type="submit">Review my booking
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
     </button>
@@ -307,7 +318,7 @@ footer b{color:var(--ink)}
   <section class="card sent" id="sent" hidden>
     <h2>Send this to us to book</h2>
     <span class="ref" id="refTag"></span>
-    <p class="hint">Your phone is <b>not reserved yet</b>. Send the message and your 3 photos, then we'll check availability and reply to confirm.</p>
+    <p class="hint" id="sentHint">Your phone is <b>not reserved yet</b>. Send the message and your 3 photos, then we'll check availability and reply to confirm.</p>
 
     <div class="sendstep">
       <h3><span>1</span>Send your booking message</h3>
@@ -413,7 +424,7 @@ footer b{color:var(--ink)}
   SHOP.models.forEach(function(m, i){
     var wrap = document.createElement('div'); wrap.className = 'model';
     wrap.innerHTML = '<input type="radio" name="model" id="m'+i+'"><label for="m'+i+'">' +
-      (m.poster ? '<img loading="lazy" width="864" height="1080" alt="">' : '') + '<b></b><small></small><strong></strong></label>' +
+      (m.poster ? '<img loading="lazy" width="864" height="1080" alt="">' : '') + '<b></b><small></small><strong></strong><em></em></label>' +
       (m.poster ? '<button class="zoom" type="button" aria-label="See the full poster"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8M10.5 7.5v6M7.5 10.5h6"/></svg></button>' : '');
     if(m.poster){
       var img = wrap.querySelector('img'); img.src = m.poster; img.alt = label(m) + ' rate and inclusions';
@@ -488,8 +499,54 @@ footer b{color:var(--ink)}
   function isDelivery(){ return val('handover') !== SHOP.handover[0]; }
   function ticked(prefix, n){ var c = 0; for(var i = 0; i < n; i++) if($(prefix + i).checked) c++; return c; }
 
+  /* ---- availability from the booking sheet ---- */
+  /* Booked slots: [{unit, start, end}] as ISO times. Times on this page are Manila time (+08:00). */
+  var busy = [];
+  function slot(){
+    var s = $('start').value, e = $('end').value, t = $('time').value, rt = $('rtime').value;
+    if(!s || !e || !t || !rt) return null;
+    var a = new Date(s + 'T' + t + ':00+08:00'), b = new Date(e + 'T' + rt + ':00+08:00');
+    return b > a ? { start: a, end: b } : null;
+  }
+  function when(isoStr){
+    return new Date(isoStr).toLocaleString('en-PH', { timeZone:'Asia/Manila', weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+  }
+  function clashFor(m, sl){
+    return busy.filter(function(b){ return b.unit === m.id && sl.start < new Date(b.end) && new Date(b.start) < sl.end; })[0];
+  }
+  /* Grey out units booked for the chosen times; without times, say which are rented right now. */
+  function markUnits(){
+    if(!SHOP.bookingSheet) return;
+    var sl = slot(), now = new Date(), note = '';
+    SHOP.models.forEach(function(m, i){
+      var box = $('m' + i).closest('.model'), em = box.querySelector('em');
+      var clash = sl ? clashFor(m, sl) : null;
+      var rented = busy.filter(function(b){ return b.unit === m.id && new Date(b.start) <= now && now < new Date(b.end); })[0];
+      box.classList.toggle('taken', !!clash);
+      $('m' + i).disabled = !!clash;
+      em.textContent = clash ? 'Booked until ' + when(clash.end)
+        : sl ? 'Available for your dates'
+        : rented ? 'Rented now · free from ' + when(rented.end) : '';
+      if(clash && $('m' + i).checked){
+        $('m' + i).checked = false;
+        note = label(m) + ' is booked until ' + when(clash.end) + '. Choose another unit or other times.';
+      }
+    });
+    if(note){ $('modelErr').textContent = note; $('modelErr').hidden = false; }
+    else if(val('model')) $('modelErr').hidden = true;
+  }
+  function loadBusy(){
+    if(!SHOP.bookingSheet) return;
+    fetch(SHOP.bookingSheet).then(function(r){ return r.json(); }).then(function(d){
+      busy = (d && d.busy) || []; markUnits();
+    }).catch(function(){});
+  }
+  loadBusy();
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) loadBusy(); });
+
   /* ---- live tally ---- */
   function refresh(){
+    markUnits();
     var s = $('start').value;
     if(s) $('end').min = s;
     var sp = span(), ok = sp && sp.hours > 0;
@@ -540,7 +597,8 @@ footer b{color:var(--ink)}
   function mark(id, bad){ $(id).closest('.field').classList.toggle('bad', bad); return bad; }
   function validate(){
     var bad = false;
-    $('modelErr').hidden = !!val('model'); if(!val('model')) bad = true;
+    if(!val('model')){ if($('modelErr').hidden) $('modelErr').textContent = 'Pick a phone.'; $('modelErr').hidden = false; bad = true; }
+    else $('modelErr').hidden = true;
     var s = $('start').value, e = $('end').value, sp = span(), msg = '';
     if(!s || !e || !$('time').value || !$('rtime').value) msg = 'Choose your start and end dates and times.';
     else if(s < today) msg = 'The start date has already passed.';
@@ -602,6 +660,31 @@ footer b{color:var(--ink)}
   }
 
   function photoFiles(){ return SHOP.uploads.map(function(u){ return files[u.id]; }).filter(Boolean); }
+
+  /* Save the booking to the sheet. Resolves 'saved', 'taken' or 'offline' (sheet off or unreachable). */
+  function saveToSheet(ref){
+    if(!SHOP.bookingSheet) return Promise.resolve('offline');
+    var m = model(), sl = slot(), sp = span();
+    var body = {
+      ref: ref, unitId: m.id, unit: label(m), start: sl.start.toISOString(), end: sl.end.toISOString(),
+      days: sp.days, estimate: m.rate ? m.rate * sp.days : '',
+      handover: val('handover') + (isDelivery() ? ' - ' + ($('delivery').value.trim() || $('address').value.trim()) : ''),
+      name: $('name').value.trim(), address: $('address').value.trim(), mobile: prettyMobile($('mobile').value.trim()),
+      social: $('social').value.trim(), purpose: $('purpose').value.trim(),
+      ecName: $('ecName').value.trim(), ecRel: $('ecRel').value.trim(), ecMobile: prettyMobile($('ecMobile').value.trim()),
+      ecAddress: $('ecAddress').value.trim(), notes: $('notes').value.trim(), website: $('website').value
+    };
+    /* Sent as plain text so the browser makes a simple request the Apps Script web app accepts. */
+    return fetch(SHOP.bookingSheet, { method:'POST', body: JSON.stringify(body) })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d && d.busy){ busy = d.busy; }
+        if(d && d.ok) return 'saved';
+        if(d && d.error === 'taken'){ markUnits(); return 'taken'; }
+        return 'offline';
+      }, function(){ return 'offline'; });
+  }
+
   $('form').addEventListener('submit', function(ev){
     ev.preventDefault();
     tried = true;
@@ -610,7 +693,24 @@ footer b{color:var(--ink)}
       if(first) first.scrollIntoView({ block:'center', behavior:'smooth' });
       return;
     }
-    var ref = newRef();
+    var btn = document.querySelector('.submit'), ref = newRef();
+    btn.disabled = true; btn.firstChild.textContent = 'Saving your booking… ';
+    saveToSheet(ref).then(function(result){
+      btn.disabled = false; btn.firstChild.textContent = 'Review my booking ';
+      if(result === 'taken'){
+        $('formErr').textContent = 'Sorry, that unit was just booked for those times. Choose another unit or other times.';
+        $('formErr').hidden = false;
+        $('models').scrollIntoView({ block:'start', behavior:'smooth' });
+        return;
+      }
+      showSend(ref, result);
+    });
+  });
+
+  function showSend(ref, result){
+    $('sentHint').innerHTML = result === 'saved'
+      ? 'Your booking is <b>saved and the unit is held for you</b> while we review it. Send the message and your 3 photos so we can confirm.'
+      : 'Your phone is <b>not reserved yet</b>. Send the message and your 3 photos, then we\'ll check availability and reply to confirm.';
     current = buildMessage(ref);
     $('refTag').textContent = 'Ref ' + ref;
     $('msg').textContent = current;
@@ -625,7 +725,7 @@ footer b{color:var(--ink)}
       : 'In the same Messenger chat, tap the photo button and choose your selfie with 2 IDs, proof of billing and signed ID.';
     $('form').hidden = true; $('sent').hidden = false;
     $('sent').scrollIntoView({ block:'start', behavior:'smooth' });
-  });
+  }
 
   function copy(then){
     var done = function(){ $('toast').textContent = 'Copied. Paste it in your message to us.'; if(then) then(); };
