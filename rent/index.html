@@ -3,19 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Book an iPhone · Snaps MNL</title>
-<meta name="description" content="Rent an iPhone from Snaps MNL in Sampaloc, Manila. Pick your phone and dates, then send your booking on Messenger or by text.">
+<title>Phone Rental Booking Form · Snaps MNL</title>
+<meta name="description" content="Rent an iPhone from Snaps MNL in Sampaloc, Manila. Fill in the booking form, then send it with your requirements on Messenger.">
 <meta name="theme-color" content="#8E1016">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,600;112,800;125,900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script>
 /* =============================================================================
-   Snaps MNL booking page — customers fill this in and send it to us.
+   Snaps MNL booking form — renters fill this in and send it to us.
 
    There is no server: the page turns the form into one booking message that the
-   customer sends on Messenger or by SMS. The message has a "Ref" line and
-   labelled lines, so it can be pasted straight into the rental tracker
+   renter sends on Messenger or by SMS, and the required photos stay on the
+   renter's phone until they send them in the same chat. The message has a "Ref"
+   line and labelled lines, so it can be pasted straight into the rental tracker
    ("Paste a booking" on the tracker's New booking form).
 
    EDIT THIS BLOCK to match the shop. Leave `rate` as null to hide prices.
@@ -23,12 +24,15 @@
 var SHOP = {
   name: "Snaps MNL",
   area: "Sampaloc, Manila",
+  pickupPlace: "Zukiya Residences, Sampaloc, Manila",
   mobile: "09562086962",
   /* Facebook page username or numeric page id, used for the m.me Messenger link.
-     Empty hides the Messenger button and customers send by SMS instead. */
+     Empty hides the Messenger button and renters send by SMS instead. */
   messenger: "100095276233681",
   facebookUrl: "https://www.facebook.com/profile.php?id=100095276233681",
   deposit: 500,
+  hoursPerDay: 25,        /* one rental day = 25 hours from pick-up */
+  lateFeePerHour: 100,
   models: [
     { name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000 },
     { name: "iPhone 14 Pro Max", detail: "128GB · Deep Purple",     rate: 800 },
@@ -37,8 +41,29 @@ var SHOP = {
     { name: "iPhone 13",         detail: "128GB · Starlight",       rate: 600 }
   ],
   inclusions: ["iPhone with case", "Unit pouch", "64GB OTG file transfer", "Cleaning wipes", "Power bank", "Fast charger"],
-  handover: ["Pick up in Sampaloc", "Meet-up", "Delivery"],
-  ids: ["Driver's license", "Passport", "UMID", "National ID (PhilSys)", "Postal ID", "School ID"]
+  handover: ["Pick up at Zukiya Residences", "Delivery"],
+  uploads: [
+    { id: "upSelfie",  label: "Selfie holding 2 different government IDs" },
+    { id: "upBilling", label: "Proof of billing", hint: "Must match the address on your ID." },
+    { id: "upSigned",  label: "Government ID with handwritten date and signature beside it", hint: "This confirms you have read and understood the rental terms." }
+  ],
+  policies: [
+    "Rental duration is strictly limited to 25 hours from pick-up.",
+    "A late return penalty of ₱100 per hour applies.",
+    "Down payments are non-refundable.",
+    "Pick-up and return are at Zukiya Residences, Sampaloc, Manila.",
+    "I will not jailbreak, root, or install unauthorized apps.",
+    "I am willing to pay a ₱500 security deposit (refundable).",
+    "I agree to shoulder all shipping fees, both delivery and return.",
+    "If a late return affects another renter's schedule, a penalty fee equal to the total booking rate will apply."
+  ],
+  liabilities: [
+    "Minimum penalty of ₱5,000 for any identified internal or external damage.",
+    "Liability for full repair costs if damage exceeds the initial penalty.",
+    "Obligation to pay the full replacement value in the event of loss or theft.",
+    "Late returns may result in the forfeiture of my security deposit.",
+    "Security protocol: I agree that the unit will be placed in Lost/Locked Mode if I fail to provide updates, especially when time is running out."
+  ]
 };
 </script>
 <style>
@@ -76,9 +101,10 @@ button,input,select,textarea{font:inherit;color:inherit}
 .logo svg{width:22px;height:22px}
 .brandrow b{font-family:var(--display);font-weight:800;font-stretch:112%;font-size:17px;letter-spacing:.01em}
 .brandrow span{display:block;font-size:12.5px;opacity:.8;line-height:1.3}
-.hero h1{font-family:var(--display);font-weight:900;font-stretch:125%;font-size:clamp(34px,9vw,52px);line-height:.98;
-  letter-spacing:-.01em;text-transform:uppercase;margin-top:26px;text-wrap:balance}
-.hero p{margin-top:12px;max-width:34ch;opacity:.9}
+.hero h1{font-family:var(--display);font-weight:900;font-stretch:125%;font-size:clamp(30px,8vw,48px);line-height:1;
+  letter-spacing:-.01em;text-transform:uppercase;margin-top:24px;text-wrap:balance}
+.hero p{margin-top:12px;max-width:44ch;opacity:.92}
+.hero p b{font-weight:700}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 .chips span{font-size:13px;font-weight:600;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.12)}
 
@@ -89,6 +115,7 @@ main{margin-top:-14px;position:relative;z-index:2}
 .step h2{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:18px;display:flex;align-items:baseline;gap:10px}
 .step h2 i{font-style:normal;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--brand-2);letter-spacing:.06em}
 .hint{font-size:13.5px;color:var(--sub);margin-top:4px}
+.req{color:var(--brand-2);font-weight:700}
 .models{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:14px}
 .model{position:relative}
 .model input{position:absolute;opacity:0;pointer-events:none}
@@ -106,20 +133,43 @@ main{margin-top:-14px;position:relative;z-index:2}
 .field input,.field select,.field textarea{width:100%;min-width:0;padding:11px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);font-size:16px}
 .field textarea{min-height:76px;resize:vertical}
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--brand-2)}
-.field.bad input,.field.bad select{border-color:var(--bad)}
-.err{font-size:12.5px;color:var(--bad);font-weight:600}
+.field.bad input,.field.bad select,.field.bad textarea{border-color:var(--bad)}
+.err{font-size:12.5px;color:var(--bad);font-weight:600;margin-top:6px}
 .segs{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 .seg{position:relative}
 .seg input{position:absolute;opacity:0;pointer-events:none}
 .seg label{display:block;padding:9px 14px;border:1.5px solid var(--line);border-radius:999px;font-weight:600;font-size:14.5px;cursor:pointer}
 .seg input:checked + label{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
 .seg input:focus-visible + label{outline:2px solid var(--brand-2);outline-offset:2px}
+.note{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--brand-soft);font-size:13.5px}
 .tally{margin-top:14px;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;padding:12px 14px;border-radius:14px;background:var(--brand-soft)}
 .tally b{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}
 .tally span{font-size:13.5px;color:var(--sub)}
-.checks{display:flex;flex-direction:column;gap:10px;margin-top:14px}
-.check{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;cursor:pointer}
+
+/* uploads */
+.uploads{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.up{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center;padding:10px;border:1.5px dashed var(--line);border-radius:14px;cursor:pointer;position:relative}
+.up:focus-within{border-color:var(--brand-2)}
+.up.bad{border-color:var(--bad)}
+.up.done{border-style:solid;border-color:var(--good)}
+.up input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.thumb{width:64px;height:64px;border-radius:10px;background:var(--brand-soft) center/cover no-repeat;display:grid;place-items:center;color:var(--brand-2)}
+.thumb svg{width:24px;height:24px}
+.up.done .thumb svg{display:none}
+.up b{display:block;font-size:14.5px;line-height:1.3}
+.up small{display:block;font-size:12.5px;color:var(--sub);margin-top:2px}
+.up .state{font-size:12.5px;font-weight:700;color:var(--brand-2);margin-top:4px}
+.up.done .state{color:var(--good)}
+
+/* policies */
+.checks{display:flex;flex-direction:column;gap:2px;margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:6px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;cursor:pointer;padding:8px;border-radius:10px}
+.check:hover{background:var(--brand-soft)}
 .check input{width:20px;height:20px;margin-top:2px;accent-color:var(--brand-2);flex:none}
+.checks.bad{border-color:var(--bad)}
+.allrow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:var(--sub)}
+.linkbtn{appearance:none;border:0;background:none;color:var(--brand-2);font-weight:700;font-size:13px;cursor:pointer;padding:4px 0}
+
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 20px;border-radius:999px;border:0;cursor:pointer;
   font-family:var(--display);font-stretch:112%;font-weight:800;font-size:15px;letter-spacing:.02em;text-transform:uppercase;text-decoration:none}
 .btn:focus-visible{outline:2px solid var(--brand-2);outline-offset:3px}
@@ -133,8 +183,13 @@ main{margin-top:-14px;position:relative;z-index:2}
 /* ---- send panel ---- */
 .sent h2{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:22px}
 .ref{display:inline-block;margin-top:6px;font-family:var(--mono);font-weight:600;font-size:13px;padding:3px 9px;border-radius:8px;background:var(--brand-soft);color:var(--brand-2)}
-.msg{margin-top:14px;padding:14px;border-radius:14px;background:var(--bg);border:1px solid var(--line);font-family:var(--mono);font-size:12.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto;user-select:all}
-.actions{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.msg{margin-top:12px;padding:14px;border-radius:14px;background:var(--bg);border:1px solid var(--line);font-family:var(--mono);font-size:12.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto;user-select:all}
+.sendstep{margin-top:20px;padding-top:18px;border-top:1px dashed var(--line)}
+.sendstep h3{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:16px;display:flex;align-items:center;gap:10px}
+.sendstep h3 span{width:26px;height:26px;border-radius:50%;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;font-size:13px;flex:none}
+.actions{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.photos{display:flex;gap:8px;margin-top:12px}
+.photos div{width:64px;height:64px;border-radius:10px;background:var(--bg) center/cover no-repeat;border:1px solid var(--line)}
 .toast{font-size:13.5px;font-weight:600;color:var(--good);text-align:center;min-height:1.4em;margin-top:8px}
 
 /* ---- how it works ---- */
@@ -165,81 +220,123 @@ footer b{color:var(--ink)}
       </div>
       <div><b id="shopName">Snaps MNL</b><span id="shopArea">Phone rentals · Sampaloc, Manila</span></div>
     </div>
-    <h1>Rent an iPhone</h1>
-    <p>Pick your phone and dates. We'll confirm on Messenger or by text, usually within the day.</p>
-    <div class="chips"><span>Valid ID needed</span><span id="depChip">Refundable deposit</span><span>Pickup, meet-up or delivery</span><span>Pay after we confirm</span></div>
+    <h1>Phone Rental Booking Form</h1>
+    <p><b>Hello, Renters! 🤍</b> Thank you for choosing Snaps MNL. To ensure a smooth and seamless transaction, please fill out this form completely and provide the necessary requirements. We can't wait to help you capture your golden moments!</p>
+    <div class="chips"><span>2 government IDs</span><span id="depChip">Refundable deposit</span><span>25 hours per rental day</span><span>Pick-up at Zukiya Residences or delivery</span></div>
   </div>
 </header>
 
 <main class="wrap">
   <form class="card" id="form" novalidate>
     <section class="step">
-      <h2><i>01</i>Choose your phone</h2>
+      <h2><i>01</i>iPhone model to rent</h2>
       <div class="models" id="models"></div>
       <div class="err" id="modelErr" hidden>Pick a phone.</div>
     </section>
 
     <section class="step">
-      <h2><i>02</i>Rental dates</h2>
-      <p class="hint">Rental days are counted from pickup date to return date.</p>
+      <h2><i>02</i>Rental schedule</h2>
+      <p class="hint" id="schedHint">One rental day is 25 hours from pick-up. Late returns are charged ₱100 per hour.</p>
       <div class="grid">
-        <label class="field"><span>Pickup date</span><input type="date" id="start" required></label>
-        <label class="field"><span>Pickup time</span><input type="time" id="time" value="10:00" step="900"></label>
-        <label class="field full"><span>Return date</span><input type="date" id="end" required></label>
+        <label class="field"><span>Rental start date <span class="req">*</span></span><input type="date" id="start" required></label>
+        <label class="field"><span>Scheduled pick-up time <span class="req">*</span></span><input type="time" id="time" value="10:00" step="900" required></label>
+        <label class="field"><span>Rental end date <span class="req">*</span></span><input type="date" id="end" required></label>
+        <label class="field"><span>Scheduled return time <span class="req">*</span></span><input type="time" id="rtime" value="10:00" step="900" required></label>
       </div>
       <div class="err" id="dateErr" hidden></div>
       <div class="tally" id="tally" hidden><b id="tallyDays"></b><span id="tallyCost"></span></div>
     </section>
 
     <section class="step">
-      <h2><i>03</i>How you'll get it</h2>
+      <h2><i>03</i>Pick-up or delivery</h2>
       <div class="segs" id="handover"></div>
+      <p class="note" id="pickupNote"></p>
       <div class="grid" id="addrRow" hidden>
-        <label class="field full"><span>Delivery or meet-up place</span><input type="text" id="address" autocomplete="street-address" placeholder="e.g. UST España gate, or full address"></label>
+        <label class="field full"><span>Delivery address (if different from your address below)</span><input type="text" id="delivery" autocomplete="street-address"></label>
       </div>
     </section>
 
     <section class="step">
-      <h2><i>04</i>Your details</h2>
+      <h2><i>04</i>Rental information</h2>
       <div class="grid">
-        <label class="field full"><span>Full name (as on your ID)</span><input type="text" id="name" autocomplete="name" required></label>
-        <label class="field"><span>Mobile number</span><input type="tel" id="mobile" autocomplete="tel" inputmode="tel" placeholder="09XX XXX XXXX" required></label>
-        <label class="field"><span>Facebook name</span><input type="text" id="fb" placeholder="So we can find you on Messenger"></label>
-        <label class="field"><span>Valid ID you'll show</span><select id="idtype" required><option value="">Choose one</option></select></label>
-        <label class="field"><span>Event or use (optional)</span><input type="text" id="event" placeholder="Concert, trip, wedding…"></label>
-        <label class="field full"><span>Anything else? (optional)</span><textarea id="notes"></textarea></label>
+        <label class="field full"><span>Full name (as on your ID) <span class="req">*</span></span><input type="text" id="name" autocomplete="name" required></label>
+        <label class="field full"><span>Address <span class="req">*</span></span><input type="text" id="address" autocomplete="street-address" placeholder="House no., street, barangay, city" required></label>
+        <label class="field"><span>Phone number <span class="req">*</span></span><input type="tel" id="mobile" autocomplete="tel" inputmode="tel" placeholder="09XX XXX XXXX" required></label>
+        <label class="field"><span>Active social media (FB/IG) <span class="req">*</span></span><input type="text" id="social" placeholder="Name or @handle" required></label>
+        <label class="field full"><span>Usage purpose <span class="req">*</span></span><input type="text" id="purpose" placeholder="Concert, trip, wedding, event coverage…" required></label>
       </div>
     </section>
 
     <section class="step">
-      <h2><i>05</i>Agree to the rental terms</h2>
-      <div class="checks">
-        <label class="check"><input type="checkbox" id="t1"> I will show a valid ID and pay before the phone is released.</label>
-        <label class="check"><input type="checkbox" id="t2"> I will return the phone on the return date. Late returns are charged per extra day.</label>
-        <label class="check"><input type="checkbox" id="t3"> I will not sign out of, reset or remove the Apple ID on the phone, and I'll pay for any damage.</label>
+      <h2><i>05</i>Emergency contact</h2>
+      <div class="grid">
+        <label class="field"><span>Name <span class="req">*</span></span><input type="text" id="ecName" required></label>
+        <label class="field"><span>Relationship <span class="req">*</span></span><input type="text" id="ecRel" placeholder="Mother, sibling, partner…" required></label>
+        <label class="field"><span>Phone number <span class="req">*</span></span><input type="tel" id="ecMobile" inputmode="tel" placeholder="09XX XXX XXXX" required></label>
+        <label class="field"><span>Address <span class="req">*</span></span><input type="text" id="ecAddress" required></label>
       </div>
-      <div class="err" id="termsErr" hidden>Tick all three to continue.</div>
+    </section>
+
+    <section class="step">
+      <h2><i>06</i>Requirements</h2>
+      <p class="hint">Choose a photo for each. Your photos stay on your phone; you send them to us in Messenger with your booking.</p>
+      <div class="uploads" id="uploads"></div>
+      <div class="err" id="upErr" hidden>Add all three photos to continue.</div>
+    </section>
+
+    <section class="step">
+      <h2><i>07</i>Operational policies</h2>
+      <p class="hint">I acknowledge and agree to the following operational policies:</p>
+      <div class="checks" id="policies"></div>
+      <div class="allrow"><span id="polCount"></span><button class="linkbtn" type="button" data-all="policies">Tick all</button></div>
+    </section>
+
+    <section class="step">
+      <h2><i>08</i>Financial liabilities and security protocols</h2>
+      <p class="hint">I understand and accept the following:</p>
+      <div class="checks" id="liabilities"></div>
+      <div class="allrow"><span id="liaCount"></span><button class="linkbtn" type="button" data-all="liabilities">Tick all</button></div>
+      <div class="err" id="termsErr" hidden>Tick every policy to continue.</div>
+    </section>
+
+    <section class="step">
+      <h2><i>09</i>Anything else? <small style="font-weight:600;font-size:13px;color:var(--sub)">(optional)</small></h2>
+      <div class="grid"><label class="field full"><span>Notes for us</span><textarea id="notes"></textarea></label></div>
     </section>
 
     <button class="btn gold submit" type="submit">Review my booking
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
     </button>
-    <div class="err formerr" id="formErr" hidden>Some details are missing. Check the fields marked in red.</div>
+    <div class="err formerr" id="formErr" hidden>Some details are missing. Check the parts marked in red.</div>
   </form>
 
   <section class="card sent" id="sent" hidden>
     <h2>Send this to us to book</h2>
     <span class="ref" id="refTag"></span>
-    <p class="hint">Your phone is <b>not reserved yet</b>. Send the message below. We'll check availability and reply to confirm.</p>
-    <div class="msg" id="msg"></div>
-    <div class="actions">
-      <button class="btn brand" type="button" id="sendMessenger" hidden>
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.1 2 11.2c0 2.9 1.4 5.5 3.7 7.2V22l3.4-1.9c.9.3 1.9.4 2.9.4 5.5 0 10-4.1 10-9.2S17.5 2 12 2zm1 12.4-2.6-2.7-5 2.7 5.5-5.8 2.6 2.7 4.9-2.7-5.4 5.8z"/></svg>
-        Copy &amp; open Messenger</button>
-      <a class="btn brand" id="sendSms" href="#">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
-        <span id="smsLabel">Send by text</span></a>
-      <button class="btn ghost" type="button" id="copy">Copy message</button>
+    <p class="hint">Your phone is <b>not reserved yet</b>. Send the message and your 3 photos, then we'll check availability and reply to confirm.</p>
+
+    <div class="sendstep">
+      <h3><span>1</span>Send your booking message</h3>
+      <div class="msg" id="msg"></div>
+      <div class="actions">
+        <button class="btn brand" type="button" id="sendMessenger" hidden>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.1 2 11.2c0 2.9 1.4 5.5 3.7 7.2V22l3.4-1.9c.9.3 1.9.4 2.9.4 5.5 0 10-4.1 10-9.2S17.5 2 12 2zm1 12.4-2.6-2.7-5 2.7 5.5-5.8 2.6 2.7 4.9-2.7-5.4 5.8z"/></svg>
+          Copy &amp; open Messenger</button>
+        <button class="btn ghost" type="button" id="copy">Copy message</button>
+        <a class="btn ghost" id="sendSms" href="#"><span id="smsLabel">Send by text</span></a>
+      </div>
+    </div>
+
+    <div class="sendstep">
+      <h3><span>2</span>Send your 3 photos in the same chat</h3>
+      <div class="photos" id="photoPreview"></div>
+      <div class="actions">
+        <button class="btn brand" type="button" id="sharePhotos" hidden>Share my 3 photos</button>
+      </div>
+      <p class="hint" id="photoHint">In Messenger, tap the photo button and choose your selfie with 2 IDs, proof of billing and signed ID.</p>
+    </div>
+
+    <div class="actions" style="margin-top:20px">
       <button class="btn ghost" type="button" id="edit">Change details</button>
     </div>
     <div class="toast" id="toast" role="status"></div>
@@ -253,11 +350,11 @@ footer b{color:var(--ink)}
   <section class="how">
     <h2>How renting works</h2>
     <ol>
-      <li><div><b>Send your booking</b><span>Fill in the form and send the message on Messenger or by text.</span></div></li>
-      <li><div><b>We confirm</b><span>We check that the phone is free on your dates and send the total and payment details.</span></div></li>
-      <li><div><b>Get your phone</b><span>Show your valid ID and pay the <span id="depStep">refundable deposit</span> at pickup, meet-up or delivery. We check the phone with you before handing it over.</span></div></li>
-      <li><div><b>Return it on time</b><span>Bring it back on your return date, with everything that came with it. We'll send a reminder the day before.</span></div></li>
-      <li><div><b>Get your deposit back</b><span>When the phone comes back in the same condition, we give the deposit back on the spot.</span></div></li>
+      <li><div><b>Send your booking</b><span>Fill in this form, then send the message and your 3 photos on Messenger.</span></div></li>
+      <li><div><b>We confirm</b><span>We check that the phone is free on your dates and send the total and payment details. Down payments are non-refundable.</span></div></li>
+      <li><div><b>Get your phone</b><span>Pick it up at <span id="placeStep">Zukiya Residences, Sampaloc</span>, or get it delivered (you pay shipping both ways). Pay the <span id="depStep">refundable deposit</span>, and we check the phone with you before handing it over.</span></div></li>
+      <li><div><b>Return it on time</b><span>Each rental day is 25 hours from pick-up, and late returns are ₱100 per hour. Bring back everything that came with it. We'll send a reminder before your return time.</span></div></li>
+      <li><div><b>Get your deposit back</b><span>When the phone comes back on time and in the same condition, we give the deposit back on the spot.</span></div></li>
     </ol>
   </section>
 
@@ -272,13 +369,12 @@ footer b{color:var(--ink)}
 <script>
 (function(){
   var $ = function(id){ return document.getElementById(id); };
-  var DRAFT_KEY = 'snapsmnl_booking_draft';
+  var DRAFT_KEY = 'snapsmnl_booking_draft_v2';
 
   /* ---- dates ---- */
   function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
   function parse(s){ var p = s.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
-  function addDays(s, n){ var d = parse(s); d.setDate(d.getDate()+n); return iso(d); }
-  function daysBetween(a, b){ return Math.round((parse(b) - parse(a)) / 864e5); }
+  function at(date, time){ var d = parse(date), t = (time || '00:00').split(':'); d.setHours(+t[0], +t[1], 0, 0); return d; }
   function nice(s){ return parse(s).toLocaleDateString('en-PH', { weekday:'short', month:'short', day:'numeric', year:'numeric' }); }
   function niceTime(t){
     if(!t) return '';
@@ -287,6 +383,13 @@ footer b{color:var(--ink)}
   }
   function peso(n){ return '₱' + Number(n).toLocaleString('en-PH'); }
   function prettyMobile(m){ var d = m.replace(/\D/g,''); return d.length === 11 ? d.slice(0,4)+' '+d.slice(4,7)+' '+d.slice(7) : m; }
+  /* Hours between pick-up and return, and rental days at SHOP.hoursPerDay hours each. */
+  function span(){
+    var s = $('start').value, e = $('end').value, t = $('time').value, rt = $('rtime').value;
+    if(!s || !e || !t || !rt) return null;
+    var hours = (at(e, rt) - at(s, t)) / 36e5;
+    return { hours: hours, days: Math.max(1, Math.ceil(hours / SHOP.hoursPerDay - 1e-9)) };
+  }
 
   /* ---- shop details ---- */
   $('shopName').textContent = SHOP.name;
@@ -300,9 +403,11 @@ footer b{color:var(--ink)}
   } else {
     $('footFb').textContent = 'Facebook: ' + SHOP.name;
   }
-  $('smsLabel').textContent = 'Text it to ' + prettyMobile(SHOP.mobile);
+  $('smsLabel').textContent = 'Or text it to ' + prettyMobile(SHOP.mobile);
   if(SHOP.deposit){ $('depChip').textContent = peso(SHOP.deposit) + ' refundable deposit'; $('depStep').textContent = peso(SHOP.deposit) + ' refundable deposit'; }
   else { $('depChip').hidden = true; }
+  $('placeStep').textContent = SHOP.pickupPlace;
+  $('schedHint').textContent = 'One rental day is ' + SHOP.hoursPerDay + ' hours from pick-up. Late returns are charged ' + peso(SHOP.lateFeePerHour) + ' per hour.';
   if(SHOP.messenger) $('sendMessenger').hidden = false;
 
   /* ---- build choices ---- */
@@ -324,34 +429,69 @@ footer b{color:var(--ink)}
   });
   (SHOP.inclusions || []).forEach(function(t){ var li = document.createElement('li'); li.textContent = t; $('inclusions').appendChild(li); });
   if(!(SHOP.inclusions || []).length) $('inclusions').closest('section').hidden = true;
-  SHOP.ids.forEach(function(t){ var o = document.createElement('option'); o.value = o.textContent = t; $('idtype').appendChild(o); });
+  function checklist(box, items, prefix){
+    items.forEach(function(t, i){
+      var l = document.createElement('label'); l.className = 'check';
+      l.innerHTML = '<input type="checkbox" id="' + prefix + i + '"><span></span>';
+      l.querySelector('span').textContent = t;
+      $(box).appendChild(l);
+    });
+  }
+  checklist('policies', SHOP.policies, 'pol');
+  checklist('liabilities', SHOP.liabilities, 'lia');
+  var CAMERA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+  var files = {};
+  SHOP.uploads.forEach(function(u){
+    var l = document.createElement('label'); l.className = 'up'; l.id = u.id + 'Box';
+    l.innerHTML = '<div class="thumb">' + CAMERA + '</div><div><b></b><small></small><div class="state">Tap to choose a photo</div></div>' +
+      '<input type="file" accept="image/*" id="' + u.id + '">';
+    l.querySelector('b').textContent = u.label;
+    l.querySelector('small').textContent = u.hint || '';
+    $('uploads').appendChild(l);
+    $(u.id).addEventListener('change', function(){
+      var f = this.files && this.files[0];
+      if(!f) return;
+      files[u.id] = f;
+      var url = URL.createObjectURL(f);
+      l.classList.add('done'); l.classList.remove('bad');
+      l.querySelector('.thumb').style.backgroundImage = 'url("' + url + '")';
+      l.querySelector('.state').textContent = 'Added · tap to change';
+    });
+  });
 
   var today = iso(new Date());
   $('start').min = today;
-  $('end').min = addDays(today, 1);
+  $('end').min = today;
 
   function val(name){ var el = document.querySelector('input[name="'+name+'"]:checked'); return el ? el.value : ''; }
   function label(m){ return m.name + (m.detail ? ' (' + m.detail + ')' : ''); }
   function model(){ var n = val('model'); return SHOP.models.filter(function(m){ return label(m) === n; })[0]; }
+  function isDelivery(){ return val('handover') !== SHOP.handover[0]; }
+  function ticked(prefix, n){ var c = 0; for(var i = 0; i < n; i++) if($(prefix + i).checked) c++; return c; }
 
   /* ---- live tally ---- */
   function refresh(){
-    var s = $('start').value, e = $('end').value;
-    if(s) $('end').min = addDays(s, 1);
-    var ok = s && e && daysBetween(s, e) >= 1;
+    var s = $('start').value;
+    if(s) $('end').min = s;
+    var sp = span(), ok = sp && sp.hours > 0;
     $('tally').hidden = !ok;
     if(ok){
-      var n = daysBetween(s, e), m = model();
-      $('tallyDays').textContent = n + (n === 1 ? ' day' : ' days');
-      $('tallyCost').textContent = m && m.rate
-        ? peso(m.rate * n) + ' rental' + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' refundable deposit' : '') + (val('handover') === 'Delivery' ? ' + delivery fee' : '')
-        : nice(s) + ' to ' + nice(e);
+      var m = model(), h = Math.round(sp.hours * 10) / 10;
+      $('tallyDays').textContent = sp.days + (sp.days === 1 ? ' day' : ' days');
+      $('tallyCost').textContent = h + ' hours' + (m && m.rate
+        ? ' · ' + peso(m.rate * sp.days) + ' rental' + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' refundable deposit' : '') + (isDelivery() ? ' + shipping both ways' : '')
+        : '');
     }
-    $('addrRow').hidden = val('handover') === SHOP.handover[0];
+    $('addrRow').hidden = !isDelivery();
+    $('pickupNote').textContent = isDelivery()
+      ? 'You shoulder the shipping fees for both delivery and return. We\'ll send the courier details when we confirm.'
+      : 'Pick-up and return are at ' + SHOP.pickupPlace + '.';
+    $('polCount').textContent = ticked('pol', SHOP.policies.length) + ' of ' + SHOP.policies.length + ' ticked';
+    $('liaCount').textContent = ticked('lia', SHOP.liabilities.length) + ' of ' + SHOP.liabilities.length + ' ticked';
   }
 
-  /* ---- draft (kept in this browser only) ---- */
-  var fields = ['start','time','end','address','name','mobile','fb','idtype','event','notes'];
+  /* ---- draft (kept in this browser only; photos are never saved) ---- */
+  var fields = ['start','time','end','rtime','delivery','name','address','mobile','social','purpose','ecName','ecRel','ecMobile','ecAddress','notes'];
   function saveDraft(){
     var d = { model: val('model'), handover: val('handover') };
     fields.forEach(function(f){ d[f] = $(f).value; });
@@ -368,28 +508,42 @@ footer b{color:var(--ink)}
   }
   loadDraft();
   refresh();
-  $('form').addEventListener('input', function(){ refresh(); saveDraft(); });
-  $('form').addEventListener('change', function(){ refresh(); saveDraft(); });
+  /* After the first submit attempt, re-check as the renter fixes things so the red marks clear. */
+  var tried = false;
+  function onEdit(e){ refresh(); if(tried) validate(); if(e && e.target.type !== 'file') saveDraft(); }
+  $('form').addEventListener('input', onEdit);
+  $('form').addEventListener('change', onEdit);
+  document.querySelectorAll('[data-all]').forEach(function(b){
+    b.addEventListener('click', function(){ $(b.dataset.all).querySelectorAll('input').forEach(function(c){ c.checked = true; }); onEdit(); });
+  });
 
   /* ---- validation ---- */
   function mark(id, bad){ $(id).closest('.field').classList.toggle('bad', bad); return bad; }
   function validate(){
     var bad = false;
     $('modelErr').hidden = !!val('model'); if(!val('model')) bad = true;
-    var s = $('start').value, e = $('end').value, msg = '';
-    if(!s || !e) msg = 'Choose your pickup and return dates.';
-    else if(s < today) msg = 'The pickup date has already passed.';
-    else if(daysBetween(s, e) < 1) msg = 'The return date must be after the pickup date.';
+    var s = $('start').value, e = $('end').value, sp = span(), msg = '';
+    if(!s || !e || !$('time').value || !$('rtime').value) msg = 'Choose your start and end dates and times.';
+    else if(s < today) msg = 'The start date has already passed.';
+    else if(sp.hours <= 0) msg = 'The return must be after the pick-up.';
     $('dateErr').textContent = msg; $('dateErr').hidden = !msg;
-    mark('start', !s || !!msg && msg.indexOf('pickup date') > -1); mark('end', !e || !!msg && msg.indexOf('return date') > -1);
+    mark('start', !s || (!!msg && msg.indexOf('start date') > -1)); mark('end', !e || (!!msg && msg.indexOf('return') > -1));
+    mark('time', !$('time').value); mark('rtime', !$('rtime').value);
     if(msg) bad = true;
     if(mark('name', $('name').value.trim().length < 3)) bad = true;
+    if(mark('address', $('address').value.trim().length < 5)) bad = true;
     if(mark('mobile', $('mobile').value.replace(/\D/g,'').length < 10)) bad = true;
-    if(mark('idtype', !$('idtype').value)) bad = true;
-    if(val('handover') !== SHOP.handover[0] && mark('address', !$('address').value.trim())) bad = true;
-    if(val('handover') === SHOP.handover[0]) mark('address', false);
-    var terms = $('t1').checked && $('t2').checked && $('t3').checked;
-    $('termsErr').hidden = terms; if(!terms) bad = true;
+    if(mark('social', !$('social').value.trim())) bad = true;
+    if(mark('purpose', !$('purpose').value.trim())) bad = true;
+    if(mark('ecName', !$('ecName').value.trim())) bad = true;
+    if(mark('ecRel', !$('ecRel').value.trim())) bad = true;
+    if(mark('ecMobile', $('ecMobile').value.replace(/\D/g,'').length < 10)) bad = true;
+    if(mark('ecAddress', !$('ecAddress').value.trim())) bad = true;
+    var missing = SHOP.uploads.filter(function(u){ var no = !files[u.id]; $(u.id + 'Box').classList.toggle('bad', no); return no; });
+    $('upErr').hidden = !missing.length; if(missing.length) bad = true;
+    var polOk = ticked('pol', SHOP.policies.length) === SHOP.policies.length, liaOk = ticked('lia', SHOP.liabilities.length) === SHOP.liabilities.length;
+    $('policies').classList.toggle('bad', !polOk); $('liabilities').classList.toggle('bad', !liaOk);
+    $('termsErr').hidden = polOk && liaOk; if(!polOk || !liaOk) bad = true;
     $('formErr').hidden = !bad;
     return !bad;
   }
@@ -402,30 +556,38 @@ footer b{color:var(--ink)}
   }
   var current = '';
   function buildMessage(ref){
-    var s = $('start').value, e = $('end').value, n = daysBetween(s, e), m = model(), h = val('handover');
+    var s = $('start').value, e = $('end').value, sp = span(), m = model(), h = val('handover');
     var lines = [
       SHOP.name.toUpperCase() + ' BOOKING REQUEST',
       'Ref: ' + ref,
       'Phone: ' + label(m),
       'Pickup: ' + nice(s) + ' ' + niceTime($('time').value) + ' (' + s + ')',
-      'Return: ' + nice(e) + ' (' + e + ')',
-      'Days: ' + n
+      'Return: ' + nice(e) + ' ' + niceTime($('rtime').value) + ' (' + e + ')',
+      'Days: ' + sp.days + ' (' + Math.round(sp.hours * 10) / 10 + ' hours)'
     ];
-    if(m.rate) lines.push('Estimate: ' + peso(m.rate * n) + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' deposit' : ''));
-    lines.push('Handover: ' + h + (h !== SHOP.handover[0] ? ' - ' + $('address').value.trim() : ''));
+    if(m.rate) lines.push('Estimate: ' + peso(m.rate * sp.days) + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' deposit' : ''));
+    lines.push('Handover: ' + h + (isDelivery() ? ' - ' + ($('delivery').value.trim() || $('address').value.trim()) : ''));
     lines.push('Name: ' + $('name').value.trim());
+    lines.push('Address: ' + $('address').value.trim());
     lines.push('Mobile: ' + prettyMobile($('mobile').value.trim()));
-    if($('fb').value.trim()) lines.push('Facebook: ' + $('fb').value.trim());
-    lines.push('Valid ID: ' + $('idtype').value);
-    if($('event').value.trim()) lines.push('Event: ' + $('event').value.trim());
+    lines.push('Social: ' + $('social').value.trim());
+    lines.push('Purpose: ' + $('purpose').value.trim());
+    lines.push('Emergency name: ' + $('ecName').value.trim());
+    lines.push('Emergency relationship: ' + $('ecRel').value.trim());
+    lines.push('Emergency mobile: ' + prettyMobile($('ecMobile').value.trim()));
+    lines.push('Emergency address: ' + $('ecAddress').value.trim());
+    lines.push('Requirements: ' + SHOP.uploads.length + ' photos (selfie with 2 IDs, proof of billing, signed ID), sending in this chat');
+    lines.push('Agreed: all ' + SHOP.policies.length + ' operational policies and ' + SHOP.liabilities.length + ' financial liabilities');
     if($('notes').value.trim()) lines.push('Notes: ' + $('notes').value.trim().replace(/\s*\n\s*/g, ' / '));
     return lines.join('\n');
   }
 
+  function photoFiles(){ return SHOP.uploads.map(function(u){ return files[u.id]; }).filter(Boolean); }
   $('form').addEventListener('submit', function(ev){
     ev.preventDefault();
+    tried = true;
     if(!validate()){
-      var first = document.querySelector('.field.bad input,.field.bad select,.err:not([hidden])');
+      var first = document.querySelector('.field.bad input,.field.bad textarea,.up.bad,.checks.bad,.err:not([hidden])');
       if(first) first.scrollIntoView({ block:'center', behavior:'smooth' });
       return;
     }
@@ -434,6 +596,14 @@ footer b{color:var(--ink)}
     $('refTag').textContent = 'Ref ' + ref;
     $('msg').textContent = current;
     $('sendSms').href = 'sms:' + SHOP.mobile + '?body=' + encodeURIComponent(current);
+    var prev = $('photoPreview'); prev.innerHTML = '';
+    photoFiles().forEach(function(f){ var d = document.createElement('div'); d.style.backgroundImage = 'url("' + URL.createObjectURL(f) + '")'; prev.appendChild(d); });
+    var canShare = false;
+    try{ canShare = !!(navigator.canShare && navigator.canShare({ files: photoFiles() })); }catch(e){}
+    $('sharePhotos').hidden = !canShare;
+    $('photoHint').textContent = canShare
+      ? 'Tap the button, choose Messenger, then pick the ' + SHOP.name + ' chat. Or attach them yourself from your gallery.'
+      : 'In the same Messenger chat, tap the photo button and choose your selfie with 2 IDs, proof of billing and signed ID.';
     $('form').hidden = true; $('sent').hidden = false;
     $('sent').scrollIntoView({ block:'start', behavior:'smooth' });
   });
@@ -452,6 +622,14 @@ footer b{color:var(--ink)}
   $('copy').addEventListener('click', function(){ copy(); });
   $('sendMessenger').addEventListener('click', function(){
     copy(function(){ window.location.href = 'https://m.me/' + encodeURIComponent(SHOP.messenger); });
+  });
+  $('sharePhotos').addEventListener('click', function(){
+    navigator.share({ files: photoFiles(), title: SHOP.name + ' requirements' }).then(function(){
+      $('toast').textContent = 'Photos shared.';
+    }, function(e){
+      if(e && e.name === 'AbortError') return;
+      $('toast').textContent = 'Couldn\'t share from here. Attach the photos in Messenger from your gallery.';
+    });
   });
   $('edit').addEventListener('click', function(){
     $('sent').hidden = true; $('form').hidden = false; $('toast').textContent = '';
