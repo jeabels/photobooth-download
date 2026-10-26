@@ -37,6 +37,12 @@ var SHOP = {
   messenger: "100095276233681",
   facebookUrl: "https://www.facebook.com/profile.php?id=100095276233681",
   banner: "units/banner.webp",   /* empty shows the shop name instead of a banner image */
+  /* How the banner sits in the header: zoom in % (100 shows the whole width), the point that stays
+     in view when zoomed (left-right, top-bottom %), and its shape as width / height (0 = the picture's own). */
+  bannerZoom: 100, bannerX: 50, bannerY: 50, bannerShape: 0,
+  rateCards: [],          /* price list pictures shown above the units */
+  delivery: [],           /* [{ area, fee }] delivery areas; empty means renters pay the courier themselves */
+  promos: false,          /* true shows the promo code box (codes are checked by the booking sheet) */
   deposit: 500,
   hoursPerDay: 25,        /* one rental day = 25 hours from pick-up */
   lateFeePerHour: 100,
@@ -128,7 +134,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* ---- hero band ---- */
 /* The shop's banner on its own, across the full width. The page title stays for screen readers only. */
 .hero{background:var(--hero,#7C0507);padding-top:env(safe-area-inset-top)}
-.banner{display:block;width:100%;max-width:none;height:auto;aspect-ratio:3/1}
+/* The box has the banner's shape; the picture covers it, then zooms around the owner's chosen point. */
+.bbox{position:relative;overflow:hidden;aspect-ratio:3/1;cursor:zoom-in}
+.banner{position:absolute;inset:0;display:block;width:100%;max-width:none;height:100%;object-fit:cover;object-position:50% 50%}
 .banner-text{padding-block:26px 24px;color:#fff;text-align:center}
 .banner-text b{display:block;font-family:var(--display);font-stretch:125%;font-weight:900;font-size:clamp(26px,7vw,44px);text-transform:uppercase;line-height:1.05}
 .banner-text span{display:block;margin-top:6px;opacity:.85;font-size:14px}
@@ -183,7 +191,13 @@ main.wrap{margin-top:18px;position:relative;z-index:2}
 .model input:checked + label::after{content:"✓ Selected";position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:999px;background:var(--brand-2);color:#fff;font-size:12px;font-weight:700}
 .lightbox{border:0;padding:0;background:transparent;max-width:min(560px,94vw);max-height:94vh;margin:auto}
 .lightbox::backdrop{background:rgba(10,4,5,.85)}
-.lightbox img{display:block;width:100%;max-height:86vh;object-fit:contain;border-radius:14px}
+.lb-view{max-height:84vh;overflow:auto;border-radius:14px;background:#0d0607;overscroll-behavior:contain}
+.lightbox img{display:block;width:100%;max-height:84vh;object-fit:contain}
+.lightbox.zoomed img{max-height:none;max-width:none;width:calc(var(--lbz,1) * 100%)}
+.lb-zoom{position:absolute;top:10px;right:10px;z-index:2;display:flex;gap:6px}
+.lb-zoom button{width:38px;height:38px;border-radius:50%;border:0;background:rgba(20,6,8,.72);color:#fff;font-size:20px;font-weight:700;line-height:1;cursor:pointer}
+.lb-zoom button:disabled{opacity:.4;cursor:default}
+.lb-zoom button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .lightbox .lb-bar{display:flex;gap:8px;margin-top:10px}
 .lightbox .lb-bar .btn{flex:1;padding:12px 14px;font-size:14px}
 .model input:focus-visible + label{outline:2px solid var(--brand-2);outline-offset:2px}
@@ -207,6 +221,19 @@ main.wrap{margin-top:18px;position:relative;z-index:2}
 .tally{margin-top:14px;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;padding:12px 14px;border-radius:14px;background:var(--brand-soft)}
 .tally b{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}
 .tally span{font-size:13.5px;color:var(--sub)}
+.tally .lines{flex-basis:100%;display:grid;grid-template-columns:1fr auto;gap:2px 12px;font-size:13.5px;color:var(--sub);font-variant-numeric:tabular-nums}
+.tally .lines .tot{color:var(--ink);font-weight:700}
+.tally .lines .off{color:var(--good)}
+.promo{display:flex;gap:10px;align-items:flex-end;margin-top:14px}
+.promo .field{flex:1}
+.promo .btn{padding:12px 18px;font-size:14px}
+.promo-msg{font-size:13px;font-weight:600;margin-top:6px}
+.promo-msg.ok{color:var(--good)} .promo-msg.bad{color:var(--bad)}
+/* rate card pictures */
+.rc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px;margin-top:12px}
+.rc-grid button{appearance:none;border:1px solid var(--line);padding:0;background:var(--bg);border-radius:12px;overflow:hidden;cursor:zoom-in;display:block}
+.rc-grid img{display:block;width:100%;height:auto}
+.rc-grid button:focus-visible{outline:2px solid var(--brand-2);outline-offset:2px}
 
 /* uploads */
 .uploads{display:flex;flex-direction:column;gap:10px;margin-top:14px}
@@ -325,7 +352,7 @@ footer b{color:var(--ink)}
 <body>
 
 <header class="hero">
-  <img class="banner" id="bannerImg" src="units/banner.webp" width="1920" height="640" alt="Rent an iPhone with Snaps MNL. Your most trusted and affordable rental phone.">
+  <div class="bbox" id="bannerBox"><img class="banner" id="bannerImg" src="units/banner.webp" width="1920" height="640" alt="Rent an iPhone with Snaps MNL. Your most trusted and affordable rental phone."></div>
   <div class="banner-text wrap" id="bannerText" hidden><b id="bannerName"></b><span id="bannerArea"></span></div>
   <h1 class="sr-only" id="pageTitle">Snaps MNL | Phone Rental Booking Form</h1>
 </header>
@@ -351,9 +378,20 @@ footer b{color:var(--ink)}
     <div class="status" id="luResult" role="status" hidden></div>
   </section>
 
+  <section class="card" id="paused" hidden>
+    <h2 style="font-family:var(--display);font-stretch:112%;font-weight:800;font-size:18px" id="pausedTitle">This booking page is paused</h2>
+    <p class="hint" id="pausedHint">Online booking isn't open right now. Please message the shop directly to book.</p>
+  </section>
+
   <section class="card" id="loadErr" hidden>
     <h2 style="font-family:var(--display);font-stretch:112%;font-weight:800;font-size:18px">This booking page can't load right now</h2>
     <p class="hint">Check your internet connection and reload the page. If it keeps happening, message the shop directly.</p>
+  </section>
+
+  <section class="card ratecards" id="rateCards" hidden>
+    <h2 style="font-family:var(--display);font-stretch:112%;font-weight:800;font-size:18px">Rates</h2>
+    <p class="hint">Tap a picture to see it bigger.</p>
+    <div class="rc-grid" id="rcGrid"></div>
   </section>
 
   <section class="card cal" id="cal" hidden>
@@ -389,7 +427,12 @@ footer b{color:var(--ink)}
         <label class="field"><span>Scheduled return time <span class="req">*</span></span><input type="time" id="rtime" value="10:00" step="900" required></label>
       </div>
       <div class="err" id="dateErr" hidden></div>
-      <div class="tally" id="tally" hidden><b id="tallyDays"></b><span id="tallyCost"></span></div>
+      <div class="tally" id="tally" hidden><b id="tallyDays"></b><span id="tallyCost"></span><div class="lines" id="tallyLines" hidden></div></div>
+      <div class="promo" id="promoRow" hidden>
+        <label class="field"><span>Promo code (optional)</span><input type="text" id="promo" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
+        <button class="btn ghost" type="button" id="promoGo">Apply</button>
+      </div>
+      <div class="promo-msg" id="promoMsg" role="status"></div>
     </section>
 
     <section class="step">
@@ -397,6 +440,7 @@ footer b{color:var(--ink)}
       <div class="segs" id="handover"></div>
       <p class="note" id="pickupNote"></p>
       <div class="grid" id="addrRow" hidden>
+        <label class="field full" id="areaField" hidden><span>Delivery area <span class="req">*</span></span><select id="area"></select></label>
         <label class="field full"><span>Delivery address (if different from your address below)</span><input type="text" id="delivery" autocomplete="street-address"></label>
       </div>
     </section>
@@ -516,8 +560,11 @@ footer b{color:var(--ink)}
     </ol>
   </section>
 
-  <dialog class="lightbox" id="lightbox" aria-label="Unit poster">
-    <img id="lbImg" alt="">
+  <dialog class="lightbox" id="lightbox" aria-label="Picture">
+    <div style="position:relative">
+      <div class="lb-zoom"><button type="button" id="lbOut" aria-label="Zoom out">−</button><button type="button" id="lbIn" aria-label="Zoom in">+</button></div>
+      <div class="lb-view" id="lbView"><img id="lbImg" alt=""></div>
+    </div>
     <div class="lb-bar">
       <button class="btn gold" type="button" id="lbPick">Rent this unit</button>
       <button class="btn ghost" type="button" id="lbClose" style="background:var(--card)">Close</button>
@@ -537,17 +584,23 @@ footer b{color:var(--ink)}
   var $ = function(id){ return document.getElementById(id); };
 
   /* ---- which shop ----
-     ?shop=<Apps Script deployment id> points this page at another shop's Google Sheet.
-     Without it the page is Snaps MNL's, with the SHOP block above as its built-in settings. */
-  var shopParam = new URLSearchParams(location.search).get('shop');
-  var foreign = false;
-  if(shopParam && /^[\w-]{20,120}$/.test(shopParam)){
-    var url = 'https://script.google.com/macros/s/' + shopParam + '/exec';
-    foreign = url !== SHOP.bookingSheet;
-    SHOP.bookingSheet = url;
+     ?shop=<Apps Script deployment id>, or ?s=<short name> from rent/shops.json (rent/<short name> also
+     works), points this page at another shop's Google Sheet. Without either the page is Snaps MNL's,
+     with the SHOP block above as its built-in settings. Other shops must be listed in rent/shops.json,
+     and their page pauses once its paid-until date (plus the grace days) has passed. */
+  var params = new URLSearchParams(location.search);
+  var slug = (params.get('s') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  var shopParam = params.get('shop'), OWN_SHEET = SHOP.bookingSheet;
+  var foreign = false, KEY = 'local', DRAFT_KEY = '', CONFIG_KEY = '';
+  function useShop(id){
+    if(id && /^[\w-]{20,120}$/.test(id)){
+      var url = 'https://script.google.com/macros/s/' + id + '/exec';
+      foreign = url !== OWN_SHEET;
+      SHOP.bookingSheet = url;
+    }
+    KEY = SHOP.bookingSheet ? SHOP.bookingSheet.replace(/^.*\/s\//, '').slice(0, 24) : 'local';
+    DRAFT_KEY = 'rent_draft_' + KEY; CONFIG_KEY = 'rent_config_' + KEY;
   }
-  var KEY = SHOP.bookingSheet ? SHOP.bookingSheet.replace(/^.*\/s\//, '').slice(0, 24) : 'local';
-  var DRAFT_KEY = 'rent_draft_' + KEY, CONFIG_KEY = 'rent_config_' + KEY;
   function store(k, v){ try{ if(v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
   function recall(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch(e){ return null; } }
 
@@ -627,10 +680,12 @@ footer b{color:var(--ink)}
     document.title = 'Phone Rental Booking Form · ' + SHOP.name;
     $('pageTitle').textContent = SHOP.name + ' | Phone Rental Booking Form';
     if(SHOP.banner){
-      $('bannerImg').src = SHOP.banner; $('bannerImg').alt = SHOP.name + ' phone rentals';
-      $('bannerImg').hidden = false; $('bannerText').hidden = true;
+      if($('bannerImg').getAttribute('src') !== SHOP.banner) $('bannerImg').src = SHOP.banner;
+      $('bannerImg').alt = SHOP.name + ' phone rentals';
+      $('bannerBox').hidden = false; $('bannerText').hidden = true;
+      fitBanner();
     } else {
-      $('bannerImg').hidden = true; $('bannerText').hidden = false;
+      $('bannerBox').hidden = true; $('bannerText').hidden = false;
       $('bannerName').textContent = SHOP.name; $('bannerArea').textContent = 'Phone rentals' + (SHOP.area ? ' · ' + SHOP.area : '');
     }
     $('footName').textContent = SHOP.name;
@@ -666,7 +721,23 @@ footer b{color:var(--ink)}
       $('howSend').textContent = 'Fill in this form and submit it. Your details and photos come straight to us.';
     }
     $('lookupBtn').hidden = !SHOP.bookingSheet;
+    if(!SHOP.promos) promo = null;
+    $('promoRow').hidden = !(SHOP.promos && SHOP.bookingSheet);
   }
+
+  /* The banner's shape, zoom and focus point from the shop's settings. Zooming happens around the
+     focus point, so the part the owner picked stays in view. */
+  function num(v, d){ return v === '' || v == null || isNaN(+v) ? d : +v; }
+  function fitBanner(){
+    var img = $('bannerImg'), z = num(SHOP.bannerZoom, 100) / 100, x = num(SHOP.bannerX, 50), y = num(SHOP.bannerY, 50);
+    var natural = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 3;
+    $('bannerBox').style.aspectRatio = String(SHOP.bannerShape > 0 ? SHOP.bannerShape : natural);
+    img.style.objectPosition = x + '% ' + y + '%';
+    img.style.transformOrigin = x + '% ' + y + '%';
+    img.style.transform = z === 1 ? '' : 'scale(' + z + ')';
+  }
+  $('bannerImg').addEventListener('load', fitBanner);
+  $('bannerBox').addEventListener('click', function(){ if(SHOP.banner) openImage(SHOP.banner, $('bannerImg').alt, -1); });
 
   /* ---- units, hand-over options, inclusions and policies (rebuilt when the shop's settings arrive) ---- */
   var ZOOM_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8M10.5 7.5v6M7.5 10.5h6"/></svg>';
@@ -728,19 +799,60 @@ footer b{color:var(--ink)}
     checklist('policies', SHOP.policies, 'pol');
     checklist('liabilities', SHOP.liabilities, 'lia');
   }
+  function buildRateCards(){
+    var cards = SHOP.rateCards || [];
+    $('rcGrid').innerHTML = '';
+    cards.forEach(function(src, i){
+      var b = document.createElement('button'), img = document.createElement('img');
+      b.type = 'button'; img.loading = 'lazy'; img.src = src;
+      img.alt = SHOP.name + ' rates' + (cards.length > 1 ? ' ' + (i + 1) : '');
+      b.setAttribute('aria-label', 'See ' + img.alt + ' bigger');
+      b.appendChild(img); $('rcGrid').appendChild(b);
+      b.addEventListener('click', function(){ openImage(src, img.alt, -1); });
+    });
+    $('rateCards').hidden = !cards.length;
+  }
+  /* Delivery areas with their fees; the renter picks one when they choose delivery. */
+  function buildAreas(){
+    var sel = $('area'), keep = sel.value, list = SHOP.delivery || [];
+    sel.innerHTML = '<option value="">Choose your area</option>';
+    list.forEach(function(a){
+      var o = document.createElement('option'); o.value = a.area;
+      o.textContent = a.area + ' · ' + (a.fee ? peso(a.fee) : 'free delivery'); sel.appendChild(o);
+    });
+    sel.value = list.some(function(a){ return a.area === keep; }) ? keep : '';
+    $('areaField').hidden = !list.length;
+  }
+  function areaFee(){ var v = $('area').value; return (SHOP.delivery || []).filter(function(a){ return a.area === v; })[0] || null; }
 
-  /* Full-size poster, with a button to pick that unit. */
-  var lbIndex = -1;
-  function openPoster(i){
-    var m = SHOP.models[i]; lbIndex = i;
-    $('lbImg').src = m.poster; $('lbImg').alt = label(m) + ' rate and inclusions';
+  /* Full-size picture (a poster, a rate card or the banner) with zoom buttons. A unit's poster also
+     gets a button to pick that unit. */
+  var lbIndex = -1, lbZoom = 1;
+  function openImage(src, alt, unitIndex){
+    lbIndex = unitIndex;
+    $('lbImg').src = src; $('lbImg').alt = alt;
+    $('lbPick').hidden = unitIndex < 0;
+    setZoom(1);
     if($('lightbox').showModal) $('lightbox').showModal(); else $('lightbox').setAttribute('open', '');
   }
+  function openPoster(i){ var m = SHOP.models[i]; openImage(m.poster, label(m) + ' rate and inclusions', i); }
   function closePoster(){ if($('lightbox').close) $('lightbox').close(); else $('lightbox').removeAttribute('open'); }
+  /* Zoom keeps the middle of what's on screen in the middle. */
+  function setZoom(z){
+    var v = $('lbView'), cx = v.scrollWidth ? (v.scrollLeft + v.clientWidth / 2) / v.scrollWidth : .5, cy = v.scrollHeight ? (v.scrollTop + v.clientHeight / 2) / v.scrollHeight : .5;
+    lbZoom = Math.min(4, Math.max(1, z));
+    $('lightbox').classList.toggle('zoomed', lbZoom > 1);
+    $('lightbox').style.setProperty('--lbz', lbZoom);
+    $('lbOut').disabled = lbZoom <= 1; $('lbIn').disabled = lbZoom >= 4;
+    v.scrollLeft = cx * v.scrollWidth - v.clientWidth / 2; v.scrollTop = cy * v.scrollHeight - v.clientHeight / 2;
+  }
+  $('lbIn').addEventListener('click', function(){ setZoom(lbZoom + .5); });
+  $('lbOut').addEventListener('click', function(){ setZoom(lbZoom - .5); });
+  $('lbImg').addEventListener('dblclick', function(){ setZoom(lbZoom > 1 ? 1 : 2); });
   $('lbClose').addEventListener('click', closePoster);
   $('lightbox').addEventListener('click', function(e){ if(e.target === this) closePoster(); });
   $('lbPick').addEventListener('click', function(){
-    var r = $('m' + lbIndex); if(r.disabled) return closePoster();
+    var r = $('m' + lbIndex); if(!r || r.disabled) return closePoster();
     r.checked = true; r.dispatchEvent(new Event('change', { bubbles:true }));
     closePoster(); r.closest('.model').scrollIntoView({ block:'center', behavior:'smooth' });
   });
@@ -774,17 +886,20 @@ footer b{color:var(--ink)}
     var next = {
       name: c.name, area: c.area || '', pickupPlace: c.pickupPlace || c.area || '', mobile: c.mobile || '',
       messenger: c.messenger || '', facebookUrl: c.facebookUrl || '', banner: c.banner || '', brandColor: c.brandColor || '',
+      bannerZoom: num(c.bannerZoom, 100), bannerX: num(c.bannerX, 50), bannerY: num(c.bannerY, 50), bannerShape: num(c.bannerShape, 0),
+      rateCards: (c.rateCards || []).filter(function(u){ return /^https:\/\//.test(u); }),
+      delivery: (c.delivery || []).filter(function(a){ return a && a.area; }).map(function(a){ return { area: String(a.area), fee: Math.max(0, Number(a.fee) || 0) }; }),
+      promos: !!c.promos,
       deposit: Number(c.deposit) || 0, hoursPerDay: Number(c.hoursPerDay) || 24, lateFeePerHour: Number(c.lateFeePerHour) || 0,
       handover: (c.handover && c.handover.length) ? c.handover : ['Pick up'], inclusions: c.inclusions || [],
       minNoticeHours: Number(c.minNoticeHours) || 0, maxDaysAhead: Number(c.maxDaysAhead) || 365, closedDates: c.closedDates || [],
       models: units, policies: c.policies || [], liabilities: c.liabilities || []
     };
-    var before = JSON.stringify([SHOP.models, SHOP.handover, SHOP.inclusions, SHOP.policies, SHOP.liabilities]);
+    var lists = function(){ return JSON.stringify([SHOP.models, SHOP.handover, SHOP.inclusions, SHOP.policies, SHOP.liabilities, SHOP.rateCards, SHOP.delivery]); };
+    var before = lists();
     Object.keys(next).forEach(function(k){ SHOP[k] = next[k]; });
     applyShop();
-    if(JSON.stringify([SHOP.models, SHOP.handover, SHOP.inclusions, SHOP.policies, SHOP.liabilities]) !== before){
-      buildUnits(); buildHandover(); buildInclusions(); buildPolicies();
-    }
+    if(lists() !== before) buildAll();
     setDateLimits();
     return true;
   }
@@ -792,7 +907,28 @@ footer b{color:var(--ink)}
     var max = addDaysIso(today, SHOP.maxDaysAhead || 365);
     $('start').max = max; $('end').max = addDaysIso(max, 30);
   }
+  function buildAll(){ buildUnits(); buildHandover(); buildAreas(); buildInclusions(); buildPolicies(); buildRateCards(); }
   function showPage(){ document.documentElement.classList.remove('loading-shop'); }
+  /* A page that can't show its shop: no other shop's banner, contact details or form. */
+  function blankShop(name){
+    $('bannerBox').hidden = true; $('bannerText').hidden = false;
+    $('bannerName').textContent = name || 'Phone rentals'; $('bannerArea').textContent = name ? 'Phone rentals' : '';
+    $('form').hidden = true; $('cal').hidden = true; $('rateCards').hidden = true; $('lookupBtn').hidden = true;
+    document.querySelectorAll('.how, footer').forEach(function(x){ x.hidden = true; });
+    document.title = (name ? name + ' · ' : '') + 'Phone Rental Booking';
+    showPage();
+  }
+  function paused(entry){
+    $('paused').hidden = false;
+    if(entry){
+      $('pausedTitle').textContent = 'Online booking for ' + entry.name + ' is paused';
+      $('pausedHint').textContent = 'Please message ' + entry.name + ' directly to book a phone.';
+    } else {
+      $('pausedTitle').textContent = 'This booking link isn\'t set up';
+      $('pausedHint').textContent = 'Check the link with the shop that sent it to you.';
+    }
+    blankShop(entry && entry.name);
+  }
 
   /* ---- availability from the booking sheet ---- */
   /* Booked slots: [{unit, start, end}] as ISO times. Times on this page are Manila time (+08:00). */
@@ -838,10 +974,7 @@ footer b{color:var(--ink)}
       busy = (d && d.busy) || []; refresh(); renderCal(); showPage();
     }).catch(function(){
       $('cal').hidden = true;
-      if(foreign && !recall(CONFIG_KEY)){
-        $('form').hidden = true;
-        $('loadErr').hidden = false;
-      }
+      if(foreign && !recall(CONFIG_KEY)){ $('loadErr').hidden = false; blankShop(''); return; }
       showPage();
     });
   }
@@ -994,6 +1127,43 @@ footer b{color:var(--ink)}
       .then(function(){ $('luGo').disabled = false; });
   });
 
+  /* ---- promo code ---- checked by the shop's sheet; the sheet checks it again when the booking is saved. */
+  var promo = null;
+  var PROMO_ERR = {
+    not_found: 'That code isn\'t valid. Check the spelling.',
+    not_started: 'That promo hasn\'t started yet.',
+    expired: 'That promo has ended.',
+    used_up: 'That promo has been fully used.'
+  };
+  function promoMsg(text, ok){ $('promoMsg').textContent = text; $('promoMsg').className = 'promo-msg' + (text ? ok ? ' ok' : ' bad' : ''); }
+  function applyPromo(){
+    var code = $('promo').value.trim().toUpperCase();
+    if(!code){ promo = null; promoMsg(''); refresh(); return; }
+    $('promoGo').disabled = true; promoMsg('Checking…', true);
+    fetch(SHOP.bookingSheet + '?promo=' + encodeURIComponent(code)).then(function(r){ return r.json(); }).then(function(d){
+      if(d && d.ok){
+        promo = { code: d.code, percent: Number(d.percent) || 0, amount: Number(d.amount) || 0 };
+        promoMsg(promo.code + ' applied: ' + (promo.percent ? promo.percent + '%' : peso(promo.amount)) + ' off the rental.', true);
+      } else { promo = null; promoMsg(PROMO_ERR[d && d.error] || PROMO_ERR.not_found, false); }
+      refresh();
+    }, function(){ promoMsg('Couldn\'t check the code right now. Try again in a moment.', false); })
+      .then(function(){ $('promoGo').disabled = false; });
+  }
+  $('promoGo').addEventListener('click', applyPromo);
+  $('promo').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); applyPromo(); } });
+  $('promo').addEventListener('input', function(){
+    if(promo && this.value.trim().toUpperCase() !== promo.code){ promo = null; promoMsg(''); refresh(); }
+  });
+
+  /* The price: rental days x rate, less the promo, plus the delivery fee. The sheet works it out the same way. */
+  function quote(){
+    var sp = span(); if(!sp || sp.hours <= 0) return null;
+    var m = model(), rental = m && m.rate ? m.rate * sp.days : 0, a = isDelivery() ? areaFee() : null, fee = a ? a.fee : 0, disc = 0;
+    if(promo && rental) disc = promo.percent ? Math.round(rental * promo.percent / 100) : Math.min(promo.amount, rental);
+    return { days: sp.days, hours: sp.hours, rental: rental, discount: disc, fee: fee, area: a ? a.area : '', total: rental - disc + fee };
+  }
+  function shipNote(){ return isDelivery() && !(SHOP.delivery || []).length; }
+
   /* ---- live tally ---- */
   function refresh(){
     markUnits();
@@ -1001,23 +1171,38 @@ footer b{color:var(--ink)}
     if(s) $('end').min = s;
     var sp = span(), ok = sp && sp.hours > 0;
     $('tally').hidden = !ok;
+    var lines = $('tallyLines'); lines.innerHTML = ''; lines.hidden = true;
     if(ok){
-      var m = model(), h = Math.round(sp.hours * 10) / 10;
+      var m = model(), h = Math.round(sp.hours * 10) / 10, q = quote(), extra = q.discount || q.fee;
       $('tallyDays').textContent = sp.days + (sp.days === 1 ? ' day' : ' days');
       $('tallyCost').textContent = h + ' hours' + (m && m.rate
-        ? ' · ' + peso(m.rate * sp.days) + ' rental' + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' refundable deposit' : '') + (isDelivery() ? ' + shipping both ways' : '')
+        ? ' · ' + peso(q.total) + (extra ? ' total' : ' rental') + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' refundable deposit' : '') + (shipNote() ? ' + shipping both ways' : '')
         : '');
+      if(m && m.rate && extra){
+        var add = function(a, b, cls){
+          var x = document.createElement('span'), y = document.createElement('span');
+          x.textContent = a; y.textContent = b; if(cls){ x.className = y.className = cls; }
+          lines.appendChild(x); lines.appendChild(y);
+        };
+        add('Rental · ' + q.days + (q.days === 1 ? ' day' : ' days') + ' × ' + peso(m.rate), peso(q.rental));
+        if(q.discount) add('Promo ' + promo.code, '−' + peso(q.discount), 'off');
+        if(q.fee) add('Delivery to ' + q.area, peso(q.fee));
+        add('Total', peso(q.total), 'tot');
+        lines.hidden = false;
+      }
     }
     $('addrRow').hidden = !isDelivery();
-    $('pickupNote').textContent = isDelivery()
-      ? 'You shoulder the shipping fees for both delivery and return. We\'ll send the courier details when we confirm.'
-      : 'Pick-up and return are at ' + SHOP.pickupPlace + '.';
+    var area = areaFee();
+    $('pickupNote').textContent = !isDelivery() ? 'Pick-up and return are at ' + SHOP.pickupPlace + '.'
+      : (SHOP.delivery || []).length
+        ? (area ? 'Delivery to ' + area.area + ': ' + (area.fee ? peso(area.fee) + ', added to your total.' : 'free.') : 'Choose your delivery area to see the fee.') + ' We\'ll send the courier details when we confirm.'
+        : 'You shoulder the shipping fees for both delivery and return. We\'ll send the courier details when we confirm.';
     $('polCount').textContent = ticked('pol', SHOP.policies.length) + ' of ' + SHOP.policies.length + ' ticked';
     $('liaCount').textContent = ticked('lia', SHOP.liabilities.length) + ' of ' + SHOP.liabilities.length + ' ticked';
   }
 
   /* ---- draft (kept in this browser only; photos are never saved) ---- */
-  var fields = ['start','time','end','rtime','delivery','name','address','mobile','social','purpose','ecName','ecRel','ecMobile','ecAddress','notes'];
+  var fields = ['start','time','end','rtime','area','delivery','name','address','mobile','social','purpose','ecName','ecRel','ecMobile','ecAddress','notes'];
   function saveDraft(){
     var d = { model: val('model'), handover: val('handover') };
     fields.forEach(function(f){ d[f] = $(f).value; });
@@ -1034,16 +1219,18 @@ footer b{color:var(--ink)}
   }
 
   /* First paint: the shop's last-known settings when this browser has them, then fresh ones from its sheet. */
-  if(!applyConfig(recall(CONFIG_KEY))){
-    applyShop(); buildUnits(); buildHandover(); buildInclusions(); buildPolicies(); setDateLimits();
-    if(foreign) document.documentElement.classList.add('loading-shop');
-  } else {
-    buildUnits(); buildHandover(); buildInclusions(); buildPolicies();
+  function start(){
+    if(!applyConfig(recall(CONFIG_KEY))){
+      applyShop(); buildAll(); setDateLimits();
+      if(foreign) document.documentElement.classList.add('loading-shop');
+    } else {
+      buildAll();
+    }
+    loadDraft();
+    refresh();
+    loadBusy();
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden) loadBusy(); });
   }
-  loadDraft();
-  refresh();
-  loadBusy();
-  document.addEventListener('visibilitychange', function(){ if(!document.hidden) loadBusy(); });
 
   /* After the first submit attempt, re-check as the renter fixes things so the red marks clear. */
   var tried = false;
@@ -1078,6 +1265,7 @@ footer b{color:var(--ink)}
     mark('end', !e || (!!msg && /return/i.test(msg) && !/pick-up time/.test(msg)));
     mark('time', !$('time').value || (!!msg && /pick-up time/.test(msg))); mark('rtime', !$('rtime').value);
     if(msg) bad = true;
+    if(mark('area', isDelivery() && !!(SHOP.delivery || []).length && !$('area').value)) bad = true;
     if(mark('name', $('name').value.trim().length < 3)) bad = true;
     if(mark('address', $('address').value.trim().length < 5)) bad = true;
     if(mark('mobile', $('mobile').value.replace(/\D/g,'').length < 10)) bad = true;
@@ -1105,7 +1293,7 @@ footer b{color:var(--ink)}
   }
   var current = '';
   function buildMessage(ref){
-    var s = $('start').value, e = $('end').value, sp = span(), m = model(), h = val('handover');
+    var s = $('start').value, e = $('end').value, sp = span(), m = model(), h = val('handover'), q = quote();
     var lines = [
       SHOP.name.toUpperCase() + ' BOOKING REQUEST',
       'Ref: ' + ref,
@@ -1114,8 +1302,9 @@ footer b{color:var(--ink)}
       'Return: ' + nice(e) + ' ' + niceTime($('rtime').value) + ' (' + e + ')',
       'Days: ' + sp.days + ' (' + Math.round(sp.hours * 10) / 10 + ' hours)'
     ];
-    if(m.rate) lines.push('Estimate: ' + peso(m.rate * sp.days) + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' deposit' : ''));
-    lines.push('Handover: ' + h + (isDelivery() ? ' - ' + ($('delivery').value.trim() || $('address').value.trim()) : ''));
+    if(m.rate) lines.push('Estimate: ' + peso(q.total) + (q.discount ? ' (promo ' + promo.code + ' -' + peso(q.discount) + ')' : '') +
+      (q.fee ? ' incl. ' + peso(q.fee) + ' delivery' : '') + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' deposit' : ''));
+    lines.push('Handover: ' + handoverText());
     lines.push('Name: ' + $('name').value.trim());
     lines.push('Address: ' + $('address').value.trim());
     lines.push('Mobile: ' + prettyMobile($('mobile').value.trim()));
@@ -1131,16 +1320,20 @@ footer b{color:var(--ink)}
     return lines.join('\n');
   }
 
+  function handoverText(){
+    var a = areaFee();
+    return val('handover') + (isDelivery() ? (a ? ' (' + a.area + ')' : '') + ' - ' + ($('delivery').value.trim() || $('address').value.trim()) : '');
+  }
   function photoFiles(){ return SHOP.uploads.map(function(u){ return files[u.id]; }).filter(Boolean); }
 
-  /* Save the booking to the sheet. Resolves 'saved', 'taken', 'too_soon', 'closed' or 'offline' (sheet off or unreachable). */
+  /* Save the booking to the sheet. Resolves 'saved', 'taken', 'too_soon', 'closed', 'promo', 'area' or 'offline' (sheet off or unreachable). */
   function saveToSheet(ref){
     if(!SHOP.bookingSheet) return Promise.resolve('offline');
-    var m = model(), sl = slot(), sp = span();
+    var m = model(), sl = slot(), q = quote();
     var body = {
       ref: ref, unitId: m.id, unit: label(m), start: sl.start.toISOString(), end: sl.end.toISOString(),
-      days: sp.days, estimate: m.rate ? m.rate * sp.days : '',
-      handover: val('handover') + (isDelivery() ? ' - ' + ($('delivery').value.trim() || $('address').value.trim()) : ''),
+      days: q.days, estimate: m.rate ? q.total : '', promo: promo ? promo.code : '', area: q.area, delivering: isDelivery(),
+      handover: handoverText(),
       name: $('name').value.trim(), address: $('address').value.trim(), mobile: prettyMobile($('mobile').value.trim()),
       social: $('social').value.trim(), purpose: $('purpose').value.trim(),
       ecName: $('ecName').value.trim(), ecRel: $('ecRel').value.trim(), ecMobile: prettyMobile($('ecMobile').value.trim()),
@@ -1153,7 +1346,8 @@ footer b{color:var(--ink)}
         if(d && d.busy){ busy = d.busy; }
         if(d && d.ok) return 'saved';
         if(d && d.error === 'taken'){ markUnits(); return 'taken'; }
-        if(d && (d.error === 'too_soon' || d.error === 'closed')) return d.error;
+        if(d && (d.error === 'too_soon' || d.error === 'closed' || d.error === 'area')) return d.error;
+        if(d && d.error === 'promo'){ promo = null; promoMsg(PROMO_ERR[d.reason] || PROMO_ERR.not_found, false); refresh(); return 'promo'; }
         return 'offline';
       }, function(){ return 'offline'; });
   }
@@ -1188,14 +1382,16 @@ footer b{color:var(--ink)}
   var REFUSED = {
     taken: 'Sorry, that unit was just booked for those times. Choose another unit or other times.',
     too_soon: 'That pick-up time is too soon to book online. Choose a later time, or message us.',
-    closed: 'We\'re closed on one of your dates. Choose other dates.'
+    closed: 'We\'re closed on one of your dates. Choose other dates.',
+    promo: 'That promo code can\'t be used anymore, so it was removed. Check your new total, then submit again.',
+    area: 'Choose your delivery area again; the delivery areas were just updated.'
   };
 
   $('form').addEventListener('submit', function(ev){
     ev.preventDefault();
     tried = true;
     if(!validate()){
-      var first = document.querySelector('.field.bad input,.field.bad textarea,.up.bad,.checks.bad,.err:not([hidden])');
+      var first = document.querySelector('.field.bad input,.field.bad select,.field.bad textarea,.up.bad,.checks.bad,.err:not([hidden])');
       if(first) first.scrollIntoView({ block:'center', behavior:'smooth' });
       return;
     }
@@ -1210,7 +1406,7 @@ footer b{color:var(--ink)}
       if(REFUSED[r.result]){
         $('formErr').textContent = REFUSED[r.result];
         $('formErr').hidden = false;
-        (r.result === 'taken' ? $('models') : $('start').closest('.step')).scrollIntoView({ block:'start', behavior:'smooth' });
+        (r.result === 'taken' ? $('models') : r.result === 'area' ? $('handover') : $('start').closest('.step')).scrollIntoView({ block:'start', behavior:'smooth' });
         return;
       }
       showSend(ref, r.result, r.photos);
@@ -1219,15 +1415,18 @@ footer b{color:var(--ink)}
 
   /* Short summary of the booking for the "Booking received" screen. */
   function fillSummary(){
-    var m = model(), sp = span(), rows = [
+    var m = model(), q = quote(), rows = [
       ['Phone', label(m)],
       ['Pick-up', nice($('start').value) + ', ' + niceTime($('time').value)],
       ['Return', nice($('end').value) + ', ' + niceTime($('rtime').value)],
-      ['Rental', sp.days + (sp.days === 1 ? ' day' : ' days') + (m.rate ? ' · ' + peso(m.rate * sp.days) : '')],
-      ['Deposit', SHOP.deposit ? peso(SHOP.deposit) + ' (refundable)' : 'None'],
-      ['Hand-over', val('handover') + (isDelivery() ? ' (you pay shipping)' : '')],
-      ['Name', $('name').value.trim()]
+      ['Rental', q.days + (q.days === 1 ? ' day' : ' days') + (m.rate ? ' · ' + peso(q.rental) : '')]
     ];
+    if(q.discount) rows.push(['Promo ' + promo.code, '−' + peso(q.discount)]);
+    if(q.fee) rows.push(['Delivery fee', peso(q.fee)]);
+    if(m.rate && (q.discount || q.fee)) rows.push(['Total', peso(q.total)]);
+    rows.push(['Deposit', SHOP.deposit ? peso(SHOP.deposit) + ' (refundable)' : 'None']);
+    rows.push(['Hand-over', val('handover') + (q.area ? ' (' + q.area + ')' : '') + (shipNote() ? ' (you pay shipping)' : '')]);
+    rows.push(['Name', $('name').value.trim()]);
     var dl = $('summary'); dl.innerHTML = '';
     rows.forEach(function(r){
       var dt = document.createElement('dt'), dd = document.createElement('dd');
@@ -1312,6 +1511,28 @@ footer b{color:var(--ink)}
     $('sent').hidden = true; $('form').hidden = false; $('toast').textContent = '';
     if(SHOP.bookingSheet) $('cal').hidden = false;
     $('form').scrollIntoView({ block:'start', behavior:'smooth' });
+  });
+
+  /* ---- start: Snaps MNL's own page straight away; another shop once rent/shops.json says it's active ---- */
+  useShop(shopParam);
+  if(!slug && !foreign){ start(); return; }
+  document.documentElement.classList.add('loading-shop');
+  fetch('shops.json', { cache:'no-cache' }).then(function(r){ return r.json(); }).then(function(reg){
+    var e = ((reg && reg.shops) || []).filter(function(x){
+      return x && (slug ? String(x.slug || '').toLowerCase() === slug : x.shop === shopParam);
+    })[0];
+    if(!e) return paused(null);
+    if(slug){ store('rent_slug_' + slug, e.shop); useShop(e.shop); }
+    if(foreign && /^\d{4}-\d{2}-\d{2}$/.test(e.paidUntil || '') && addDaysIso(e.paidUntil, Number(reg.graceDays) || 0) < today) return paused(e);
+    start();
+  }, function(){
+    /* The list can't be reached (offline): a short link opened here before still works; a full link works as before. */
+    if(slug){
+      var id = recall('rent_slug_' + slug);
+      if(!id){ $('loadErr').hidden = false; blankShop(''); return; }
+      useShop(id);
+    }
+    start();
   });
 })();
 </script>
