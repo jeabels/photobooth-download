@@ -68,7 +68,38 @@ A banner looks best about 3 times wider than it is tall, e.g. 1920 × 640.
 
 Renters can tap the banner, a rate card or a poster to see it bigger, and use **+** and **−** to zoom.
 
-## 4. Taking bookings
+## 4. The owner page
+
+The booking link is for renters. The owner has their own page, at the booking link with `/admin` added:
+
+```
+https://jeabels.github.io/photobooth-download/rent/<your shop's short name>/admin
+```
+
+1. In the Google Sheet, open the menu with your shop's name and choose **Set owner app password**.
+   Choose a password of at least 6 characters. Only you should know it.
+2. Open the owner page on your phone or computer and sign in. Tick **Keep me signed in on this device**
+   on your own phone so you don't need to type it each time.
+
+What's on it:
+
+- **Dashboard:** sales today, this week and this month; pending bookings to review; phones rented out
+  now; today's pick-ups and returns. A **Daily / Weekly / Monthly** sales chart (tap a column for its
+  numbers, or **Show as table**), **Most rented units** for the same period, and today's and
+  tomorrow's pick-ups and returns.
+- **Bookings:** search by name, ref, mobile or unit, and filter by Upcoming, Today, Out now, Pending,
+  Confirmed, Returned, Cancelled or All. Tap a booking to:
+  - **Confirm**, **Mark as returned** or **Cancel** it in one tap
+  - change the unit, dates and times, or the renter's details
+  - **give that renter a discount**: type it in pesos and press **Recalculate** for the new total
+  - call or text the renter, and open their requirement photos
+- **+ New booking:** add walk-in or Messenger bookings. They block the unit on the booking page too.
+
+The page won't save a change that puts a unit in two Pending or Confirmed bookings at the same time.
+Every change goes straight into the **Website Bookings** tab. If you forget your password, set a new one
+from the menu; that also signs out every phone and computer.
+
+## 5. Taking bookings
 
 - New bookings arrive in the **Website Bookings** tab as **Pending**, with the renter's details
   and a Google Drive link to their 3 requirement photos. The shop gets an email for each one.

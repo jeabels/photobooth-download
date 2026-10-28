@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Page not found</title>
 <script>
-/* Short booking links: …/rent/<shop> opens that shop's booking page (shops are listed in rent/shops.json). */
+/* Short links: …/rent/<shop> opens that shop's booking page, …/rent/<shop>/admin its owner page (shops are listed in rent/shops.json). */
 (function(){
-  var m = location.pathname.match(/^(.*\/rent)\/([A-Za-z0-9-]{2,40})\/?$/);
-  if(m && !/^(units|google-sheet)$/i.test(m[2])) location.replace(m[1] + '/?s=' + m[2].toLowerCase() + location.hash);
+  var m = location.pathname.match(/^(.*\/rent)\/([A-Za-z0-9-]{2,40})(\/admin)?\/?$/);
+  if(m && !/^(units|google-sheet|admin)$/i.test(m[2])) location.replace(m[1] + (m[3] ? '/admin' : '') + '/?s=' + m[2].toLowerCase() + location.hash);
 })();
 </script>
 <style>

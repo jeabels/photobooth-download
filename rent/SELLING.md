@@ -25,14 +25,16 @@ file: [`shops.json`](shops.json).
    - **paidUntil**: the last day they've paid for, written as YYYY-MM-DD. Leave it `""` for a shop that never expires.
    - Put a comma between shops.
 4. Commit the change. Within a few minutes their page is live at
-   `https://jeabels.github.io/photobooth-download/rent/juanrentals`.
+   `https://jeabels.github.io/photobooth-download/rent/juanrentals`, and their owner page at
+   `https://jeabels.github.io/photobooth-download/rent/juanrentals/admin` (SETUP.md, step 4).
 
 ## Monthly fee
 
 - **Renew:** when they pay, move **paidUntil** to the end of the new month and commit.
 - **Late payment:** their page keeps working for `graceDays` days after **paidUntil** (5 by default), then shows
   "Online booking for <shop> is paused". Their Google Sheet and bookings are untouched, so the page
-  comes back as soon as you move **paidUntil** forward.
+  comes back as soon as you move **paidUntil** forward. Their owner page keeps working, with a note
+  asking them to renew.
 - **Pause now:** set **paidUntil** to a past date. **Remove for good:** delete their entry.
 
 A shop that isn't in `shops.json` gets "This booking link isn't set up", whether they use their short

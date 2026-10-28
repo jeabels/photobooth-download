@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Owner · Phone Rentals</title>
+<meta name="theme-color" content="#8E1016">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,600;112,800;125,900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script>
+/* Same Light / Dim / Dark choice as the booking page (kept in this browser). */
+try{ var t = localStorage.getItem('rent_theme'); if(t === 'light' || t === 'dim' || t === 'dark') document.documentElement.dataset.theme = t; }catch(e){}
+</script>
+<!-- =============================================================================
+     Owner page for the phone rental booking page (rent/index.html).
+
+     The owner signs in with the password set in their Google Sheet (menu > Set owner
+     app password), then sees sales and the most-rented units, and checks, edits and
+     adds bookings. Everything is read from and saved to the shop's Google Sheet by
+     rent/google-sheet/Code.gs; nothing about renters is kept in this page.
+     Another shop's owner page is this page with ?s=<short name> or ?shop=<deployment id>,
+     the same as its booking link.
+     ========================================================================== -->
+<style>
+:root{
+  --bg:#F7F2EE; --card:#FFFFFF; --ink:#1C1012; --sub:#6E5A5C; --muted:#8F7C7E; --line:rgba(60,14,18,.12); --grid:rgba(60,14,18,.08);
+  --brand:#8E1016; --brand-2:#B3161D; --on-brand:#FFFFFF; --brand-soft:rgba(142,16,22,.08);
+  --gold:#FFC22E; --on-gold:#3A1A00; --good:#18794E; --bad:#C0262D; --warn:#9A5800; --hero:#7C0507;
+  --good-soft:rgba(24,121,78,.12); --bad-soft:rgba(192,38,45,.12); --warn-soft:rgba(214,140,0,.18); --neutral-soft:rgba(60,14,18,.07);
+  --display:'Archivo',system-ui,sans-serif; --body:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+:root[data-theme="dim"]{
+  --bg:#2E2526; --card:#3B3132; --ink:#FAF1F1; --sub:#D2BEC0; --muted:#B19C9E; --line:rgba(255,230,230,.17); --grid:rgba(255,230,230,.10);
+  --brand:#C42A31; --brand-2:#E0434A; --on-brand:#FFFFFF; --brand-soft:rgba(224,67,74,.14);
+  --gold:#FFC941; --on-gold:#2E1500; --good:#4CC38A; --bad:#FF6B70; --warn:#F0B44C;
+  --good-soft:rgba(76,195,138,.16); --bad-soft:rgba(255,107,112,.16); --warn-soft:rgba(240,180,76,.18); --neutral-soft:rgba(255,230,230,.09);
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme]){
+    --bg:#2E2526; --card:#3B3132; --ink:#FAF1F1; --sub:#D2BEC0; --muted:#B19C9E; --line:rgba(255,230,230,.17); --grid:rgba(255,230,230,.10);
+    --brand:#C42A31; --brand-2:#E0434A; --on-brand:#FFFFFF; --brand-soft:rgba(224,67,74,.14);
+    --gold:#FFC941; --on-gold:#2E1500; --good:#4CC38A; --bad:#FF6B70; --warn:#F0B44C;
+    --good-soft:rgba(76,195,138,.16); --bad-soft:rgba(255,107,112,.16); --warn-soft:rgba(240,180,76,.18); --neutral-soft:rgba(255,230,230,.09);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#130D0E; --card:#1F1718; --ink:#F7EEEE; --sub:#BFAAAC; --muted:#9E898B; --line:rgba(255,230,230,.12); --grid:rgba(255,230,230,.08);
+  --brand:#C42A31; --brand-2:#E0434A; --on-brand:#FFFFFF; --brand-soft:rgba(224,67,74,.14);
+  --gold:#FFC941; --on-gold:#2E1500; --good:#4CC38A; --bad:#FF6B70; --warn:#F0B44C;
+  --good-soft:rgba(76,195,138,.15); --bad-soft:rgba(255,107,112,.15); --warn-soft:rgba(240,180,76,.16); --neutral-soft:rgba(255,230,230,.08);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;overflow-x:clip}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);min-height:100vh;padding-bottom:calc(env(safe-area-inset-bottom) + 40px)}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+.wrap{max-width:960px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-height:1.2}
+.hint{font-size:13px;color:var(--sub)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 16px}
+
+/* ---- top bar ---- */
+.top{background:var(--hero);color:#fff;padding-top:env(safe-area-inset-top)}
+.top .wrap{display:flex;align-items:center;gap:10px;min-height:58px;flex-wrap:wrap;padding-block:8px}
+.top h1{font-size:18px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top h1 small{font-family:var(--body);font-weight:600;font-size:12px;opacity:.8;margin-left:6px;letter-spacing:.04em;text-transform:uppercase}
+.icon-btn{appearance:none;border:0;background:rgba(255,255,255,.14);color:#fff;border-radius:999px;height:36px;padding:0 12px;display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+.icon-btn svg{width:16px;height:16px}
+.icon-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.theme{display:flex;background:rgba(255,255,255,.14);border-radius:999px;padding:2px}
+.theme button{appearance:none;border:0;background:none;border-radius:999px;padding:5px 9px;font-weight:700;font-size:12.5px;cursor:pointer;color:rgba(255,255,255,.85)}
+.theme button[aria-pressed="true"]{background:#fff;color:var(--hero)}
+.theme button:focus-visible{outline:2px solid var(--gold)}
+@media (max-width:560px){ .top h1{flex-basis:100%} .top .wrap{gap:8px} .icon-btn .lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)} #logoutBtn{margin-left:auto} }
+
+/* ---- sign in ---- */
+.login{max-width:420px;margin:40px auto 0}
+.login h2{font-size:22px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field > span{font-size:12.5px;font-weight:600;color:var(--sub)}
+.field input,.field select,.field textarea{width:100%;min-width:0;padding:10px 12px;border:1.5px solid var(--line);border-radius:11px;background:var(--bg);font-size:16px}
+.field textarea{min-height:64px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--brand-2)}
+.check{display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--brand-2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 18px;border-radius:999px;border:0;cursor:pointer;
+  font-family:var(--display);font-stretch:112%;font-weight:800;font-size:14px;letter-spacing:.02em;text-transform:uppercase;text-decoration:none;white-space:nowrap}
+.btn:focus-visible{outline:2px solid var(--brand-2);outline-offset:3px}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.brand{background:var(--brand);color:var(--on-brand)}
+.btn.gold{background:var(--gold);color:var(--on-gold)}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn.danger{background:transparent;color:var(--bad);border:1.5px solid var(--bad)}
+.btn.small{padding:8px 13px;font-size:12.5px}
+.err{color:var(--bad);font-weight:600;font-size:13.5px}
+.notice{margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--warn-soft);font-size:14px}
+
+/* ---- tabs ---- */
+.tabs{display:flex;align-items:center;gap:8px;margin:16px 0 14px;flex-wrap:wrap}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:999px;padding:2px;background:var(--card)}
+.seg button{appearance:none;border:0;background:none;border-radius:999px;padding:7px 14px;font-weight:700;font-size:13.5px;cursor:pointer;color:var(--sub)}
+.seg button[aria-pressed="true"]{background:var(--brand);color:var(--on-brand)}
+.seg button:focus-visible{outline:2px solid var(--brand-2);outline-offset:1px}
+.tabs .spacer{flex:1}
+.loadbar{font-size:12.5px;color:var(--sub)}
+
+/* ---- dashboard ---- */
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+.tile .lbl{font-size:12.5px;font-weight:600;color:var(--sub)}
+.tile .val{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:clamp(20px,5.5vw,30px);line-height:1.15;margin-top:4px;overflow-wrap:anywhere}
+.tile .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.ops{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px}
+.op{appearance:none;text-align:left;cursor:pointer;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px;display:flex;flex-direction:column;gap:2px}
+.op b{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:22px;line-height:1.1}
+.op span{font-size:12.5px;font-weight:600;color:var(--sub)}
+.op:hover{border-color:var(--brand-2)}
+.op:focus-visible{outline:2px solid var(--brand-2);outline-offset:2px}
+.op.alert b{color:var(--warn)}
+@media (max-width:560px){ .tiles{grid-template-columns:1fr 1fr} .tiles .tile:first-child{grid-column:1/-1} .ops{grid-template-columns:1fr 1fr} }
+.filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 0 10px}
+.filters > span{font-size:13px;font-weight:700;color:var(--sub)}
+.charts{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:860px){ .charts{grid-template-columns:3fr 2fr} }
+.chart-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.chart-head h2{font-size:16px}
+.chart-head p{font-size:13px;color:var(--sub);margin-top:2px}
+.linkbtn{appearance:none;border:0;background:none;color:var(--brand-2);font-weight:700;font-size:12.5px;cursor:pointer;padding:4px 0;white-space:nowrap}
+.plot{position:relative;margin-top:12px}
+.plot svg{display:block;width:100%;height:auto;overflow:visible}
+.plot .tick{font-size:11px;fill:var(--muted);font-variant-numeric:tabular-nums}
+.plot .peak{font-size:11.5px;font-weight:700;fill:var(--sub)}
+.plot .col{fill:var(--brand-2);pointer-events:none}
+.plot .hit{fill:transparent;cursor:pointer;outline:none}
+.plot .hit:hover + .col,.plot .hit:focus + .col,.plot .col.on{fill:var(--brand)}
+.tip{position:absolute;z-index:3;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 10px;box-shadow:0 10px 24px -12px rgba(0,0,0,.45);font-size:12.5px;white-space:nowrap;transform:translate(-50%,-100%)}
+.tip b{display:block;font-size:14px;font-variant-numeric:tabular-nums}
+.tip span{color:var(--sub)}
+.tbl{width:100%;border-collapse:collapse;margin-top:12px;font-size:13.5px}
+.tbl th,.tbl td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}
+.tbl td.n,.tbl th.n{text-align:right;font-variant-numeric:tabular-nums}
+.bars{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.bar-row .name{font-size:13.5px;font-weight:600;display:flex;justify-content:space-between;gap:8px}
+.bar-row .name small{color:var(--muted);font-weight:500}
+.bar-line{display:flex;align-items:center;gap:8px;margin-top:4px}
+.bar{height:16px;border-radius:0 4px 4px 0;background:var(--brand-2);min-width:2px}
+.bar.zero{background:var(--line)}
+.bar-line span{font-size:12.5px;color:var(--sub);font-variant-numeric:tabular-nums;white-space:nowrap}
+.agenda{margin-top:12px;display:flex;flex-direction:column}
+.agenda h3{font-size:13px;font-family:var(--body);font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px}
+.agenda h3:first-child{margin-top:0}
+
+/* ---- bookings ---- */
+.search{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.search .field{flex:1 1 220px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.chip{appearance:none;border:1.5px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-weight:700;font-size:13px;cursor:pointer;color:var(--sub)}
+.chip[aria-pressed="true"]{border-color:var(--brand);background:var(--brand);color:var(--on-brand)}
+.chip:focus-visible{outline:2px solid var(--brand-2);outline-offset:2px}
+.list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.bk{appearance:none;text-align:left;width:100%;cursor:pointer;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:2px 12px}
+.bk:hover{border-color:var(--brand-2)}
+.bk:focus-visible{outline:2px solid var(--brand-2);outline-offset:2px}
+.bk .who{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.bk .amt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.bk .meta{font-size:13px;color:var(--sub);grid-column:1}
+.bk .ref{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:right}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.Pending{background:var(--warn-soft);color:var(--warn)}
+.pill.Confirmed{background:var(--good-soft);color:var(--good)}
+.pill.Cancelled{background:var(--bad-soft);color:var(--bad)}
+.pill.Returned{background:var(--neutral-soft);color:var(--sub)}
+.empty{padding:22px;text-align:center;color:var(--sub);font-size:14px}
+
+/* ---- booking editor ---- */
+.editor{border:0;padding:0;margin:auto;width:min(680px,100vw);max-width:100vw;max-height:100dvh;background:var(--card);color:var(--ink);border-radius:18px}
+.editor::backdrop{background:rgba(10,4,5,.6)}
+@media (max-width:700px){ .editor{width:100vw;height:100dvh;max-height:100dvh;border-radius:0;margin:0} }
+.ed-head{position:sticky;top:0;z-index:2;background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px}
+.ed-head h2{font-size:17px;flex:1;min-width:0}
+.ed-head h2 small{display:block;font-family:var(--body);font-weight:500;font-size:12.5px;color:var(--sub)}
+.ed-body{padding:14px 16px 90px}
+.ed-sec{margin-top:18px}
+.ed-sec:first-child{margin-top:0}
+.ed-sec > h3{font-size:14px;margin-bottom:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid .full{grid-column:1/-1}
+@media (max-width:420px){ .grid{grid-template-columns:1fr} }
+.quick{display:flex;gap:8px;flex-wrap:wrap}
+.contact{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.price{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--brand-soft);font-size:14px;font-variant-numeric:tabular-nums}
+.price .tot{font-weight:800}
+.ed-foot{position:sticky;bottom:0;z-index:2;background:var(--card);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center}
+.ed-foot .err{flex:1}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:20;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;box-shadow:0 12px 30px -12px rgba(0,0,0,.5)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.stale{opacity:.55;transition:opacity .2s}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <h1><span id="shopName">Phone rentals</span><small>Owner</small></h1>
+    <button class="icon-btn" type="button" id="refreshBtn" hidden aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg><span class="lbl">Refresh</span></button>
+    <div class="theme" role="group" aria-label="Page colour">
+      <button type="button" data-theme="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme="dim" aria-pressed="false">Dim</button>
+      <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+    </div>
+    <button class="icon-btn" type="button" id="logoutBtn" hidden>Sign out</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card login" id="login" hidden>
+    <h2>Owner sign in</h2>
+    <p class="hint" style="margin-top:4px">For the shop owner only. Renters book on the booking page.</p>
+    <form id="loginForm" style="margin-top:14px;display:flex;flex-direction:column;gap:12px" novalidate>
+      <label class="field"><span>Owner password</span><input type="password" id="pw" autocomplete="current-password" required></label>
+      <label class="check"><input type="checkbox" id="remember" checked> Keep me signed in on this device</label>
+      <button class="btn brand" type="submit" id="loginGo">Sign in</button>
+      <p class="err" id="loginErr" role="alert" hidden></p>
+    </form>
+    <p class="hint" style="margin-top:14px">No password yet? In your Google Sheet, open the menu with your shop's name and choose <b>Set owner app password</b>. (If you don't see it, paste in the newest script first.)</p>
+  </section>
+
+  <section class="card login" id="blocked" hidden>
+    <h2 id="blockedTitle">This owner link isn't set up</h2>
+    <p class="hint" id="blockedHint" style="margin-top:6px">Check the link with the person who set up your booking page.</p>
+  </section>
+
+  <div id="app" hidden>
+    <p class="notice" id="pausedNote" hidden></p>
+    <div class="tabs">
+      <div class="seg" role="group" aria-label="View"><button type="button" data-tab="dash" aria-pressed="true">Dashboard</button><button type="button" data-tab="list" aria-pressed="false">Bookings</button></div>
+      <span class="spacer"></span>
+      <span class="loadbar" id="loadbar" role="status"></span>
+      <button class="btn gold small" type="button" id="newBtn">+ New booking</button>
+    </div>
+
+    <!-- dashboard -->
+    <section id="dash">
+      <div class="tiles">
+        <div class="tile"><div class="lbl">Sales today</div><div class="val" id="tToday"></div><div class="sub" id="tTodayN"></div></div>
+        <div class="tile"><div class="lbl">Sales this week</div><div class="val" id="tWeek"></div><div class="sub" id="tWeekN"></div></div>
+        <div class="tile"><div class="lbl">Sales this month</div><div class="val" id="tMonth"></div><div class="sub" id="tMonthN"></div></div>
+      </div>
+      <div class="ops">
+        <button class="op" type="button" data-go="Pending" id="opPending"><b id="nPending"></b><span>Pending to review</span></button>
+        <button class="op" type="button" data-go="Out now"><b id="nOut"></b><span>Rented out now</span></button>
+        <button class="op" type="button" data-go="Today"><b id="nPick"></b><span>Pick-ups today</span></button>
+        <button class="op" type="button" data-go="Today"><b id="nRet"></b><span>Returns today</span></button>
+      </div>
+      <p class="hint" style="margin-top:8px">Sales are Confirmed and Returned bookings, counted on their pick-up day: rental after discounts, plus delivery fees. Deposits are not included.</p>
+
+      <div class="filters">
+        <span>Show</span>
+        <div class="seg" role="group" aria-label="Period" id="range">
+          <button type="button" data-range="day" aria-pressed="true">Daily</button><button type="button" data-range="week" aria-pressed="false">Weekly</button><button type="button" data-range="month" aria-pressed="false">Monthly</button>
+        </div>
+      </div>
+      <div class="charts">
+        <section class="card">
+          <div class="chart-head"><div><h2 id="salesTitle">Sales</h2><p id="salesSub"></p></div><button class="linkbtn" type="button" id="salesTblBtn" aria-expanded="false">Show as table</button></div>
+          <div class="plot" id="salesPlot"></div>
+          <table class="tbl" id="salesTbl" hidden></table>
+        </section>
+        <section class="card">
+          <div class="chart-head"><div><h2>Most rented units</h2><p id="unitsSub"></p></div></div>
+          <div class="bars" id="unitBars"></div>
+        </section>
+      </div>
+      <section class="card" style="margin-top:12px">
+        <div class="chart-head"><div><h2>Today and tomorrow</h2><p>Pick-ups and returns. Tap one to open it.</p></div></div>
+        <div class="agenda" id="agenda"></div>
+      </section>
+    </section>
+
+    <!-- bookings -->
+    <section id="list" hidden>
+      <div class="search">
+        <label class="field"><span class="sr-only">Search</span><input type="search" id="q" placeholder="Search name, ref, mobile or unit"></label>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="Filter bookings"></div>
+      <div class="list" id="rows"></div>
+    </section>
+  </div>
+</main>
+
+<dialog class="editor" id="editor" aria-labelledby="edTitle">
+  <form id="edForm" novalidate>
+    <div class="ed-head">
+      <h2 id="edTitle"><span id="edRef"></span> <span class="pill" id="edPill"></span><small id="edSub"></small></h2>
+      <button class="btn ghost small" type="button" id="edClose">Close</button>
+    </div>
+    <div class="ed-body">
+      <div class="ed-sec" id="quickSec">
+        <div class="quick" id="quick"></div>
+        <div class="contact" id="contact"></div>
+      </div>
+
+      <div class="ed-sec">
+        <h3>Booking</h3>
+        <div class="grid">
+          <label class="field"><span>Status</span><select id="fStatus"><option>Pending</option><option>Confirmed</option><option>Returned</option><option>Cancelled</option></select></label>
+          <label class="field"><span>Unit</span><select id="fUnit"></select></label>
+          <label class="field"><span>Pick-up date</span><input type="date" id="fSd"></label>
+          <label class="field"><span>Pick-up time</span><input type="time" id="fSt" step="900"></label>
+          <label class="field"><span>Return date</span><input type="date" id="fEd"></label>
+          <label class="field"><span>Return time</span><input type="time" id="fEt" step="900"></label>
+        </div>
+      </div>
+
+      <div class="ed-sec">
+        <h3>Price and discount</h3>
+        <div class="grid">
+          <label class="field"><span>Discount for this renter (₱)</span><input type="number" id="fDisc" min="0" step="1" inputmode="numeric" placeholder="0"></label>
+          <label class="field"><span>Delivery fee (₱)</span><input type="number" id="fFee" min="0" step="1" inputmode="numeric" placeholder="0"></label>
+          <label class="field full"><span>Total to pay, without deposit (₱) <button class="linkbtn" type="button" id="recalc" hidden>Recalculate</button></span><input type="number" id="fTotal" min="0" step="1" inputmode="numeric"></label>
+        </div>
+        <div class="price" id="priceBox"></div>
+      </div>
+
+      <div class="ed-sec">
+        <h3>Renter</h3>
+        <div class="grid">
+          <label class="field full"><span>Full name</span><input type="text" id="fName"></label>
+          <label class="field"><span>Mobile</span><input type="tel" id="fMobile" inputmode="tel"></label>
+          <label class="field"><span>Social (FB/IG)</span><input type="text" id="fSocial"></label>
+          <label class="field full"><span>Address</span><input type="text" id="fAddress"></label>
+          <label class="field full"><span>Hand-over</span><input type="text" id="fHandover"></label>
+          <label class="field full"><span>Purpose</span><input type="text" id="fPurpose"></label>
+        </div>
+      </div>
+
+      <div class="ed-sec">
+        <h3>Emergency contact</h3>
+        <div class="grid">
+          <label class="field"><span>Name</span><input type="text" id="fEcName"></label>
+          <label class="field"><span>Relationship</span><input type="text" id="fEcRel"></label>
+          <label class="field"><span>Mobile</span><input type="tel" id="fEcMobile" inputmode="tel"></label>
+          <label class="field"><span>Address</span><input type="text" id="fEcAddress"></label>
+        </div>
+      </div>
+
+      <div class="ed-sec">
+        <h3>Notes</h3>
+        <label class="field"><span class="sr-only">Notes</span><textarea id="fNotes"></textarea></label>
+      </div>
+    </div>
+    <div class="ed-foot">
+      <p class="err" id="edErr" role="alert"></p>
+      <button class="btn brand" type="submit" id="edSave">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  /* Snaps MNL's own sheet; other shops come from ?s= / ?shop=, the same as the booking page. */
+  var DEFAULT_SHEET = "https://script.google.com/macros/s/AKfycbwRmFXakF4wRTaYUwm5BcgIwgAMEvOm4E7C4YDVSeqcHrE96X7QB1SWi_7gqboml73pwg/exec";
+  var params = new URLSearchParams(location.search);
+  var slug = (params.get('s') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  var shopParam = params.get('shop');
+  var SHEET = DEFAULT_SHEET, foreign = false, TOKEN_KEY = '';
+  function useShop(id){
+    if(id && /^[\w-]{20,120}$/.test(id)){ SHEET = 'https://script.google.com/macros/s/' + id + '/exec'; foreign = SHEET !== DEFAULT_SHEET; }
+    TOKEN_KEY = 'rent_owner_' + SHEET.replace(/^.*\/s\//, '').slice(0, 24);
+  }
+
+  /* ---- small helpers ---- */
+  function peso(n){ return '₱' + Math.round(Number(n) || 0).toLocaleString('en-PH'); }
+  function compact(n){ n = Number(n) || 0; return n >= 1e6 ? '₱' + (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? '₱' + (n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(/\.0$/, '') + 'K' : '₱' + n; }
+  function plural(n, w){ return n + ' ' + w + (n === 1 ? '' : 's'); }
+  /* Manila calendar day / time of an ISO time. */
+  function mday(isoStr){ return new Date(Date.parse(isoStr) + 8 * 36e5).toISOString().slice(0, 10); }
+  function mtime(isoStr){ return new Date(Date.parse(isoStr) + 8 * 36e5).toISOString().slice(11, 16); }
+  function toIso(day, time){ return new Date(day + 'T' + (time || '00:00') + ':00+08:00').toISOString(); }
+  function addDays(ds, n){ var d = new Date(Date.UTC(+ds.slice(0, 4), +ds.slice(5, 7) - 1, +ds.slice(8, 10) + n)); return d.toISOString().slice(0, 10); }
+  function today(){ return mday(new Date().toISOString()); }
+  function weekStart(ds){ var dow = new Date(ds + 'T00:00:00Z').getUTCDay(); return addDays(ds, -((dow + 6) % 7)); }   // weeks start on Monday
+  function when(isoStr){ return isoStr ? new Date(isoStr).toLocaleString('en-PH', { timeZone:'Asia/Manila', weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : ''; }
+  function clock(isoStr){ return new Date(isoStr).toLocaleString('en-PH', { timeZone:'Asia/Manila', hour:'numeric', minute:'2-digit' }); }
+  function dayLabel(ds, opts){ return new Date(ds + 'T12:00:00+08:00').toLocaleDateString('en-PH', Object.assign({ timeZone:'Asia/Manila' }, opts)); }
+  function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
+  function store(){ try{ return $('remember').checked ? localStorage : sessionStorage; }catch(e){ return null; } }
+  function getToken(){ try{ return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } }
+  function setToken(t){ try{ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); if(t){ var s = store(); if(s) s.setItem(TOKEN_KEY, t); } }catch(e){} }
+  var toastTimer;
+  function toast(t){ $('toast').textContent = t; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(function(){ $('toast').hidden = true; }, 2600); }
+
+  /* ---- theme ---- */
+  function paintTheme(){
+    var t = document.documentElement.dataset.theme || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dim' : 'light');
+    document.querySelectorAll('.theme button').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.theme === t); });
+  }
+  document.querySelectorAll('.theme button').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.documentElement.dataset.theme = b.dataset.theme;
+      try{ localStorage.setItem('rent_theme', b.dataset.theme); }catch(e){}
+      paintTheme(); renderDash();
+    });
+  });
+  paintTheme();
+
+  /* Brand colour from the shop's settings, as on the booking page. */
+  function mix(hex, to, t){
+    var a = parseInt(hex.slice(1), 16), b = parseInt(to.slice(1), 16);
+    return '#' + [16, 8, 0].map(function(sh){ var x = (a >> sh) & 255, y = (b >> sh) & 255; return Math.round(x + (y - x) * t).toString(16).padStart(2, '0'); }).join('');
+  }
+  function applyBrand(c){
+    if(!/^#[0-9a-f]{6}$/i.test(c || '')) return;
+    var r = document.documentElement.style, n = parseInt(c.slice(1), 16);
+    r.setProperty('--brand', c); r.setProperty('--brand-2', mix(c, '#ffffff', .18));
+    r.setProperty('--brand-soft', 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',.12)');
+    r.setProperty('--hero', mix(c, '#000000', .15));
+  }
+
+  /* ---- talking to the shop's Google Sheet ---- */
+  function api(op, extra){
+    var body = Object.assign({ action:'admin', op: op, token: getToken() }, extra || {});
+    return fetch(SHEET, { method:'POST', body: JSON.stringify(body) }).then(function(r){ return r.json(); });
+  }
+  var ERR = {
+    no_password: 'This shop has no owner password yet. Set one in the Google Sheet: menu > Set owner app password.',
+    wrong_password: 'That password isn\'t right.',
+    locked: 'Too many wrong passwords. Try again in 15 minutes.',
+    taken: 'That unit is already booked at an overlapping time',
+    changed: 'This booking was changed in the sheet. Refresh and try again.',
+    dates: 'The return must be after the pick-up.',
+    unit: 'Choose a unit that is in the Units tab.',
+    status: 'Choose a status.',
+    name: 'Enter the renter\'s name.',
+    offline: 'Couldn\'t reach your Google Sheet. Check your internet and try again.'
+  };
+
+  /* ---- state ---- */
+  var DATA = { bookings: [], units: [], shop: {} }, tab = 'dash', range = 'day', chip = 'Upcoming';
+  try{ range = localStorage.getItem('rent_owner_range') || 'day'; }catch(e){}
+  if(['day','week','month'].indexOf(range) < 0) range = 'day';
+
+  function showLogin(msg){
+    $('app').hidden = true; $('login').hidden = false; $('refreshBtn').hidden = true; $('logoutBtn').hidden = true;
+    $('loginErr').hidden = !msg; $('loginErr').textContent = msg || '';
+    setTimeout(function(){ $('pw').focus(); }, 0);
+  }
+  function load(){
+    $('loadbar').textContent = 'Loading…'; $('app').classList.add('stale');
+    return api('data').then(function(d){
+      if(!d || !d.ok){
+        if(d && (d.error === 'signed_out' || d.error === 'no_password')){ setToken(''); showLogin(d.error === 'no_password' ? ERR.no_password : ''); return; }
+        $('loadbar').textContent = 'Couldn\'t load. Tap Refresh.'; return;
+      }
+      DATA = d;
+      $('shopName').textContent = d.shop.name || 'Phone rentals';
+      document.title = 'Owner · ' + (d.shop.name || 'Phone rentals');
+      applyBrand(d.shop.brandColor);
+      $('login').hidden = true; $('app').hidden = false; $('refreshBtn').hidden = false; $('logoutBtn').hidden = false;
+      $('loadbar').textContent = 'Updated ' + new Date().toLocaleTimeString('en-PH', { hour:'numeric', minute:'2-digit' });
+      render();
+    }, function(){ $('loadbar').textContent = ERR.offline; }).then(function(){ $('app').classList.remove('stale'); });
+  }
+  $('loginForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var pw = $('pw').value;
+    if(!pw){ $('loginErr').hidden = false; $('loginErr').textContent = 'Enter your owner password.'; return; }
+    $('loginGo').disabled = true; $('loginErr').hidden = true;
+    api('login', { password: pw }).then(function(d){
+      if(d && d.ok){ setToken(d.token); $('pw').value = ''; return load(); }
+      showLogin(ERR[d && d.error] || ERR.wrong_password);
+    }, function(){ showLogin(ERR.offline); }).then(function(){ $('loginGo').disabled = false; });
+  });
+  $('logoutBtn').addEventListener('click', function(){
+    api('logout').catch(function(){}); setToken(''); DATA = { bookings: [], units: [], shop: {} }; showLogin('');
+  });
+  $('refreshBtn').addEventListener('click', load);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden && !$('app').hidden && !$('editor').open) load(); });
+
+  /* ---- tabs ---- */
+  function setTab(t){
+    tab = t;
+    document.querySelectorAll('[data-tab]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.tab === t); });
+    $('dash').hidden = t !== 'dash'; $('list').hidden = t !== 'list';
+    render();
+  }
+  document.querySelectorAll('[data-tab]').forEach(function(b){ b.addEventListener('click', function(){ setTab(b.dataset.tab); }); });
+  document.querySelectorAll('[data-go]').forEach(function(b){ b.addEventListener('click', function(){ chip = b.dataset.go; setTab('list'); }); });
+
+  function render(){ if(tab === 'dash') renderDash(); else renderList(); }
+
+  /* ---- sales ---- */
+  var EARNING = ['Confirmed', 'Returned'], BLOCKING = ['Pending', 'Confirmed'];
+  function earned(){ return DATA.bookings.filter(function(b){ return EARNING.indexOf(b.status) > -1 && b.start; }); }
+  function sum(list){ return list.reduce(function(a, b){ return a + (Number(b.total) || 0); }, 0); }
+  function unitName(id){ var u = DATA.units.filter(function(x){ return x.id === id; })[0]; return u ? u.name + (u.detail ? ' · ' + u.detail : '') : id; }
+
+  /* The buckets for the chosen period: 14 days, 12 weeks or 12 months, oldest first. */
+  function buckets(){
+    var t = today(), out = [], i;
+    if(range === 'day') for(i = 13; i >= 0; i--){ var d = addDays(t, -i); out.push({ from: d, to: d, label: dayLabel(d, { day:'numeric' }), long: dayLabel(d, { weekday:'short', month:'short', day:'numeric' }) }); }
+    if(range === 'week'){ var w0 = weekStart(t); for(i = 11; i >= 0; i--){ var w = addDays(w0, -7 * i); out.push({ from: w, to: addDays(w, 6), label: dayLabel(w, { month:'short', day:'numeric' }), long: 'Week of ' + dayLabel(w, { month:'short', day:'numeric' }) }); } }
+    if(range === 'month'){ var y = +t.slice(0, 4), m = +t.slice(5, 7) - 1; for(i = 11; i >= 0; i--){ var mm = m - i, yy = y + Math.floor(mm / 12); mm = ((mm % 12) + 12) % 12;
+      var f = yy + '-' + String(mm + 1).padStart(2, '0') + '-01'; out.push({ from: f, to: lastDay(yy, mm), label: dayLabel(f, { month:'short' }), long: dayLabel(f, { month:'long', year:'numeric' }) }); } }
+    var list = earned();
+    out.forEach(function(b){
+      b.items = list.filter(function(x){ var d = mday(x.start); return d >= b.from && d <= b.to; });
+      b.total = sum(b.items);
+    });
+    return out;
+  }
+  function lastDay(y, m){ return new Date(Date.UTC(y, m + 1, 0)).toISOString().slice(0, 10); }
+
+  function renderDash(){
+    if($('app').hidden) return;
+    var t = today(), w = weekStart(t), mo = t.slice(0, 7), now = Date.now(), list = earned();
+    var on = function(f){ var l = list.filter(function(b){ return f(mday(b.start)); }); return { s: sum(l), n: l.length }; };
+    var a = on(function(d){ return d === t; }), b = on(function(d){ return d >= w && d <= t; }), c = on(function(d){ return d.slice(0, 7) === mo; });
+    $('tToday').textContent = peso(a.s); $('tTodayN').textContent = plural(a.n, 'booking');
+    $('tWeek').textContent = peso(b.s); $('tWeekN').textContent = plural(b.n, 'booking') + ' since ' + dayLabel(w, { weekday:'short', month:'short', day:'numeric' });
+    $('tMonth').textContent = peso(c.s); $('tMonthN').textContent = plural(c.n, 'booking') + ' in ' + dayLabel(t, { month:'long' });
+    var all = DATA.bookings;
+    var pend = all.filter(function(x){ return x.status === 'Pending'; }).length;
+    $('nPending').textContent = pend; $('opPending').classList.toggle('alert', pend > 0);
+    $('nOut').textContent = all.filter(function(x){ return x.status === 'Confirmed' && x.start && Date.parse(x.start) <= now && now < Date.parse(x.end); }).length;
+    $('nPick').textContent = all.filter(function(x){ return BLOCKING.indexOf(x.status) > -1 && x.start && mday(x.start) === t; }).length;
+    $('nRet').textContent = all.filter(function(x){ return x.status === 'Confirmed' && x.end && mday(x.end) === t; }).length;
+    document.querySelectorAll('[data-range]').forEach(function(x){ x.setAttribute('aria-pressed', x.dataset.range === range); });
+    var bk = buckets();
+    salesChart(bk); unitChart(bk); agenda();
+  }
+  document.querySelectorAll('[data-range]').forEach(function(x){
+    x.addEventListener('click', function(){ range = x.dataset.range; try{ localStorage.setItem('rent_owner_range', range); }catch(e){} renderDash(); });
+  });
+
+  /* Column chart of sales per day, week or month: one series, one baseline, value on the tallest column,
+     a tooltip on hover or focus, and the same numbers as a table. */
+  function niceMax(v){ if(v <= 0) return 1000; var p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+  function salesChart(bk){
+    var words = { day:'last 14 days', week:'last 12 weeks', month:'last 12 months' };
+    var tot = bk.reduce(function(a, b){ return a + b.total; }, 0), n = bk.reduce(function(a, b){ return a + b.items.length; }, 0);
+    $('salesTitle').textContent = range === 'day' ? 'Daily sales' : range === 'week' ? 'Weekly sales' : 'Monthly sales';
+    $('salesSub').textContent = peso(tot) + ' from ' + plural(n, 'booking') + ' in the ' + words[range];
+    var box = $('salesPlot'), W = Math.max(280, box.clientWidth || 560), H = 220, L = 44, R = 6, T = 22, B = 26;
+    var max = niceMax(Math.max.apply(null, bk.map(function(b){ return b.total; }))), pw = W - L - R, ph = H - T - B, band = pw / bk.length;
+    var bw = Math.min(24, band * .62), NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', $('salesTitle').textContent + ': ' + $('salesSub').textContent);
+    var mk = function(tag, attrs, text){ var e = document.createElementNS(NS, tag); Object.keys(attrs).forEach(function(k){ e.setAttribute(k, attrs[k]); }); if(text != null) e.textContent = text; svg.appendChild(e); return e; };
+    for(var g = 0; g <= 4; g++){
+      var gy = T + ph - ph * g / 4;
+      mk('line', { x1: L, x2: W - R, y1: gy, y2: gy, stroke: getComputedStyle(document.body).getPropertyValue(g ? '--grid' : '--line'), 'stroke-width': 1 });
+      mk('text', { x: L - 6, y: gy + 4, 'text-anchor': 'end', class: 'tick' }, compact(max * g / 4));
+    }
+    var peak = bk.reduce(function(a, b, i){ return b.total > bk[a].total ? i : a; }, 0), every = band < 26 ? 2 : 1;
+    bk.forEach(function(b, i){
+      var x = L + band * i + (band - bw) / 2, h = b.total ? Math.max(2, ph * b.total / max) : 0, y = T + ph - h, r = Math.min(4, h, bw / 2);
+      var hit = mk('rect', { x: L + band * i, y: T, width: band, height: ph, class: 'hit', tabindex: 0, role: 'img', 'aria-label': b.long + ': ' + peso(b.total) + ', ' + plural(b.items.length, 'booking') });
+      if(h) mk('path', { class: 'col', d: 'M' + x + ',' + (T + ph) + 'V' + (y + r) + 'Q' + x + ',' + y + ' ' + (x + r) + ',' + y + 'H' + (x + bw - r) + 'Q' + (x + bw) + ',' + y + ' ' + (x + bw) + ',' + (y + r) + 'V' + (T + ph) + 'Z' });
+      else mk('g', {});
+      if(i % every === (bk.length - 1) % every) mk('text', { x: L + band * i + band / 2, y: H - 8, 'text-anchor': 'middle', class: 'tick' }, b.label);
+      if(i === peak && b.total) mk('text', { x: x + bw / 2, y: y - 6, 'text-anchor': 'middle', class: 'peak' }, compact(b.total));
+      var show = function(){ tip(box, (L + band * i + band / 2) / W * 100, y / H * 100, peso(b.total), b.long + ' · ' + plural(b.items.length, 'booking')); };
+      hit.addEventListener('pointerenter', show); hit.addEventListener('focus', show);
+      hit.addEventListener('pointerleave', hideTip); hit.addEventListener('blur', hideTip);
+    });
+    box.innerHTML = ''; box.appendChild(svg);
+    var tbl = $('salesTbl'); tbl.innerHTML = '';
+    var hr = el('tr'); hr.appendChild(el('th', '', range === 'month' ? 'Month' : range === 'week' ? 'Week' : 'Day')); hr.appendChild(el('th', 'n', 'Bookings')); hr.appendChild(el('th', 'n', 'Sales')); tbl.appendChild(hr);
+    bk.slice().reverse().forEach(function(b){ var tr = el('tr'); tr.appendChild(el('td', '', b.long)); tr.appendChild(el('td', 'n', b.items.length)); tr.appendChild(el('td', 'n', peso(b.total))); tbl.appendChild(tr); });
+  }
+  function tip(box, xPct, yPct, value, label){
+    hideTip();
+    var t = el('div', 'tip'); t.id = 'tip'; t.appendChild(el('b', '', value)); t.appendChild(el('span', '', label));
+    t.style.left = Math.min(88, Math.max(12, xPct)) + '%'; t.style.top = 'calc(' + yPct + '% - 8px)';
+    box.appendChild(t);
+  }
+  function hideTip(){ var t = $('tip'); if(t) t.remove(); }
+  $('salesTblBtn').addEventListener('click', function(){
+    var open = $('salesTbl').hidden; $('salesTbl').hidden = !open;
+    this.setAttribute('aria-expanded', open); this.textContent = open ? 'Hide table' : 'Show as table';
+  });
+  var rz; window.addEventListener('resize', function(){ clearTimeout(rz); rz = setTimeout(function(){ if(tab === 'dash') renderDash(); }, 150); });
+
+  /* Bars of how often each unit was rented in the same period, with days and sales at the tip. */
+  function unitChart(bk){
+    var from = bk[0].from, to = bk[bk.length - 1].to, stats = {};
+    DATA.units.forEach(function(u){ stats[u.id] = { n: 0, days: 0, s: 0 }; });
+    earned().forEach(function(b){
+      var d = mday(b.start); if(d < from || d > to) return;
+      var s = stats[b.unitId] = stats[b.unitId] || { n: 0, days: 0, s: 0 };
+      s.n++; s.days += Number(b.days) || 0; s.s += Number(b.total) || 0;
+    });
+    var ids = Object.keys(stats).sort(function(a, b){ return stats[b].n - stats[a].n || stats[b].s - stats[a].s; });
+    var max = Math.max(1, Math.max.apply(null, ids.map(function(k){ return stats[k].n; })));
+    $('unitsSub').textContent = 'Times rented, ' + ({ day:'last 14 days', week:'last 12 weeks', month:'last 12 months' })[range];
+    var box = $('unitBars'); box.innerHTML = '';
+    if(!ids.length){ box.appendChild(el('p', 'empty', 'No units yet.')); return; }
+    ids.forEach(function(id){
+      var s = stats[id], row = el('div', 'bar-row'), name = el('div', 'name');
+      name.appendChild(el('span', '', unitName(id)));
+      row.appendChild(name);
+      var line = el('div', 'bar-line'), bar = el('div', 'bar' + (s.n ? '' : ' zero'));
+      bar.style.width = (s.n ? Math.max(3, 72 * s.n / max) : 1) + '%';
+      line.appendChild(bar);
+      line.appendChild(el('span', '', s.n ? plural(s.n, 'rental') + ' · ' + plural(s.days, 'day') + ' · ' + peso(s.s) : 'Not rented'));
+      row.appendChild(line); box.appendChild(row);
+    });
+  }
+
+  /* Pick-ups and returns today and tomorrow. */
+  function agenda(){
+    var t = today(), box = $('agenda'); box.innerHTML = '';
+    [[t, 'Today'], [addDays(t, 1), 'Tomorrow']].forEach(function(day){
+      var items = [];
+      DATA.bookings.forEach(function(b){
+        if(BLOCKING.indexOf(b.status) < 0 && b.status !== 'Returned') return;
+        if(b.start && mday(b.start) === day[0] && b.status !== 'Returned') items.push({ at: b.start, kind: 'Pick-up', b: b });
+        if(b.end && mday(b.end) === day[0] && b.status === 'Confirmed') items.push({ at: b.end, kind: 'Return', b: b });
+      });
+      items.sort(function(a, b){ return Date.parse(a.at) - Date.parse(b.at); });
+      box.appendChild(el('h3', '', day[1] + ' · ' + dayLabel(day[0], { weekday:'short', month:'short', day:'numeric' })));
+      if(!items.length) box.appendChild(el('p', 'hint', 'Nothing scheduled.'));
+      items.forEach(function(it){ box.appendChild(card(it.b, clock(it.at) + ' · ' + it.kind)); });
+    });
+  }
+
+  /* ---- bookings list ---- */
+  var CHIPS = ['Upcoming', 'Today', 'Out now', 'Pending', 'Confirmed', 'Returned', 'Cancelled', 'All'];
+  function matches(b){
+    var now = Date.now(), t = today();
+    switch(chip){
+      case 'Upcoming': return BLOCKING.indexOf(b.status) > -1 && (!b.end || Date.parse(b.end) >= now);
+      case 'Today': return BLOCKING.indexOf(b.status) > -1 && ((b.start && mday(b.start) === t) || (b.end && mday(b.end) === t));
+      case 'Out now': return b.status === 'Confirmed' && b.start && Date.parse(b.start) <= now && now < Date.parse(b.end);
+      case 'All': return true;
+      default: return b.status === chip;
+    }
+  }
+  function renderList(){
+    var cb = $('chips'); cb.innerHTML = '';
+    CHIPS.forEach(function(c){
+      var n = DATA.bookings.filter(function(b){ var keep = chip; chip = c; var m = matches(b); chip = keep; return m; }).length;
+      var x = el('button', 'chip', c + ' ' + n); x.type = 'button'; x.setAttribute('aria-pressed', c === chip);
+      x.addEventListener('click', function(){ chip = c; renderList(); }); cb.appendChild(x);
+    });
+    var q = $('q').value.trim().toLowerCase(), qd = q.replace(/\D/g, '');
+    var list = DATA.bookings.filter(matches).filter(function(b){
+      if(!q) return true;
+      var hay = [b.name, b.ref, b.unit, unitName(b.unitId), b.social].join(' ').toLowerCase();
+      return hay.indexOf(q) > -1 || (qd.length >= 4 && String(b.mobile).replace(/\D/g, '').indexOf(qd) > -1);
+    });
+    var upcoming = chip === 'Upcoming' || chip === 'Today' || chip === 'Out now' || chip === 'Pending';
+    list.sort(function(a, b){ var x = Date.parse(a.start) || 0, y = Date.parse(b.start) || 0; return upcoming ? x - y : y - x; });
+    var box = $('rows'); box.innerHTML = '';
+    if(!list.length) box.appendChild(el('p', 'empty', q ? 'No bookings match that search.' : 'No bookings here.'));
+    list.forEach(function(b){ box.appendChild(card(b)); });
+  }
+  $('q').addEventListener('input', renderList);
+  function card(b, lead){
+    var c = el('button', 'bk'); c.type = 'button';
+    var who = el('div', 'who'); who.appendChild(el('span', '', b.name || '(no name)')); who.appendChild(el('span', 'pill ' + b.status, b.status));
+    c.appendChild(who);
+    c.appendChild(el('div', 'amt', b.total !== '' && b.total != null ? peso(b.total) : ''));
+    c.appendChild(el('div', 'meta', (lead ? lead + ' · ' : '') + unitName(b.unitId)));
+    c.appendChild(el('div', 'ref', b.ref));
+    var m = el('div', 'meta', b.start ? when(b.start) + ' → ' + when(b.end) : 'No dates'); m.style.gridColumn = '1 / -1'; c.appendChild(m);
+    c.addEventListener('click', function(){ openEditor(b); });
+    return c;
+  }
+
+  /* ---- booking editor ---- */
+  var editing = null, totalTouched = false;
+  var FIELDS = { fName:'name', fMobile:'mobile', fSocial:'social', fAddress:'address', fHandover:'handover', fPurpose:'purpose',
+    fEcName:'ecName', fEcRel:'ecRel', fEcMobile:'ecMobile', fEcAddress:'ecAddress', fNotes:'notes' };
+  function rateOf(id){ var u = DATA.units.filter(function(x){ return x.id === id; })[0]; return u && u.rate ? u.rate : 0; }
+  function edDays(){
+    var s = Date.parse(toIso($('fSd').value, $('fSt').value)), e = Date.parse(toIso($('fEd').value, $('fEt').value));
+    if(!$('fSd').value || !$('fEd').value || isNaN(s) || isNaN(e) || e <= s) return 0;
+    return Math.max(1, Math.ceil((e - s) / 36e5 / (Number(DATA.shop.hoursPerDay) || 24) - 1e-9));
+  }
+  function suggested(){ var d = edDays(), rental = rateOf($('fUnit').value) * d; return { days: d, rental: rental, total: Math.max(0, rental - (Number($('fDisc').value) || 0) + (Number($('fFee').value) || 0)) }; }
+  function paintPrice(){
+    var p = suggested(), box = $('priceBox'); box.innerHTML = '';
+    var line = function(a, b, cls){ box.appendChild(el('span', cls, a)); box.appendChild(el('span', cls, b)); };
+    if(p.days) line('Rental · ' + plural(p.days, 'day') + ' × ' + peso(rateOf($('fUnit').value)), peso(p.rental));
+    if(Number($('fDisc').value)) line('Discount' + (editing && editing.promo && editing.promo !== 'Owner discount' ? ' (incl. promo ' + editing.promo + ')' : ''), '−' + peso($('fDisc').value));
+    if(Number($('fFee').value)) line('Delivery fee', peso($('fFee').value));
+    line('Total', peso($('fTotal').value || 0), 'tot');
+    if(DATA.shop.deposit) line('Refundable deposit (separate)', peso(DATA.shop.deposit));
+    var differs = p.days && Number($('fTotal').value) !== p.total;
+    $('recalc').hidden = !differs;
+  }
+  function onPriceInput(){ if(!totalTouched){ var p = suggested(); if(p.days) $('fTotal').value = p.total; } paintPrice(); }
+  ['fUnit', 'fSd', 'fSt', 'fEd', 'fEt', 'fDisc', 'fFee'].forEach(function(id){ $(id).addEventListener('input', onPriceInput); $(id).addEventListener('change', onPriceInput); });
+  $('fTotal').addEventListener('input', function(){ totalTouched = true; paintPrice(); });
+  $('recalc').addEventListener('click', function(){ totalTouched = false; $('fTotal').value = suggested().total; paintPrice(); });
+
+  function newRef(){
+    var name = DATA.shop.name || '', words = name.replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/).filter(Boolean);
+    var p = !foreign ? 'SNP' : (words.length > 1 ? words.map(function(w){ return w[0]; }).join('') : (words[0] || 'BKG')).slice(0, 3).toUpperCase();
+    var abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r = '';
+    for(var i = 0; i < 4; i++) r += abc[Math.floor(Math.random() * abc.length)];
+    return p + '-' + r;
+  }
+
+  function openEditor(b){
+    var isNew = !b;
+    editing = b || { row: 0, ref: newRef(), status: 'Confirmed', unitId: '', start: '', end: '', total: '', discount: '', fee: '', promo: '',
+      handover: (DATA.shop.handover || ['Pick up'])[0], name: '', mobile: '', social: '', address: '', purpose: '', ecName: '', ecRel: '', ecMobile: '', ecAddress: '', notes: '' };
+    var e = editing;
+    $('edRef').textContent = isNew ? 'New booking' : e.ref;
+    $('edPill').className = 'pill ' + e.status; $('edPill').textContent = e.status; $('edPill').hidden = isNew;
+    $('edSub').textContent = isNew ? 'For walk-ins and Messenger bookings. It blocks the unit on the booking page.' : (e.submitted ? 'Booked ' + when(e.submitted) : 'Added in the sheet');
+    var us = $('fUnit'); us.innerHTML = '';
+    if(isNew){ var o0 = el('option', '', 'Choose a unit'); o0.value = ''; us.appendChild(o0); }
+    DATA.units.forEach(function(u){ var o = el('option', '', u.name + (u.detail ? ' · ' + u.detail : '') + (u.rate ? ' · ' + peso(u.rate) + '/day' : '') + (u.show ? '' : ' (hidden)')); o.value = u.id; us.appendChild(o); });
+    if(e.unitId && !DATA.units.some(function(u){ return u.id === e.unitId; })){ var ox = el('option', '', e.unit || e.unitId); ox.value = e.unitId; us.appendChild(ox); }
+    us.value = e.unitId || '';
+    $('fStatus').value = e.status;
+    var t = today();
+    $('fSd').value = e.start ? mday(e.start) : t; $('fSt').value = e.start ? mtime(e.start) : '10:00';
+    $('fEd').value = e.end ? mday(e.end) : addDays(t, 1); $('fEt').value = e.end ? mtime(e.end) : '11:00';
+    $('fDisc').value = e.discount === '' || e.discount == null ? '' : e.discount;
+    $('fFee').value = e.fee === '' || e.fee == null ? '' : e.fee;
+    $('fTotal').value = e.total === '' || e.total == null ? '' : e.total;
+    totalTouched = !isNew && e.total !== '' && e.total != null;
+    if(isNew) onPriceInput(); else paintPrice();
+    Object.keys(FIELDS).forEach(function(id){ $(id).value = e[FIELDS[id]] == null ? '' : e[FIELDS[id]]; });
+    $('edErr').textContent = '';
+    quickActions(isNew);
+    if($('editor').showModal) $('editor').showModal(); else $('editor').setAttribute('open', '');
+    $('editor').querySelector('.ed-body').scrollTop = 0;
+  }
+  function quickActions(isNew){
+    var q = $('quick'), c = $('contact'), e = editing; q.innerHTML = ''; c.innerHTML = '';
+    $('quickSec').hidden = isNew;
+    if(isNew) return;
+    var act = function(label, status, cls, ask){
+      var bt = el('button', 'btn small ' + cls, label); bt.type = 'button';
+      bt.addEventListener('click', function(){ if(ask && !confirm(ask)) return; $('fStatus').value = status; save(); });
+      q.appendChild(bt);
+    };
+    if(e.status === 'Pending') act('Confirm booking', 'Confirmed', 'brand');
+    if(e.status === 'Confirmed') act('Mark as returned', 'Returned', 'brand');
+    if(e.status === 'Pending' || e.status === 'Confirmed') act('Cancel booking', 'Cancelled', 'danger', 'Cancel this booking? The unit becomes free for those times.');
+    if(e.status === 'Cancelled') act('Restore as Pending', 'Pending', 'ghost');
+    var digits = String(e.mobile || '').replace(/[^\d+]/g, '');
+    var link = function(label, href, newTab){ var a = el('a', 'btn ghost small', label); a.href = href; if(newTab){ a.target = '_blank'; a.rel = 'noopener'; } c.appendChild(a); };
+    if(digits.length >= 10){ link('Call', 'tel:' + digits); link('Text', 'sms:' + digits); }
+    if(/^https:\/\//.test(e.photos || '')) link('Requirement photos', e.photos, true);
+    if(DATA.shop.sheetUrl) link('Open in Google Sheet', DATA.shop.sheetUrl, true);
+  }
+  function closeEditor(){ if($('editor').close) $('editor').close(); else $('editor').removeAttribute('open'); }
+  $('edClose').addEventListener('click', closeEditor);
+  $('edForm').addEventListener('submit', function(ev){ ev.preventDefault(); save(); });
+
+  function save(){
+    var e = editing, err = $('edErr');
+    if(!$('fUnit').value){ err.textContent = 'Choose a unit.'; return; }
+    if(!$('fSd').value || !$('fSt').value || !$('fEd').value || !$('fEt').value){ err.textContent = 'Fill in the pick-up and return dates and times.'; return; }
+    if(!$('fName').value.trim()){ err.textContent = ERR.name; return; }
+    var booking = { row: e.row, ref: e.ref, status: $('fStatus').value, unitId: $('fUnit').value,
+      start: toIso($('fSd').value, $('fSt').value), end: toIso($('fEd').value, $('fEt').value),
+      discount: $('fDisc').value, fee: $('fFee').value, total: $('fTotal').value };
+    if(Date.parse(booking.end) <= Date.parse(booking.start)){ err.textContent = ERR.dates; return; }
+    Object.keys(FIELDS).forEach(function(id){ booking[FIELDS[id]] = $(id).value.trim(); });
+    err.textContent = 'Saving…'; $('edSave').disabled = true;
+    api('save', { booking: booking }).then(function(d){
+      if(d && d.ok){
+        var i = DATA.bookings.map(function(x){ return x.row; }).indexOf(d.booking.row);
+        if(i > -1) DATA.bookings[i] = d.booking; else DATA.bookings.push(d.booking);
+        closeEditor(); render(); toast(e.row ? 'Saved ' + d.booking.ref : 'Added ' + d.booking.ref);
+        return;
+      }
+      if(d && d.error === 'signed_out'){ closeEditor(); setToken(''); showLogin('You were signed out. Sign in again to save.'); return; }
+      err.textContent = d && d.error === 'taken' ? ERR.taken + ' (' + d.with + ', until ' + when(d.until) + ').' : (ERR[d && d.error] || 'Couldn\'t save. Try again.');
+      if(d && d.error === 'changed') load();
+    }, function(){ err.textContent = ERR.offline; }).then(function(){ $('edSave').disabled = false; });
+  }
+  $('newBtn').addEventListener('click', function(){ openEditor(null); });
+
+  /* ---- start: the shop must be listed in rent/shops.json (Snaps MNL always is) ---- */
+  function startApp(){ if(getToken()) load(); else showLogin(''); }
+  function blocked(title, hint){ $('blockedTitle').textContent = title; $('blockedHint').textContent = hint; $('blocked').hidden = false; }
+  useShop(shopParam);
+  if(!slug && !foreign){ startApp(); return; }
+  fetch('../shops.json', { cache:'no-cache' }).then(function(r){ return r.json(); }).then(function(reg){
+    var e = ((reg && reg.shops) || []).filter(function(x){ return x && (slug ? String(x.slug || '').toLowerCase() === slug : x.shop === shopParam); })[0];
+    if(!e) return blocked('This owner link isn\'t set up', 'Check the link with the person who set up your booking page.');
+    if(slug) useShop(e.shop);
+    $('shopName').textContent = e.name || 'Phone rentals';
+    if(foreign && /^\d{4}-\d{2}-\d{2}$/.test(e.paidUntil || '') && addDays(e.paidUntil, Number(reg.graceDays) || 0) < today()){
+      $('pausedNote').hidden = false;
+      $('pausedNote').textContent = 'Your booking page is paused for renters because the subscription ended on ' + dayLabel(e.paidUntil, { month:'long', day:'numeric', year:'numeric' }) + '. Renew it to take online bookings again. You can still see and edit your bookings here.';
+    }
+    startApp();
+  }, function(){ if(slug) return blocked('Can\'t load this owner page', 'Check your internet connection and reload the page.'); startApp(); });
+})();
+</script>
+</body>
+</html>
