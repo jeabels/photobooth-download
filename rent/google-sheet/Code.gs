@@ -33,7 +33,9 @@
  *
  * Requirement photos go to a private Google Drive folder per booking, linked
  * from the booking's Photos column. Each new booking is emailed to the
- * Settings "Notify email".
+ * Settings "Notify email". When a booking is accepted (Confirmed) or cancelled,
+ * on the owner page or in the sheet, the renter gets an email at the address they
+ * gave (Settings "Email renters"; the "Renter emailed" column notes each one).
  *
  * Web app
  *   GET               -> shop settings for the page, and booked time slots per
@@ -62,8 +64,9 @@ var TZ = 'Asia/Manila';
 var HEADERS = ['Ref', 'Submitted', 'Status', 'Unit ID', 'Unit', 'Pick-up', 'Return', 'Days', 'Estimate',
   'Hand-over', 'Name', 'Address', 'Mobile', 'Social (FB/IG)', 'Purpose',
   'Emergency name', 'Emergency relationship', 'Emergency mobile', 'Emergency address', 'Notes', 'Added to', 'Photos',
-  'Promo code', 'Discount', 'Delivery fee'];
-var COL = { status: 3, unitId: 4, pickup: 6, ret: 7, days: 8, estimate: 9, addedTo: 21, photos: 22, promo: 23, discount: 24, fee: 25 };
+  'Promo code', 'Discount', 'Delivery fee', 'Email', 'Renter emailed'];
+var COL = { status: 3, unitId: 4, pickup: 6, ret: 7, days: 8, estimate: 9, addedTo: 21, photos: 22, promo: 23, discount: 24, fee: 25,
+  email: 26, emailed: 27 };
 var STATUSES = ['Pending', 'Confirmed', 'Cancelled', 'Returned'];
 var BLOCKING = ['Pending', 'Confirmed'];
 var EARNING = ['Confirmed', 'Returned'];
@@ -95,6 +98,9 @@ var DEFAULT_SETTINGS = [
   ['Book up to (days ahead)', 180, 'How far ahead renters can book'],
   ['Closed dates', '', 'Days with no pick-ups or returns, comma-separated, e.g. 2026-12-25, 2027-01-01'],
   ['Notify email', '', 'Each new booking is emailed here. Blank turns the emails off'],
+  ['Email renters', 'Yes', 'Yes emails the renter when their booking is accepted (Confirmed) or cancelled. No turns it off'],
+  ['Payment details', '', 'Put in the email when a booking is accepted, e.g. GCash 0917 000 0000 (Juan Cruz). Send a screenshot of your payment on Messenger'],
+  ['Booking page link', '', 'Your booking page, for the renter emails. Filled in by the first website booking'],
   ['Owner setup code', '', 'Needed to register an admin name and password on the owner page (booking link + /admin). Setup makes one. Change it to stop new sign-ups']
 ];
 var DEFAULT_UNITS = [
@@ -168,6 +174,9 @@ function setup() {
   MailApp.getRemainingDailyQuota();  // asks for email access now, so booking emails work later
   var daily = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'updateDashboard'; });
   if (!daily) ScriptApp.newTrigger('updateDashboard').timeBased().everyDays(1).atHour(6).create();
+  /* Accepting a booking by typing Confirmed in the sheet emails the renter. Plain onEdit can't send email, so this is its own trigger. */
+  var mails = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'onStatusEdit'; });
+  if (!mails) ScriptApp.newTrigger('onStatusEdit').forSpreadsheet(ss).onEdit().create();
   ensureSetupCode_();
   CacheService.getScriptCache().remove('config');
   updateDashboard();
@@ -575,6 +584,8 @@ function doPost(e) {
   if (ids.indexOf(d.unitId) < 0 || isNaN(start) || isNaN(end) || end <= start || !d.name || !d.mobile) {
     return json_({ ok: false, error: 'missing' });
   }
+  var email = String(d.email || '').trim();
+  if (email && !EMAIL_RE.test(email)) return json_({ ok: false, error: 'email' });
   if (start.getTime() < Date.now() + c.minNoticeHours * 36e5 - 15 * 6e4) return json_({ ok: false, error: 'too_soon' });
   if (c.closedDates.indexOf(fmt_(start, 'yyyy-MM-dd')) > -1 || c.closedDates.indexOf(fmt_(end, 'yyyy-MM-dd')) > -1) {
     return json_({ ok: false, error: 'closed' });
@@ -591,10 +602,11 @@ function doPost(e) {
     sheet_().appendRow([text_(d.ref), new Date(), 'Pending', d.unitId, text_(d.unit), start, end, q.days,
       q.total || '', text_(d.handover), text_(d.name), text_(d.address), text_(d.mobile), text_(d.social),
       text_(d.purpose), text_(d.ecName), text_(d.ecRel), text_(d.ecMobile), text_(d.ecAddress), text_(d.notes), '', '',
-      q.code ? text_(q.code) : '', q.discount || '', q.fee || '']);
+      q.code ? text_(q.code) : '', q.discount || '', q.fee || '', email ? text_(email) : '', '']);
   } finally {
     lock.releaseLock();
   }
+  rememberPage_(d.page);
   notify_(d, start, end, c, q);
   return json_({ ok: true, ref: d.ref, total: q.total, discount: q.discount, fee: q.fee, busy: busy_() });
 }
@@ -611,12 +623,86 @@ function notify_(d, start, end, c, q) {
       '\nDays: ' + q.days + (q.rental ? '\nRental: ₱' + q.rental : '') +
       (q.discount ? '\nPromo ' + q.code + ': -₱' + q.discount : '') + (q.fee ? '\nDelivery fee: ₱' + q.fee : '') +
       (q.total ? '\nTotal: ₱' + q.total : '') + '\nHand-over: ' + d.handover +
-      '\n\nName: ' + d.name + '\nMobile: ' + d.mobile + '\nSocial: ' + d.social + '\nPurpose: ' + d.purpose +
+      '\n\nName: ' + d.name + '\nMobile: ' + d.mobile + (d.email ? '\nEmail: ' + d.email : '') + '\nSocial: ' + d.social + '\nPurpose: ' + d.purpose +
       '\nEmergency: ' + d.ecName + ' (' + d.ecRel + '), ' + d.ecMobile +
       (d.notes ? '\nNotes: ' + d.notes : '') +
       '\n\nThe requirement photos upload to Google Drive in a moment; the link appears in the Photos column.\n' +
       'Open the sheet to confirm or cancel: ' + url);
   } catch (err) {}
+}
+
+/* ---- renter emails ---- */
+
+var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/* The booking page's address, sent by the page with each booking; kept for the renter emails. */
+function rememberPage_(page) {
+  var p = String(page || '');
+  if (!/^https:\/\/[^\s<>"']+$/.test(p) || /localhost|^https:\/\/[^\/]*script\.google/.test(p)) return;
+  try { if (!String(settings_()['Booking page link'] || '').trim()) saveSetting_('Booking page link', p.slice(0, 300)); } catch (e) {}
+}
+
+/* Emails the renter of one Website Bookings row (row number, its values) that their booking was accepted
+   (Confirmed) or cancelled, once for each. Notes the email in "Renter emailed". Returns true if sent. */
+function emailRenter_(sh, row, r) {
+  var status = String(r[COL.status - 1]).trim(), to = plain_(r[COL.email - 1]).trim(), sent = plain_(r[COL.emailed - 1]);
+  if ((status !== 'Confirmed' && status !== 'Cancelled') || !EMAIL_RE.test(to) || sent.indexOf(status) > -1) return false;
+  var s = settings_();
+  if (String(s['Email renters']).trim().toLowerCase() === 'no') return false;
+  var shop = String(s['Shop name'] || '').trim() || 'Phone rentals', ref = plain_(r[0]), name = plain_(r[10]) || 'there';
+  var start = r[COL.pickup - 1], end = r[COL.ret - 1], total = Number(r[COL.estimate - 1]) || 0, deposit = Number(s['Deposit']) || 0;
+  var page = String(s['Booking page link'] || '').trim(), pay = String(s['Payment details'] || '').trim();
+  var messenger = String(s['Messenger page'] || '').trim(), mobile = String(s['Mobile'] || '').trim();
+  var wasAccepted = sent.indexOf('Confirmed') > -1, subject, intro, rows = [], after = [];
+  var when = function (d) { return d instanceof Date ? fmt_(d, 'EEE, MMM d, yyyy · h:mm a') : ''; };
+  if (status === 'Confirmed') {
+    subject = 'Your booking is accepted · ' + ref + ' · ' + shop;
+    intro = 'Good news! ' + shop + ' accepted your booking. Here are the details:';
+    rows = [['Booking ref', ref], ['Phone', plain_(r[4])], ['Pick-up', when(start)], ['Return', when(end)], ['Hand-over', plain_(r[9])]];
+    if (total) rows.push(['Total', '₱' + total.toLocaleString() + (deposit ? ' + ₱' + deposit.toLocaleString() + ' refundable deposit' : '')]);
+    if (pay) after.push('Payment: ' + pay);
+    if (String(s['Pick-up place'] || '').trim() && /pick/i.test(plain_(r[9]))) after.push('Pick-up place: ' + String(s['Pick-up place']).trim());
+    after.push('Please be on time, and bring the IDs you sent us.');
+  } else {
+    subject = (wasAccepted ? 'Your booking was cancelled · ' : 'We couldn\'t accept your booking · ') + ref + ' · ' + shop;
+    intro = wasAccepted ? 'Your booking ' + ref + ' with ' + shop + ' was cancelled.'
+      : 'Sorry, ' + shop + ' couldn\'t accept your booking ' + ref + ' for ' + plain_(r[4]) + ' on ' + when(start) + '.';
+    after.push('If you think this is a mistake, or want to book other dates, message us.');
+  }
+  var contact = (messenger ? 'Messenger: https://m.me/' + encodeURIComponent(messenger) : '') + (messenger && mobile ? ' · ' : '') + (mobile ? 'Text or call ' + mobile : '');
+  var body = 'Hi ' + name + ',\n\n' + intro + '\n\n' + rows.map(function (x) { return x[0] + ': ' + x[1]; }).join('\n') +
+    (rows.length ? '\n\n' : '') + after.join('\n') + (contact ? '\n\n' + contact : '') +
+    (page ? '\nCheck your booking any time: ' + page : '') + '\n\n' + shop;
+  var color = /^#[0-9a-f]{6}$/i.test(String(s['Brand colour']).trim()) ? String(s['Brand colour']).trim() : '#8E1016';
+  var html = '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#222;max-width:520px">' +
+    '<div style="background:' + color + ';color:#fff;padding:16px 20px;border-radius:10px 10px 0 0;font-size:18px;font-weight:bold">' + esc_(shop) + '</div>' +
+    '<div style="border:1px solid #eee;border-top:0;border-radius:0 0 10px 10px;padding:18px 20px">' +
+    '<p style="margin:0 0 12px">Hi ' + esc_(name) + ',</p><p style="margin:0 0 14px">' + esc_(intro) + '</p>' +
+    (rows.length ? '<table style="border-collapse:collapse;width:100%;margin-bottom:14px">' + rows.map(function (x) {
+      return '<tr><td style="padding:6px 0;color:#777;width:110px;vertical-align:top">' + esc_(x[0]) + '</td><td style="padding:6px 0;font-weight:bold">' + esc_(x[1]) + '</td></tr>';
+    }).join('') + '</table>' : '') +
+    after.map(function (t) { return '<p style="margin:0 0 10px">' + esc_(t) + '</p>'; }).join('') +
+    (contact ? '<p style="margin:14px 0 0;color:#555">' + esc_(contact) + '</p>' : '') +
+    (page ? '<p style="margin:14px 0 0"><a href="' + esc_(page) + '" style="color:' + color + ';font-weight:bold">Check your booking</a></p>' : '') +
+    '</div></div>';
+  var opts = { to: to, subject: subject, body: body, htmlBody: html, name: shop };
+  var reply = String(s['Notify email'] || '').trim();
+  if (EMAIL_RE.test(reply)) opts.replyTo = reply;
+  try { MailApp.sendEmail(opts); } catch (err) { return false; }
+  sh.getRange(row, COL.emailed).setValue(text_((sent ? sent + '; ' : '') + status + ' ' + fmt_(new Date(), 'MMM d, h:mm a')));
+  return true;
+}
+
+/** Trigger (made by setup) for edits made in the sheet itself: a booking set to Confirmed or Cancelled
+    emails its renter. Changes made on the owner page email from there. */
+function onStatusEdit(e) {
+  var range = e && e.range;
+  if (!range || range.getSheet().getName() !== SHEET_NAME) return;
+  if (range.getColumn() > COL.status || range.getLastColumn() < COL.status) return;
+  var sh = range.getSheet();
+  for (var row = Math.max(2, range.getRow()); row <= range.getLastRow(); row++) {
+    emailRenter_(sh, row, sh.getRange(row, 1, 1, HEADERS.length).getValues()[0]);
+  }
 }
 
 /* Saves up to 3 photos (base64) for a booking that has none yet, in its own Drive folder. */
@@ -674,12 +760,14 @@ function onOpen() {
     .addToUi();
 }
 
-/** Menu item: does what onEdit does, for every Confirmed row not added yet (e.g. confirmed from the phone app). */
+/** Menu item: does what onEdit and onStatusEdit do, for every Confirmed row not added or emailed yet
+    (e.g. confirmed from the Google Sheets phone app, where triggers can be slow). */
 function addConfirmed() {
   var sh = sheet_(), last = sh.getLastRow(), added = 0;
   if (last < 2) return;
   var rows = sh.getRange(2, 1, last - 1, HEADERS.length).getValues();
   rows.forEach(function (r, i) {
+    emailRenter_(sh, i + 2, r);
     if (String(r[COL.status - 1]).trim() !== 'Confirmed' || r[COL.addedTo - 1]) return;
     var tab = addToMonth_(r);
     if (tab) { sh.getRange(i + 2, COL.addedTo).setValue(tab); added++; }
@@ -699,7 +787,7 @@ var TOKEN_DAYS = 60, MAX_FAILS = 8, SETUP_CODE = 'Owner setup code';
 var TEXT_FIELDS = ['handover', 'name', 'address', 'mobile', 'social', 'purpose', 'ecName', 'ecRel', 'ecMobile', 'ecAddress', 'notes'];
 var FIELD_COL = { ref: 1, submitted: 2, status: 3, unitId: 4, unit: 5, start: 6, end: 7, days: 8, total: 9, handover: 10, name: 11,
   address: 12, mobile: 13, social: 14, purpose: 15, ecName: 16, ecRel: 17, ecMobile: 18, ecAddress: 19, notes: 20, addedTo: 21,
-  photos: 22, promo: 23, discount: 24, fee: 25 };
+  photos: 22, promo: 23, discount: 24, fee: 25, email: 26, emailed: 27 };
 var OWNER_DISCOUNT = 'Owner discount';
 
 function newCode_() {
@@ -868,25 +956,28 @@ function adminSave_(b) {
     /* Status to Notes (columns 3-20), then Promo code, Discount and Delivery fee (23-25). Text is written as text. */
     var main = [status, u.id, text_(u.name + (u.detail ? ' (' + u.detail + ')' : '')), start, end,
       Math.max(1, Math.ceil((end - start) / 36e5 / hoursPerDay_() - 1e-9)), money(b.total)].concat(TEXT_FIELDS.map(text));
-    var money3 = [promo ? text_(promo) : '', discount, money(b.fee)];
+    var email = String(b.email != null ? b.email : plain_(cur[COL.email - 1] || '')).trim();
+    if (email && !EMAIL_RE.test(email)) return { ok: false, error: 'email' };
+    var tail = [promo ? text_(promo) : '', discount, money(b.fee), email ? text_(email) : ''];
     if (!row) {
-      sh.appendRow([text_(b.ref || newRef_()), new Date()].concat(main, ['', ''], money3));
+      sh.appendRow([text_(b.ref || newRef_()), new Date()].concat(main, ['', ''], tail, ['']));
       row = sh.getLastRow();
     } else {
       sh.getRange(row, COL.status, 1, main.length).setValues([main]);
-      sh.getRange(row, COL.promo, 1, 3).setValues([money3]);
+      sh.getRange(row, COL.promo, 1, tail.length).setValues([tail]);
     }
     var vals = sh.getRange(row, 1, 1, HEADERS.length).getValues()[0];
     if (status === 'Confirmed' && !vals[COL.addedTo - 1]) {
       var tab = addToMonth_(vals);
       if (tab) sh.getRange(row, COL.addedTo).setValue(tab);
     }
+    var emailed = b.notify === false ? false : emailRenter_(sh, row, sh.getRange(row, 1, 1, HEADERS.length).getValues()[0]);
     var saved = bookingOf_(sh.getRange(row, 1, 1, HEADERS.length).getValues()[0], row);
   } finally {
     lock.releaseLock();
   }
   try { updateDashboard(); } catch (err) {}
-  return { ok: true, booking: saved };
+  return { ok: true, booking: saved, emailed: emailed };
 }
 
 function hoursPerDay_() { return Number(settings_()['Hours per rental day']) || 24; }

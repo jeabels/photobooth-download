@@ -95,9 +95,16 @@ What's on it:
   now; today's pick-ups and returns. A **Daily / Weekly / Monthly** sales chart (tap a column for its
   numbers, or **Show as table**), **Most rented units** for the same period, and today's and
   tomorrow's pick-ups and returns.
-- **Bookings:** search by name, ref, mobile or unit, and filter by Upcoming, Today, Out now, Pending,
-  Confirmed, Returned, Cancelled or All. Tap a booking to:
-  - **Confirm**, **Mark as returned** or **Cancel** it in one tap
+- **Bookings:** four stages, each with its count:
+  - **Pending**: new bookings waiting for you. Tap **Accept** or **Decline**.
+  - **Reserved**: accepted, not picked up yet.
+  - **Ongoing**: picked up and not back yet. Ones past their return time say **late**. Tap
+    **Mark as completed (returned)** when the phone is back.
+  - **Completed**: returned. These count in your sales.
+
+  Also **Today**, **Cancelled** and **All**, and a search by name, ref, mobile, email or unit. Tap a
+  booking to:
+  - accept, decline, complete or cancel it
   - change the unit, dates and times, or the renter's details
   - **give that renter a discount**: type it in pesos and press **Recalculate** for the new total
   - call or text the renter, and open their requirement photos
@@ -106,7 +113,22 @@ What's on it:
 The page won't save a change that puts a unit in two Pending or Confirmed bookings at the same time.
 Every change goes straight into the **Website Bookings** tab.
 
-## 5. Taking bookings
+## 5. Emails to renters
+
+Renters type their **active email (Gmail)** on the booking page. When you **accept** a booking, the
+renter gets an email from your Gmail with the booking ref, phone, pick-up and return times, total and
+deposit, your **Payment details**, and how to reach you. Declining or cancelling sends a short email too.
+This works whether you change the Status on the owner page or type it in the sheet.
+
+In **Settings**:
+- **Payment details**: what renters pay to, e.g. `GCash 0917 000 0000 (Juan Cruz). Send a screenshot of your payment on Messenger.`
+- **Email renters**: `Yes`, or `No` to stop these emails.
+- **Booking page link**: filled in by the first website booking, and used for the "Check your booking" link in the emails.
+
+The **Renter emailed** column shows what was sent and when, so nobody gets the same email twice. A
+free Gmail account can send about 100 emails a day.
+
+## 6. Taking bookings
 
 - New bookings arrive in the **Website Bookings** tab as **Pending**, with the renter's details
   and a Google Drive link to their 3 requirement photos. The shop gets an email for each one.
