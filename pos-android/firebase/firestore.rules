@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Food POS cloud mirror. Each store's data lives under businesses/{syncKey}/...
+// The app signs in with Firebase Anonymous Auth, so only app installs can reach the database,
+// and a store's data can only be found by someone who knows its random 20-character sync key.
+// Hardening path for multi-store deployments: README.md, "Security notes".
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /businesses/{syncKey}/{collection}/{docId} {
+      allow read, write: if request.auth != null
+        && syncKey.size() >= 20
+        && collection in ['users', 'products', 'batches', 'movements', 'orders', 'expenses'];
+    }
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

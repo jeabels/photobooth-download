@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Food POS</string>
+    <string name="alerts_channel_name">Inventory alerts</string>
+    <string name="alerts_channel_description">Out of stock, running low, spoiled and spoiling soon items</string>
+</resources>
