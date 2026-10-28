@@ -47,7 +47,7 @@ class PasswordHasherTest {
     fun `malformed stored hashes never verify`() {
         val salt = PasswordHasher.newSalt()
         assertFalse(PasswordHasher.verify("x", salt, ""))
-        assertFalse(PasswordHasher.verify("x", salt, "md5$1$abc"))
-        assertFalse(PasswordHasher.verify("x", salt, "sha256$0$abc"))
+        assertFalse(PasswordHasher.verify("x", salt, "md5\$1\$abc"))
+        assertFalse(PasswordHasher.verify("x", salt, "sha256\$0\$abc"))
     }
 }
