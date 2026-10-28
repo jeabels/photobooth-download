@@ -1,0 +1,13 @@
+{
+  "about": "Shops that can use the booking page. slug is the short link (…/rent/<slug>), shop is the Apps Script deployment ID (the part between /s/ and /exec), paidUntil is the last day of the paid month (YYYY-MM-DD; empty never pauses). A shop's page pauses graceDays after paidUntil. See rent/SELLING.md.",
+  "graceDays": 5,
+  "shops": [
+    {
+      "slug": "snapsmnl",
+      "name": "Snaps MNL",
+      "shop": "AKfycbwRmFXakF4wRTaYUwm5BcgIwgAMEvOm4E7C4YDVSeqcHrE96X7QB1SWi_7gqboml73pwg",
+      "paidUntil": "",
+      "note": "Owner's own shop"
+    }
+  ]
+}
