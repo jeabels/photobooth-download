@@ -452,6 +452,8 @@ footer b{color:var(--ink)}
         <label class="field full"><span>Address <span class="req">*</span></span><input type="text" id="address" autocomplete="street-address" placeholder="House no., street, barangay, city" required></label>
         <label class="field"><span>Phone number <span class="req">*</span></span><input type="tel" id="mobile" autocomplete="tel" inputmode="tel" placeholder="09XX XXX XXXX" required></label>
         <label class="field"><span>Active social media (FB/IG) <span class="req">*</span></span><input type="text" id="social" placeholder="Name or @handle" required></label>
+        <label class="field full" id="emailField"><span>Active email (Gmail) <span class="req">*</span></span><input type="email" id="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="yourname@gmail.com" required>
+          <small class="hint" style="margin-top:2px">We'll email you here when your booking is accepted. Check your spelling.</small></label>
         <label class="field full"><span>Usage purpose <span class="req">*</span></span><input type="text" id="purpose" placeholder="Concert, trip, wedding, event coverage…" required></label>
       </div>
     </section>
@@ -510,7 +512,7 @@ footer b{color:var(--ink)}
       <h3 style="margin-top:18px">What happens next</h3>
       <ol class="next">
         <li>We check your details and photos.</li>
-        <li>We message you on Messenger or by text to confirm and send the payment details.</li>
+        <li>We email you when your booking is accepted, with the payment details.</li>
         <li>You get your phone at your booked pick-up time.</li>
       </ol>
       <div class="actions"><button class="btn ghost" type="button" id="followUp">Message us your booking ref</button></div>
@@ -721,6 +723,7 @@ footer b{color:var(--ink)}
       $('howSend').textContent = 'Fill in this form and submit it. Your details and photos come straight to us.';
     }
     $('lookupBtn').hidden = !SHOP.bookingSheet;
+    $('emailField').querySelector('.req').hidden = !SHOP.bookingSheet;
     if(!SHOP.promos) promo = null;
     $('promoRow').hidden = !(SHOP.promos && SHOP.bookingSheet);
   }
@@ -1097,11 +1100,12 @@ footer b{color:var(--ink)}
 
   /* ---- check my booking ---- */
   var STATUS_TEXT = {
-    pending: 'We have your booking and are reviewing your details and photos. We\'ll message you to confirm.',
-    confirmed: 'Your booking is confirmed. See you at pick-up!',
+    pending: 'We have your booking and are reviewing your details and photos. We\'ll email you when it\'s accepted.',
+    confirmed: 'Your booking is accepted. See you at pick-up!',
     cancelled: 'This booking was cancelled. Message us if you think this is a mistake.',
     returned: 'The phone has been returned. Thank you for renting with us!'
   };
+  var STATUS_LABEL = { Pending: 'Pending', Confirmed: 'Accepted', Cancelled: 'Cancelled', Returned: 'Completed' };
   $('lookupBtn').addEventListener('click', function(){
     var open = $('lookup').hidden;
     $('lookup').hidden = !open; this.setAttribute('aria-expanded', open);
@@ -1120,7 +1124,7 @@ footer b{color:var(--ink)}
         if(!d || !d.ok){ out.textContent = 'We couldn\'t find a booking with that reference and mobile number. Check both and try again.'; return; }
         var st = String(d.status || 'Pending').toLowerCase();
         out.className = 'status ' + st;
-        var b = document.createElement('b'); b.textContent = (d.status || 'Pending') + ' · ' + d.ref; out.appendChild(b);
+        var b = document.createElement('b'); b.textContent = (STATUS_LABEL[d.status] || d.status || 'Pending') + ' · ' + d.ref; out.appendChild(b);
         var p1 = document.createElement('div'); p1.textContent = d.unit + (d.start ? ' · ' + when(d.start) + ' – ' + when(d.end) : ''); out.appendChild(p1);
         var p2 = document.createElement('div'); p2.style.marginTop = '6px'; p2.textContent = STATUS_TEXT[st] || ''; out.appendChild(p2);
       }, function(){ out.textContent = 'Couldn\'t check right now. Try again in a moment.'; })
@@ -1202,7 +1206,7 @@ footer b{color:var(--ink)}
   }
 
   /* ---- draft (kept in this browser only; photos are never saved) ---- */
-  var fields = ['start','time','end','rtime','area','delivery','name','address','mobile','social','purpose','ecName','ecRel','ecMobile','ecAddress','notes'];
+  var fields = ['start','time','end','rtime','area','delivery','name','address','mobile','email','social','purpose','ecName','ecRel','ecMobile','ecAddress','notes'];
   function saveDraft(){
     var d = { model: val('model'), handover: val('handover') };
     fields.forEach(function(f){ d[f] = $(f).value; });
@@ -1242,6 +1246,7 @@ footer b{color:var(--ink)}
   });
 
   /* ---- validation ---- */
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   function mark(id, bad){ $(id).closest('.field').classList.toggle('bad', bad); return bad; }
   function dateRule(){
     var s = $('start').value, e = $('end').value, sl = slot();
@@ -1269,6 +1274,7 @@ footer b{color:var(--ink)}
     if(mark('name', $('name').value.trim().length < 3)) bad = true;
     if(mark('address', $('address').value.trim().length < 5)) bad = true;
     if(mark('mobile', $('mobile').value.replace(/\D/g,'').length < 10)) bad = true;
+    if(mark('email', !!SHOP.bookingSheet && !EMAIL_RE.test($('email').value.trim()))) bad = true;
     if(mark('social', !$('social').value.trim())) bad = true;
     if(mark('purpose', !$('purpose').value.trim())) bad = true;
     if(mark('ecName', !$('ecName').value.trim())) bad = true;
@@ -1308,6 +1314,7 @@ footer b{color:var(--ink)}
     lines.push('Name: ' + $('name').value.trim());
     lines.push('Address: ' + $('address').value.trim());
     lines.push('Mobile: ' + prettyMobile($('mobile').value.trim()));
+    if($('email').value.trim()) lines.push('Email: ' + $('email').value.trim());
     lines.push('Social: ' + $('social').value.trim());
     lines.push('Purpose: ' + $('purpose').value.trim());
     lines.push('Emergency name: ' + $('ecName').value.trim());
@@ -1335,6 +1342,7 @@ footer b{color:var(--ink)}
       days: q.days, estimate: m.rate ? q.total : '', promo: promo ? promo.code : '', area: q.area, delivering: isDelivery(),
       handover: handoverText(),
       name: $('name').value.trim(), address: $('address').value.trim(), mobile: prettyMobile($('mobile').value.trim()),
+      email: $('email').value.trim(), page: location.origin + location.pathname + (slug ? '?s=' + slug : shopParam ? '?shop=' + shopParam : ''),
       social: $('social').value.trim(), purpose: $('purpose').value.trim(),
       ecName: $('ecName').value.trim(), ecRel: $('ecRel').value.trim(), ecMobile: prettyMobile($('ecMobile').value.trim()),
       ecAddress: $('ecAddress').value.trim(), notes: $('notes').value.trim(), website: $('website').value
@@ -1346,7 +1354,7 @@ footer b{color:var(--ink)}
         if(d && d.busy){ busy = d.busy; }
         if(d && d.ok) return 'saved';
         if(d && d.error === 'taken'){ markUnits(); return 'taken'; }
-        if(d && (d.error === 'too_soon' || d.error === 'closed' || d.error === 'area')) return d.error;
+        if(d && (d.error === 'too_soon' || d.error === 'closed' || d.error === 'area' || d.error === 'email')) return d.error;
         if(d && d.error === 'promo'){ promo = null; promoMsg(PROMO_ERR[d.reason] || PROMO_ERR.not_found, false); refresh(); return 'promo'; }
         return 'offline';
       }, function(){ return 'offline'; });
@@ -1384,7 +1392,8 @@ footer b{color:var(--ink)}
     too_soon: 'That pick-up time is too soon to book online. Choose a later time, or message us.',
     closed: 'We\'re closed on one of your dates. Choose other dates.',
     promo: 'That promo code can\'t be used anymore, so it was removed. Check your new total, then submit again.',
-    area: 'Choose your delivery area again; the delivery areas were just updated.'
+    area: 'Choose your delivery area again; the delivery areas were just updated.',
+    email: 'Check your email address. It looks mistyped.'
   };
 
   $('form').addEventListener('submit', function(ev){
@@ -1406,7 +1415,7 @@ footer b{color:var(--ink)}
       if(REFUSED[r.result]){
         $('formErr').textContent = REFUSED[r.result];
         $('formErr').hidden = false;
-        (r.result === 'taken' ? $('models') : r.result === 'area' ? $('handover') : $('start').closest('.step')).scrollIntoView({ block:'start', behavior:'smooth' });
+        (r.result === 'taken' ? $('models') : r.result === 'area' ? $('handover') : r.result === 'email' ? $('email').closest('.step') : $('start').closest('.step')).scrollIntoView({ block:'start', behavior:'smooth' });
         return;
       }
       showSend(ref, r.result, r.photos);
@@ -1444,7 +1453,7 @@ footer b{color:var(--ink)}
     if(saved){
       $('sentHint').append('Thank you! Your booking' + (photosOk ? ' and photos were' : ' was') + ' sent to ' + SHOP.name + ', and the unit is ');
       var held = document.createElement('b'); held.textContent = 'held for you'; $('sentHint').append(held);
-      $('sentHint').append(' while we review it. Keep your reference ' + ref + ' to check your booking later.' +
+      $('sentHint').append(' while we review it. We\'ll email ' + $('email').value.trim() + ' when we accept it. Keep your reference ' + ref + ' to check your booking later.' +
         (photosOk ? '' : ' Your photos didn\'t upload, so please send them on Messenger (below).'));
     } else {
       $('sentHint').innerHTML = 'Your phone is <b>not reserved yet</b>. Send the message and your 3 photos, then we\'ll check availability and reply to confirm.';

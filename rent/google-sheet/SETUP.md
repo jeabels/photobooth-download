@@ -76,10 +76,18 @@ The booking link is for renters. The owner has their own page, at the booking li
 https://jeabels.github.io/photobooth-download/rent/<your shop's short name>/admin
 ```
 
-1. In the Google Sheet, open the menu with your shop's name and choose **Set owner app password**.
-   Choose a password of at least 6 characters. Only you should know it.
-2. Open the owner page on your phone or computer and sign in. Tick **Keep me signed in on this device**
-   on your own phone so you don't need to type it each time.
+1. Open the owner page. The first time, it asks you to **create your owner account**: choose an
+   **admin name** (no spaces) and a **password** (at least 6 characters), and type the
+   **Owner setup code**. The code is in your Google Sheet's **Settings** tab (row "Owner setup code"),
+   or use the menu with your shop's name → **Show owner setup code**. The code stops strangers who
+   find the link from making an account.
+2. After that, sign in with your admin name and password. Tick **Keep me signed in on this device**
+   on your own phone so you don't need to type them each time.
+3. **Staff:** give them the setup code. They tap **Register an admin name and password** on the
+   sign-in screen. Under **Accounts** you can see everyone who can sign in, remove someone, and change
+   your password. To stop new sign-ups, make a new code (menu → **Show owner setup code** → Yes).
+4. **Forgot your password?** Use the menu → **Remove all owner page accounts**, then register again.
+   Your bookings are not touched.
 
 What's on it:
 
@@ -87,19 +95,40 @@ What's on it:
   now; today's pick-ups and returns. A **Daily / Weekly / Monthly** sales chart (tap a column for its
   numbers, or **Show as table**), **Most rented units** for the same period, and today's and
   tomorrow's pick-ups and returns.
-- **Bookings:** search by name, ref, mobile or unit, and filter by Upcoming, Today, Out now, Pending,
-  Confirmed, Returned, Cancelled or All. Tap a booking to:
-  - **Confirm**, **Mark as returned** or **Cancel** it in one tap
+- **Bookings:** four stages, each with its count:
+  - **Pending**: new bookings waiting for you. Tap **Accept** or **Decline**.
+  - **Reserved**: accepted, not picked up yet.
+  - **Ongoing**: picked up and not back yet. Ones past their return time say **late**. Tap
+    **Mark as completed (returned)** when the phone is back.
+  - **Completed**: returned. These count in your sales.
+
+  Also **Today**, **Cancelled** and **All**, and a search by name, ref, mobile, email or unit. Tap a
+  booking to:
+  - accept, decline, complete or cancel it
   - change the unit, dates and times, or the renter's details
   - **give that renter a discount**: type it in pesos and press **Recalculate** for the new total
   - call or text the renter, and open their requirement photos
 - **+ New booking:** add walk-in or Messenger bookings. They block the unit on the booking page too.
 
 The page won't save a change that puts a unit in two Pending or Confirmed bookings at the same time.
-Every change goes straight into the **Website Bookings** tab. If you forget your password, set a new one
-from the menu; that also signs out every phone and computer.
+Every change goes straight into the **Website Bookings** tab.
 
-## 5. Taking bookings
+## 5. Emails to renters
+
+Renters type their **active email (Gmail)** on the booking page. When you **accept** a booking, the
+renter gets an email from your Gmail with the booking ref, phone, pick-up and return times, total and
+deposit, your **Payment details**, and how to reach you. Declining or cancelling sends a short email too.
+This works whether you change the Status on the owner page or type it in the sheet.
+
+In **Settings**:
+- **Payment details**: what renters pay to, e.g. `GCash 0917 000 0000 (Juan Cruz). Send a screenshot of your payment on Messenger.`
+- **Email renters**: `Yes`, or `No` to stop these emails.
+- **Booking page link**: filled in by the first website booking, and used for the "Check your booking" link in the emails.
+
+The **Renter emailed** column shows what was sent and when, so nobody gets the same email twice. A
+free Gmail account can send about 100 emails a day.
+
+## 6. Taking bookings
 
 - New bookings arrive in the **Website Bookings** tab as **Pending**, with the renter's details
   and a Google Drive link to their 3 requirement photos. The shop gets an email for each one.

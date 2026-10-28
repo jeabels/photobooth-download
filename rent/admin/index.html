@@ -16,9 +16,9 @@ try{ var t = localStorage.getItem('rent_theme'); if(t === 'light' || t === 'dim'
 <!-- =============================================================================
      Owner page for the phone rental booking page (rent/index.html).
 
-     The owner signs in with the password set in their Google Sheet (menu > Set owner
-     app password), then sees sales and the most-rented units, and checks, edits and
-     adds bookings. Everything is read from and saved to the shop's Google Sheet by
+     The owner registers an admin name and password here (with the "Owner setup code"
+     from their Google Sheet's Settings tab) and signs in with them, then sees sales and
+     the most-rented units, and checks, edits and adds bookings. Staff can register too. Everything is read from and saved to the shop's Google Sheet by
      rent/google-sheet/Code.gs; nothing about renters is kept in this page.
      Another shop's owner page is this page with ?s=<short name> or ?shop=<deployment id>,
      the same as its booking link.
@@ -28,7 +28,7 @@ try{ var t = localStorage.getItem('rent_theme'); if(t === 'light' || t === 'dim'
   --bg:#F7F2EE; --card:#FFFFFF; --ink:#1C1012; --sub:#6E5A5C; --muted:#8F7C7E; --line:rgba(60,14,18,.12); --grid:rgba(60,14,18,.08);
   --brand:#8E1016; --brand-2:#B3161D; --on-brand:#FFFFFF; --brand-soft:rgba(142,16,22,.08);
   --gold:#FFC22E; --on-gold:#3A1A00; --good:#18794E; --bad:#C0262D; --warn:#9A5800; --hero:#7C0507;
-  --good-soft:rgba(24,121,78,.12); --bad-soft:rgba(192,38,45,.12); --warn-soft:rgba(214,140,0,.18); --neutral-soft:rgba(60,14,18,.07);
+  --good-soft:rgba(24,121,78,.12); --bad-soft:rgba(192,38,45,.12); --warn-soft:rgba(214,140,0,.18); --neutral-soft:rgba(60,14,18,.07); --info:#1F5FBF; --info-soft:rgba(31,95,191,.11);
   --display:'Archivo',system-ui,sans-serif; --body:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
   color-scheme:light;
@@ -37,7 +37,7 @@ try{ var t = localStorage.getItem('rent_theme'); if(t === 'light' || t === 'dim'
   --bg:#2E2526; --card:#3B3132; --ink:#FAF1F1; --sub:#D2BEC0; --muted:#B19C9E; --line:rgba(255,230,230,.17); --grid:rgba(255,230,230,.10);
   --brand:#C42A31; --brand-2:#E0434A; --on-brand:#FFFFFF; --brand-soft:rgba(224,67,74,.14);
   --gold:#FFC941; --on-gold:#2E1500; --good:#4CC38A; --bad:#FF6B70; --warn:#F0B44C;
-  --good-soft:rgba(76,195,138,.16); --bad-soft:rgba(255,107,112,.16); --warn-soft:rgba(240,180,76,.18); --neutral-soft:rgba(255,230,230,.09);
+  --good-soft:rgba(76,195,138,.16); --bad-soft:rgba(255,107,112,.16); --warn-soft:rgba(240,180,76,.18); --neutral-soft:rgba(255,230,230,.09); --info:#8DB4FF; --info-soft:rgba(141,180,255,.16);
   color-scheme:dark;
 }
 @media (prefers-color-scheme:dark){
@@ -45,7 +45,7 @@ try{ var t = localStorage.getItem('rent_theme'); if(t === 'light' || t === 'dim'
     --bg:#2E2526; --card:#3B3132; --ink:#FAF1F1; --sub:#D2BEC0; --muted:#B19C9E; --line:rgba(255,230,230,.17); --grid:rgba(255,230,230,.10);
     --brand:#C42A31; --brand-2:#E0434A; --on-brand:#FFFFFF; --brand-soft:rgba(224,67,74,.14);
     --gold:#FFC941; --on-gold:#2E1500; --good:#4CC38A; --bad:#FF6B70; --warn:#F0B44C;
-    --good-soft:rgba(76,195,138,.16); --bad-soft:rgba(255,107,112,.16); --warn-soft:rgba(240,180,76,.18); --neutral-soft:rgba(255,230,230,.09);
+    --good-soft:rgba(76,195,138,.16); --bad-soft:rgba(255,107,112,.16); --warn-soft:rgba(240,180,76,.18); --neutral-soft:rgba(255,230,230,.09); --info:#8DB4FF; --info-soft:rgba(141,180,255,.16);
     color-scheme:dark;
   }
 }
@@ -53,7 +53,7 @@ try{ var t = localStorage.getItem('rent_theme'); if(t === 'light' || t === 'dim'
   --bg:#130D0E; --card:#1F1718; --ink:#F7EEEE; --sub:#BFAAAC; --muted:#9E898B; --line:rgba(255,230,230,.12); --grid:rgba(255,230,230,.08);
   --brand:#C42A31; --brand-2:#E0434A; --on-brand:#FFFFFF; --brand-soft:rgba(224,67,74,.14);
   --gold:#FFC941; --on-gold:#2E1500; --good:#4CC38A; --bad:#FF6B70; --warn:#F0B44C;
-  --good-soft:rgba(76,195,138,.15); --bad-soft:rgba(255,107,112,.15); --warn-soft:rgba(240,180,76,.16); --neutral-soft:rgba(255,230,230,.08);
+  --good-soft:rgba(76,195,138,.15); --bad-soft:rgba(255,107,112,.15); --warn-soft:rgba(240,180,76,.16); --neutral-soft:rgba(255,230,230,.08); --info:#8DB4FF; --info-soft:rgba(141,180,255,.15);
   color-scheme:dark;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -83,6 +83,13 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
 /* ---- sign in ---- */
 .login{max-width:420px;margin:40px auto 0}
 .login h2{font-size:22px}
+.stack{margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.field small.hint{font-size:12px;margin-top:1px}
+.acct{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.acct b{display:block}
+.acct span{font-size:12.5px;color:var(--sub)}
+.who-me{font-size:12.5px;opacity:.85;white-space:nowrap}
+@media (max-width:560px){ .who-me{display:none} }
 .field{display:flex;flex-direction:column;gap:5px;min-width:0}
 .field > span{font-size:12.5px;font-weight:600;color:var(--sub)}
 .field input,.field select,.field textarea{width:100%;min-width:0;padding:10px 12px;border:1.5px solid var(--line);border-radius:11px;background:var(--bg);font-size:16px}
@@ -175,9 +182,25 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
 .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
 .pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
 .pill.Pending{background:var(--warn-soft);color:var(--warn)}
-.pill.Confirmed{background:var(--good-soft);color:var(--good)}
-.pill.Cancelled{background:var(--bad-soft);color:var(--bad)}
-.pill.Returned{background:var(--neutral-soft);color:var(--sub)}
+.pill.Reserved{background:var(--info-soft);color:var(--info)}
+.pill.Ongoing{background:var(--good-soft);color:var(--good)}
+.pill.Overdue{background:var(--bad-soft);color:var(--bad)}
+.pill.Completed{background:var(--neutral-soft);color:var(--sub)}
+.pill.Cancelled{background:var(--neutral-soft);color:var(--muted)}
+.pill.Cancelled::before{background:none;border:1.5px solid currentColor;width:5px;height:5px}
+.bk-wrap{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.bk-wrap .bk{border:0;border-radius:0}
+.bk-wrap:hover{border-color:var(--brand-2)}
+.bk-acts{display:flex;gap:8px;padding:0 14px 12px;flex-wrap:wrap}
+.bk-acts .btn{flex:1}
+.stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+.stage{appearance:none;text-align:left;cursor:pointer;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:1px}
+.stage b{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:22px;line-height:1.1}
+.stage span{font-size:12.5px;font-weight:700;color:var(--sub);display:flex;align-items:center;gap:6px}
+.stage span::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+.stage[aria-pressed="true"]{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
+.stage:focus-visible{outline:2px solid var(--brand-2);outline-offset:2px}
+@media (max-width:560px){ .stages{grid-template-columns:1fr 1fr} }
 .empty{padding:22px;text-align:center;color:var(--sub);font-size:14px}
 
 /* ---- booking editor ---- */
@@ -217,6 +240,8 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       <button type="button" data-theme="dim" aria-pressed="false">Dim</button>
       <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
     </div>
+    <span class="who-me" id="whoMe"></span>
+    <button class="icon-btn" type="button" id="acctBtn" hidden>Accounts</button>
     <button class="icon-btn" type="button" id="logoutBtn" hidden>Sign out</button>
   </div>
 </header>
@@ -224,14 +249,33 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
 <main class="wrap">
   <section class="card login" id="login" hidden>
     <h2>Owner sign in</h2>
-    <p class="hint" style="margin-top:4px">For the shop owner only. Renters book on the booking page.</p>
-    <form id="loginForm" style="margin-top:14px;display:flex;flex-direction:column;gap:12px" novalidate>
-      <label class="field"><span>Owner password</span><input type="password" id="pw" autocomplete="current-password" required></label>
+    <p class="hint" style="margin-top:4px">For the shop owner and staff only. Renters book on the booking page.</p>
+    <form id="loginForm" class="stack" novalidate>
+      <label class="field"><span>Admin name</span><input type="text" id="user" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+      <label class="field"><span>Password</span><input type="password" id="pw" autocomplete="current-password" required></label>
       <label class="check"><input type="checkbox" id="remember" checked> Keep me signed in on this device</label>
       <button class="btn brand" type="submit" id="loginGo">Sign in</button>
       <p class="err" id="loginErr" role="alert" hidden></p>
     </form>
-    <p class="hint" style="margin-top:14px">No password yet? In your Google Sheet, open the menu with your shop's name and choose <b>Set owner app password</b>. (If you don't see it, paste in the newest script first.)</p>
+    <p class="hint" style="margin-top:16px">No account yet? <button class="linkbtn" type="button" id="toRegister">Register an admin name and password</button></p>
+  </section>
+
+  <section class="card login" id="register" hidden>
+    <h2 id="regTitle">Register an admin account</h2>
+    <p class="hint" style="margin-top:4px" id="regHint">Choose the admin name and password you'll sign in with.</p>
+    <form id="regForm" class="stack" novalidate>
+      <label class="field"><span>Admin name</span><input type="text" id="rUser" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="e.g. jeanelle" required>
+        <small class="hint">3 to 30 letters or numbers (dots, dashes and underscores are OK), no spaces.</small></label>
+      <label class="field"><span>Password</span><input type="password" id="rPw" autocomplete="new-password" required>
+        <small class="hint">At least 6 characters.</small></label>
+      <label class="field"><span>Type the password again</span><input type="password" id="rPw2" autocomplete="new-password" required></label>
+      <label class="field"><span>Owner setup code</span><input type="text" id="rCode" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+        <small class="hint">In your Google Sheet: <b>Settings</b> tab, row <b>Owner setup code</b>, or the menu with your shop's name &gt; <b>Show owner setup code</b>. It stops strangers from making an account.</small></label>
+      <label class="check"><input type="checkbox" id="rRemember" checked> Keep me signed in on this device</label>
+      <button class="btn brand" type="submit" id="regGo">Register and sign in</button>
+      <p class="err" id="regErr" role="alert" hidden></p>
+    </form>
+    <p class="hint" style="margin-top:16px" id="toLoginRow">Already registered? <button class="linkbtn" type="button" id="toLogin">Sign in</button></p>
   </section>
 
   <section class="card login" id="blocked" hidden>
@@ -256,10 +300,10 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
         <div class="tile"><div class="lbl">Sales this month</div><div class="val" id="tMonth"></div><div class="sub" id="tMonthN"></div></div>
       </div>
       <div class="ops">
-        <button class="op" type="button" data-go="Pending" id="opPending"><b id="nPending"></b><span>Pending to review</span></button>
-        <button class="op" type="button" data-go="Out now"><b id="nOut"></b><span>Rented out now</span></button>
-        <button class="op" type="button" data-go="Today"><b id="nPick"></b><span>Pick-ups today</span></button>
-        <button class="op" type="button" data-go="Today"><b id="nRet"></b><span>Returns today</span></button>
+        <button class="op" type="button" data-go="Pending" id="opPending"><b id="nPending"></b><span>Pending to accept</span></button>
+        <button class="op" type="button" data-go="Reserved"><b id="nReserved"></b><span>Reserved (accepted)</span></button>
+        <button class="op" type="button" data-go="Ongoing" id="opOngoing"><b id="nOngoing"></b><span>Ongoing now</span></button>
+        <button class="op" type="button" data-go="Completed"><b id="nDone"></b><span>Completed this month</span></button>
       </div>
       <p class="hint" style="margin-top:8px">Sales are Confirmed and Returned bookings, counted on their pick-up day: rental after discounts, plus delivery fees. Deposits are not included.</p>
 
@@ -291,7 +335,9 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       <div class="search">
         <label class="field"><span class="sr-only">Search</span><input type="search" id="q" placeholder="Search name, ref, mobile or unit"></label>
       </div>
-      <div class="chips" id="chips" role="group" aria-label="Filter bookings"></div>
+      <div class="stages" id="stages" role="group" aria-label="Booking stage"></div>
+      <div class="chips" id="chips" role="group" aria-label="More filters"></div>
+      <p class="hint" id="stageHint" style="margin-top:10px"></p>
       <div class="list" id="rows"></div>
     </section>
   </div>
@@ -312,7 +358,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       <div class="ed-sec">
         <h3>Booking</h3>
         <div class="grid">
-          <label class="field"><span>Status</span><select id="fStatus"><option>Pending</option><option>Confirmed</option><option>Returned</option><option>Cancelled</option></select></label>
+          <label class="field"><span>Status</span><select id="fStatus"><option value="Pending">Pending (not accepted yet)</option><option value="Confirmed">Accepted (reserved or ongoing)</option><option value="Returned">Completed (returned)</option><option value="Cancelled">Cancelled</option></select></label>
           <label class="field"><span>Unit</span><select id="fUnit"></select></label>
           <label class="field"><span>Pick-up date</span><input type="date" id="fSd"></label>
           <label class="field"><span>Pick-up time</span><input type="time" id="fSt" step="900"></label>
@@ -336,6 +382,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
         <div class="grid">
           <label class="field full"><span>Full name</span><input type="text" id="fName"></label>
           <label class="field"><span>Mobile</span><input type="tel" id="fMobile" inputmode="tel"></label>
+          <label class="field"><span>Email</span><input type="email" id="fEmail" inputmode="email" autocapitalize="none" spellcheck="false"></label>
           <label class="field"><span>Social (FB/IG)</span><input type="text" id="fSocial"></label>
           <label class="field full"><span>Address</span><input type="text" id="fAddress"></label>
           <label class="field full"><span>Hand-over</span><input type="text" id="fHandover"></label>
@@ -363,6 +410,22 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       <button class="btn brand" type="submit" id="edSave">Save</button>
     </div>
   </form>
+</dialog>
+
+<dialog class="editor" id="accounts" aria-labelledby="acTitle" style="width:min(520px,100vw)">
+  <div class="ed-head"><h2 id="acTitle">Admin accounts<small>Everyone here can see and edit bookings.</small></h2><button class="btn ghost small" type="button" id="acClose">Close</button></div>
+  <div class="ed-body" style="padding-bottom:24px">
+    <div id="acList"></div>
+    <p class="hint" style="margin-top:12px">To add staff, give them the owner setup code from your Google Sheet; they register on this page. Make a new code (Sheet menu &gt; <b>Show owner setup code</b>) to stop more sign-ups.</p>
+    <form id="pwForm" class="stack" novalidate style="margin-top:22px">
+      <h3 style="font-size:15px">Change my password</h3>
+      <label class="field"><span>Current password</span><input type="password" id="pOld" autocomplete="current-password"></label>
+      <label class="field"><span>New password</span><input type="password" id="pNew" autocomplete="new-password"></label>
+      <label class="field"><span>Type the new password again</span><input type="password" id="pNew2" autocomplete="new-password"></label>
+      <button class="btn brand" type="submit" id="pGo">Change password</button>
+      <p class="err" id="pErr" role="alert"></p>
+    </form>
+  </div>
 </dialog>
 
 <div class="toast" id="toast" role="status" hidden></div>
@@ -396,7 +459,8 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   function clock(isoStr){ return new Date(isoStr).toLocaleString('en-PH', { timeZone:'Asia/Manila', hour:'numeric', minute:'2-digit' }); }
   function dayLabel(ds, opts){ return new Date(ds + 'T12:00:00+08:00').toLocaleDateString('en-PH', Object.assign({ timeZone:'Asia/Manila' }, opts)); }
   function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
-  function store(){ try{ return $('remember').checked ? localStorage : sessionStorage; }catch(e){ return null; } }
+  var remember = true;
+  function store(){ try{ return remember ? localStorage : sessionStorage; }catch(e){ return null; } }
   function getToken(){ try{ return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } }
   function setToken(t){ try{ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); if(t){ var s = store(); if(s) s.setItem(TOKEN_KEY, t); } }catch(e){} }
   var toastTimer;
@@ -435,56 +499,148 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     return fetch(SHEET, { method:'POST', body: JSON.stringify(body) }).then(function(r){ return r.json(); });
   }
   var ERR = {
-    no_password: 'This shop has no owner password yet. Set one in the Google Sheet: menu > Set owner app password.',
-    wrong_password: 'That password isn\'t right.',
-    locked: 'Too many wrong passwords. Try again in 15 minutes.',
+    wrong_login: 'That admin name or password isn\'t right.',
+    wrong_password: 'Your current password isn\'t right.',
+    wrong_code: 'That owner setup code isn\'t right. Find it in your Google Sheet: Settings tab, or the menu > Show owner setup code.',
+    bad_username: 'Admin name: 3 to 30 letters or numbers (dots, dashes and underscores are OK), no spaces.',
+    short_password: 'The password needs at least 6 characters.',
+    username_taken: 'That admin name is already registered. Choose another, or sign in.',
+    mismatch: 'The two passwords don\'t match.',
+    self: 'You can\'t remove the account you are signed in with.',
+    old_script: 'Your Google Sheet has an older script. Paste in the newest Code.gs and publish a new version first.',
+    locked: 'Too many wrong tries. Try again in 15 minutes.',
     taken: 'That unit is already booked at an overlapping time',
     changed: 'This booking was changed in the sheet. Refresh and try again.',
     dates: 'The return must be after the pick-up.',
     unit: 'Choose a unit that is in the Units tab.',
     status: 'Choose a status.',
     name: 'Enter the renter\'s name.',
+    email: 'That email address looks mistyped.',
     offline: 'Couldn\'t reach your Google Sheet. Check your internet and try again.'
   };
 
   /* ---- state ---- */
-  var DATA = { bookings: [], units: [], shop: {} }, tab = 'dash', range = 'day', chip = 'Upcoming';
+  var DATA = { bookings: [], units: [], shop: {} }, tab = 'dash', range = 'day', chip = 'Pending';
   try{ range = localStorage.getItem('rent_owner_range') || 'day'; }catch(e){}
   if(['day','week','month'].indexOf(range) < 0) range = 'day';
 
-  function showLogin(msg){
-    $('app').hidden = true; $('login').hidden = false; $('refreshBtn').hidden = true; $('logoutBtn').hidden = true;
-    $('loginErr').hidden = !msg; $('loginErr').textContent = msg || '';
-    setTimeout(function(){ $('pw').focus(); }, 0);
+  function signedOut(){
+    $('app').hidden = true; $('refreshBtn').hidden = true; $('logoutBtn').hidden = true; $('acctBtn').hidden = true; $('whoMe').textContent = '';
   }
+  function showLogin(msg){
+    signedOut(); $('register').hidden = true; $('login').hidden = false;
+    $('loginErr').hidden = !msg; $('loginErr').textContent = msg || '';
+    setTimeout(function(){ $($('user').value ? 'pw' : 'user').focus(); }, 0);
+  }
+  /* first: no accounts yet, so this is the owner making theirs. */
+  function showRegister(first, msg){
+    signedOut(); $('login').hidden = true; $('register').hidden = false;
+    $('regTitle').textContent = first ? 'Create your owner account' : 'Register an admin account';
+    $('regHint').textContent = first ? 'Welcome! Choose the admin name and password you\'ll sign in with. You only do this once.' : 'Choose the admin name and password you\'ll sign in with.';
+    $('toLoginRow').hidden = !!first;
+    $('regErr').hidden = !msg; $('regErr').textContent = msg || '';
+    setTimeout(function(){ $('rUser').focus(); }, 0);
+  }
+  /* Not signed in: register if the shop has no accounts yet, otherwise sign in. */
+  function showEntry(msg){
+    api('status').then(function(d){
+      if(d && d.ok){ if(d.name) $('shopName').textContent = d.name; return d.hasAccounts ? showLogin(msg) : showRegister(true, msg); }
+      showLogin(d && (d.error === 'bad_request' || d.error === 'no_password') ? ERR.old_script : msg);
+    }, function(){ showLogin(ERR.offline); });
+  }
+  $('toRegister').addEventListener('click', function(){ showRegister(false); });
+  $('toLogin').addEventListener('click', function(){ showLogin(''); });
   function load(){
     $('loadbar').textContent = 'Loading…'; $('app').classList.add('stale');
     return api('data').then(function(d){
       if(!d || !d.ok){
-        if(d && (d.error === 'signed_out' || d.error === 'no_password')){ setToken(''); showLogin(d.error === 'no_password' ? ERR.no_password : ''); return; }
+        if(d && (d.error === 'signed_out' || d.error === 'bad_request')){ setToken(''); showEntry(''); return; }
         $('loadbar').textContent = 'Couldn\'t load. Tap Refresh.'; return;
       }
       DATA = d;
       $('shopName').textContent = d.shop.name || 'Phone rentals';
       document.title = 'Owner · ' + (d.shop.name || 'Phone rentals');
       applyBrand(d.shop.brandColor);
-      $('login').hidden = true; $('app').hidden = false; $('refreshBtn').hidden = false; $('logoutBtn').hidden = false;
+      $('login').hidden = true; $('register').hidden = true; $('app').hidden = false; $('refreshBtn').hidden = false; $('logoutBtn').hidden = false; $('acctBtn').hidden = false;
+      $('whoMe').textContent = d.me ? 'Signed in as ' + d.me : '';
       $('loadbar').textContent = 'Updated ' + new Date().toLocaleTimeString('en-PH', { hour:'numeric', minute:'2-digit' });
       render();
     }, function(){ $('loadbar').textContent = ERR.offline; }).then(function(){ $('app').classList.remove('stale'); });
   }
   $('loginForm').addEventListener('submit', function(e){
     e.preventDefault();
-    var pw = $('pw').value;
-    if(!pw){ $('loginErr').hidden = false; $('loginErr').textContent = 'Enter your owner password.'; return; }
+    var user = $('user').value.trim(), pw = $('pw').value;
+    if(!user || !pw){ $('loginErr').hidden = false; $('loginErr').textContent = 'Enter your admin name and password.'; return; }
     $('loginGo').disabled = true; $('loginErr').hidden = true;
-    api('login', { password: pw }).then(function(d){
-      if(d && d.ok){ setToken(d.token); $('pw').value = ''; return load(); }
-      showLogin(ERR[d && d.error] || ERR.wrong_password);
+    api('login', { username: user, password: pw }).then(function(d){
+      if(d && d.ok){ remember = $('remember').checked; setToken(d.token); $('pw').value = ''; return load(); }
+      showLogin(d && d.error === 'bad_request' ? ERR.old_script : ERR[d && d.error] || ERR.wrong_login);
     }, function(){ showLogin(ERR.offline); }).then(function(){ $('loginGo').disabled = false; });
+  });
+  $('regForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var user = $('rUser').value.trim(), pw = $('rPw').value, err = $('regErr'), first = $('toLoginRow').hidden;
+    var bad = !/^[A-Za-z0-9._-]{3,30}$/.test(user) ? ERR.bad_username : pw.length < 6 ? ERR.short_password : pw !== $('rPw2').value ? ERR.mismatch
+      : !$('rCode').value.trim() ? 'Enter the owner setup code from your Google Sheet.' : '';
+    if(bad){ err.hidden = false; err.textContent = bad; return; }
+    $('regGo').disabled = true; err.hidden = true;
+    api('register', { username: user, password: pw, code: $('rCode').value.trim() }).then(function(d){
+      if(d && d.ok){
+        remember = $('rRemember').checked; setToken(d.token);
+        $('rPw').value = $('rPw2').value = $('rCode').value = ''; $('user').value = user;
+        toast('Welcome, ' + d.user + '!'); return load();
+      }
+      showRegister(first, d && d.error === 'bad_request' ? ERR.old_script : ERR[d && d.error] || 'Couldn\'t register. Try again.');
+    }, function(){ showRegister(first, ERR.offline); }).then(function(){ $('regGo').disabled = false; });
   });
   $('logoutBtn').addEventListener('click', function(){
     api('logout').catch(function(){}); setToken(''); DATA = { bookings: [], units: [], shop: {} }; showLogin('');
+  });
+
+  /* ---- admin accounts: see who can sign in, remove someone, change my password ---- */
+  function paintAccounts(list){
+    var box = $('acList'); box.innerHTML = '';
+    list.forEach(function(a){
+      var row = el('div', 'acct'), info = el('div');
+      info.appendChild(el('b', '', a.username + (a.you ? ' (you)' : '')));
+      info.appendChild(el('span', '', a.created ? 'Registered ' + dayLabel(mday(a.created), { month:'short', day:'numeric', year:'numeric' }) : ''));
+      row.appendChild(info);
+      if(!a.you){
+        var rm = el('button', 'btn danger small', 'Remove'); rm.type = 'button';
+        rm.addEventListener('click', function(){
+          if(!confirm('Remove ' + a.username + '? They are signed out and can\'t sign in again.')) return;
+          rm.disabled = true;
+          api('removeAccount', { username: a.username }).then(function(d){
+            if(d && d.ok){ paintAccounts(d.accounts); toast('Removed ' + a.username); }
+            else { rm.disabled = false; $('pErr').textContent = ERR[d && d.error] || 'Couldn\'t remove. Try again.'; }
+          }, function(){ rm.disabled = false; $('pErr').textContent = ERR.offline; });
+        });
+        row.appendChild(rm);
+      }
+      box.appendChild(row);
+    });
+  }
+  $('acctBtn').addEventListener('click', function(){
+    $('acList').innerHTML = ''; $('acList').appendChild(el('p', 'hint', 'Loading…')); $('pErr').textContent = '';
+    if($('accounts').showModal) $('accounts').showModal(); else $('accounts').setAttribute('open', '');
+    api('accounts').then(function(d){
+      if(d && d.ok) return paintAccounts(d.accounts);
+      if(d && d.error === 'signed_out'){ $('accounts').close(); setToken(''); showEntry(''); return; }
+      $('acList').innerHTML = ''; $('acList').appendChild(el('p', 'err', ERR.offline));
+    }, function(){ $('acList').innerHTML = ''; $('acList').appendChild(el('p', 'err', ERR.offline)); });
+  });
+  $('acClose').addEventListener('click', function(){ if($('accounts').close) $('accounts').close(); else $('accounts').removeAttribute('open'); });
+  $('pwForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var err = $('pErr'), np = $('pNew').value;
+    if(!$('pOld').value){ err.textContent = 'Enter your current password.'; return; }
+    if(np.length < 6){ err.textContent = ERR.short_password; return; }
+    if(np !== $('pNew2').value){ err.textContent = ERR.mismatch; return; }
+    $('pGo').disabled = true; err.textContent = 'Saving…';
+    api('changePassword', { old: $('pOld').value, password: np }).then(function(d){
+      if(d && d.ok){ err.textContent = ''; $('pOld').value = $('pNew').value = $('pNew2').value = ''; toast('Password changed. Other devices sign in again.'); return; }
+      err.textContent = ERR[d && d.error] || 'Couldn\'t change it. Try again.';
+    }, function(){ err.textContent = ERR.offline; }).then(function(){ $('pGo').disabled = false; });
   });
   $('refreshBtn').addEventListener('click', load);
   document.addEventListener('visibilitychange', function(){ if(!document.hidden && !$('app').hidden && !$('editor').open) load(); });
@@ -532,11 +688,12 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     $('tWeek').textContent = peso(b.s); $('tWeekN').textContent = plural(b.n, 'booking') + ' since ' + dayLabel(w, { weekday:'short', month:'short', day:'numeric' });
     $('tMonth').textContent = peso(c.s); $('tMonthN').textContent = plural(c.n, 'booking') + ' in ' + dayLabel(t, { month:'long' });
     var all = DATA.bookings;
-    var pend = all.filter(function(x){ return x.status === 'Pending'; }).length;
+    var count = function(st){ return all.filter(function(x){ return stage(x) === st; }).length; };
+    var pend = count('Pending'), late = count('Overdue');
     $('nPending').textContent = pend; $('opPending').classList.toggle('alert', pend > 0);
-    $('nOut').textContent = all.filter(function(x){ return x.status === 'Confirmed' && x.start && Date.parse(x.start) <= now && now < Date.parse(x.end); }).length;
-    $('nPick').textContent = all.filter(function(x){ return BLOCKING.indexOf(x.status) > -1 && x.start && mday(x.start) === t; }).length;
-    $('nRet').textContent = all.filter(function(x){ return x.status === 'Confirmed' && x.end && mday(x.end) === t; }).length;
+    $('nReserved').textContent = count('Reserved');
+    $('nOngoing').textContent = count('Ongoing') + late + (late ? ' (' + late + ' late)' : ''); $('opOngoing').classList.toggle('alert', late > 0);
+    $('nDone').textContent = all.filter(function(x){ return x.status === 'Returned' && x.end && mday(x.end).slice(0, 7) === mo; }).length;
     document.querySelectorAll('[data-range]').forEach(function(x){ x.setAttribute('aria-pressed', x.dataset.range === range); });
     var bk = buckets();
     salesChart(bk); unitChart(bk); agenda();
@@ -637,53 +794,119 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     });
   }
 
-  /* ---- bookings list ---- */
-  var CHIPS = ['Upcoming', 'Today', 'Out now', 'Pending', 'Confirmed', 'Returned', 'Cancelled', 'All'];
-  function matches(b){
-    var now = Date.now(), t = today();
-    switch(chip){
-      case 'Upcoming': return BLOCKING.indexOf(b.status) > -1 && (!b.end || Date.parse(b.end) >= now);
-      case 'Today': return BLOCKING.indexOf(b.status) > -1 && ((b.start && mday(b.start) === t) || (b.end && mday(b.end) === t));
-      case 'Out now': return b.status === 'Confirmed' && b.start && Date.parse(b.start) <= now && now < Date.parse(b.end);
+  /* ---- bookings list ----
+     Stages: Pending (waiting for the owner to accept), Reserved (accepted, before pick-up), Ongoing (picked
+     up, not returned yet; Overdue once the return time has passed), Completed (returned) and Cancelled.
+     Pending / Confirmed / Returned / Cancelled are what the sheet's Status column holds. */
+  function stage(b){
+    if(b.status === 'Pending') return 'Pending';
+    if(b.status === 'Returned') return 'Completed';
+    if(b.status === 'Cancelled') return 'Cancelled';
+    var now = Date.now();
+    if(!b.start || now < Date.parse(b.start)) return 'Reserved';
+    return b.end && now >= Date.parse(b.end) ? 'Overdue' : 'Ongoing';
+  }
+  var STAGE_LABEL = { Pending:'Pending', Reserved:'Reserved', Ongoing:'Ongoing', Overdue:'Ongoing · late', Completed:'Completed', Cancelled:'Cancelled' };
+  var STAGES = [
+    ['Pending', 'Pending', 'var(--warn)', 'New bookings waiting for you. Check the details and photos, then Accept or Decline. The renter gets an email either way.'],
+    ['Reserved', 'Reserved', 'var(--info)', 'Accepted bookings that haven\'t been picked up yet.'],
+    ['Ongoing', 'Ongoing', 'var(--good)', 'Picked up and not back yet. Late ones are marked. Tap Mark as completed when the phone is returned.'],
+    ['Completed', 'Completed', 'var(--sub)', 'Returned bookings. These count in your sales.']
+  ];
+  var CHIPS = ['Today', 'Cancelled', 'All'];
+  function matches(b, f){
+    var t = today(), st = stage(b);
+    switch(f){
+      case 'Ongoing': return st === 'Ongoing' || st === 'Overdue';
+      case 'Today': return (b.status === 'Pending' || b.status === 'Confirmed') && ((b.start && mday(b.start) === t) || (b.end && mday(b.end) === t));
       case 'All': return true;
-      default: return b.status === chip;
+      default: return st === f;
     }
   }
+  function countOf(f){ return DATA.bookings.filter(function(b){ return matches(b, f); }).length; }
   function renderList(){
+    var sb = $('stages'); sb.innerHTML = '';
+    STAGES.forEach(function(x){
+      var btn = el('button', 'stage'); btn.type = 'button'; btn.style.setProperty('--c', x[2]); btn.setAttribute('aria-pressed', chip === x[0]);
+      btn.appendChild(el('b', '', countOf(x[0]))); btn.appendChild(el('span', '', x[1]));
+      btn.addEventListener('click', function(){ chip = x[0]; renderList(); }); sb.appendChild(btn);
+    });
     var cb = $('chips'); cb.innerHTML = '';
     CHIPS.forEach(function(c){
-      var n = DATA.bookings.filter(function(b){ var keep = chip; chip = c; var m = matches(b); chip = keep; return m; }).length;
-      var x = el('button', 'chip', c + ' ' + n); x.type = 'button'; x.setAttribute('aria-pressed', c === chip);
+      var x = el('button', 'chip', c + ' ' + countOf(c)); x.type = 'button'; x.setAttribute('aria-pressed', c === chip);
       x.addEventListener('click', function(){ chip = c; renderList(); }); cb.appendChild(x);
     });
+    var info = STAGES.filter(function(x){ return x[0] === chip; })[0];
+    $('stageHint').textContent = info ? info[3] : chip === 'Today' ? 'Pick-ups and returns today.' : '';
     var q = $('q').value.trim().toLowerCase(), qd = q.replace(/\D/g, '');
-    var list = DATA.bookings.filter(matches).filter(function(b){
+    var list = DATA.bookings.filter(function(b){ return matches(b, chip); }).filter(function(b){
       if(!q) return true;
-      var hay = [b.name, b.ref, b.unit, unitName(b.unitId), b.social].join(' ').toLowerCase();
+      var hay = [b.name, b.ref, b.unit, unitName(b.unitId), b.social, b.email].join(' ').toLowerCase();
       return hay.indexOf(q) > -1 || (qd.length >= 4 && String(b.mobile).replace(/\D/g, '').indexOf(qd) > -1);
     });
-    var upcoming = chip === 'Upcoming' || chip === 'Today' || chip === 'Out now' || chip === 'Pending';
-    list.sort(function(a, b){ var x = Date.parse(a.start) || 0, y = Date.parse(b.start) || 0; return upcoming ? x - y : y - x; });
+    var soonFirst = ['Pending', 'Reserved', 'Today'].indexOf(chip) > -1;
+    list.sort(function(a, b){
+      if(chip === 'Ongoing') return (Date.parse(a.end) || 0) - (Date.parse(b.end) || 0);
+      var x = Date.parse(a.start) || 0, y = Date.parse(b.start) || 0; return soonFirst ? x - y : y - x;
+    });
     var box = $('rows'); box.innerHTML = '';
-    if(!list.length) box.appendChild(el('p', 'empty', q ? 'No bookings match that search.' : 'No bookings here.'));
-    list.forEach(function(b){ box.appendChild(card(b)); });
+    if(!list.length) box.appendChild(el('p', 'empty', q ? 'No bookings match that search.' : chip === 'Pending' ? 'No bookings waiting for you to accept.' : 'No bookings here.'));
+    list.forEach(function(b){ box.appendChild(card(b, null, true)); });
   }
   $('q').addEventListener('input', renderList);
-  function card(b, lead){
-    var c = el('button', 'bk'); c.type = 'button';
-    var who = el('div', 'who'); who.appendChild(el('span', '', b.name || '(no name)')); who.appendChild(el('span', 'pill ' + b.status, b.status));
+  /* A booking row. With actions: Accept / Decline for Pending, Mark as completed for Ongoing. */
+  function card(b, lead, actions){
+    var wrap = el('div', 'bk-wrap'), c = el('button', 'bk'), st = stage(b); c.type = 'button';
+    var who = el('div', 'who'); who.appendChild(el('span', '', b.name || '(no name)')); who.appendChild(el('span', 'pill ' + st, STAGE_LABEL[st]));
     c.appendChild(who);
     c.appendChild(el('div', 'amt', b.total !== '' && b.total != null ? peso(b.total) : ''));
     c.appendChild(el('div', 'meta', (lead ? lead + ' · ' : '') + unitName(b.unitId)));
     c.appendChild(el('div', 'ref', b.ref));
     var m = el('div', 'meta', b.start ? when(b.start) + ' → ' + when(b.end) : 'No dates'); m.style.gridColumn = '1 / -1'; c.appendChild(m);
     c.addEventListener('click', function(){ openEditor(b); });
-    return c;
+    wrap.appendChild(c);
+    if(actions){
+      var acts = el('div', 'bk-acts'), add = function(label, cls, status, ask){
+        var x = el('button', 'btn small ' + cls, label); x.type = 'button';
+        x.addEventListener('click', function(){
+          if(ask && !confirm(ask)) return;
+          x.disabled = true; setStatus(b, status).then(function(){ x.disabled = false; });
+        });
+        acts.appendChild(x);
+      };
+      if(st === 'Pending'){ add('Accept', 'brand', 'Confirmed'); add('Decline', 'danger', 'Cancelled', 'Decline ' + (b.name || 'this booking') + '\'s booking? The unit becomes free for those times' + (b.email ? ' and they get an email.' : '.')); }
+      if(st === 'Ongoing' || st === 'Overdue') add('Mark as completed (returned)', 'ghost', 'Returned');
+      if(acts.childNodes.length) wrap.appendChild(acts);
+    }
+    return wrap;
+  }
+  /* Changes only a booking's status, keeping everything else as it is. */
+  function setStatus(b, status){
+    var booking = {};
+    ['row','ref','unitId','start','end','discount','fee','total','email','handover','name','address','mobile','social','purpose','ecName','ecRel','ecMobile','ecAddress','notes']
+      .forEach(function(k){ booking[k] = b[k] == null ? '' : b[k]; });
+    booking.status = status;
+    return sendSave(booking).then(function(err){ if(err) alert(err); });
+  }
+  /* Saves a booking; resolves '' when saved, or the error to show. */
+  function sendSave(booking){
+    return api('save', { booking: booking }).then(function(d){
+      if(d && d.ok){
+        var i = DATA.bookings.map(function(x){ return x.row; }).indexOf(d.booking.row);
+        if(i > -1) DATA.bookings[i] = d.booking; else DATA.bookings.push(d.booking);
+        var said = { Confirmed: 'Accepted', Cancelled: 'Cancelled', Returned: 'Completed', Pending: 'Saved' }[d.booking.status] || 'Saved';
+        render(); toast((booking.row ? said + ' ' : 'Added ') + d.booking.ref + (d.emailed ? ' · renter emailed' : ''));
+        return '';
+      }
+      if(d && d.error === 'signed_out'){ closeEditor(); setToken(''); showEntry('You were signed out. Sign in again to save.'); return 'signed_out'; }
+      if(d && d.error === 'changed') load();
+      return d && d.error === 'taken' ? ERR.taken + ' (' + d.with + ', until ' + when(d.until) + ').' : (ERR[d && d.error] || 'Couldn\'t save. Try again.');
+    }, function(){ return ERR.offline; });
   }
 
   /* ---- booking editor ---- */
   var editing = null, totalTouched = false;
-  var FIELDS = { fName:'name', fMobile:'mobile', fSocial:'social', fAddress:'address', fHandover:'handover', fPurpose:'purpose',
+  var FIELDS = { fName:'name', fMobile:'mobile', fEmail:'email', fSocial:'social', fAddress:'address', fHandover:'handover', fPurpose:'purpose',
     fEcName:'ecName', fEcRel:'ecRel', fEcMobile:'ecMobile', fEcAddress:'ecAddress', fNotes:'notes' };
   function rateOf(id){ var u = DATA.units.filter(function(x){ return x.id === id; })[0]; return u && u.rate ? u.rate : 0; }
   function edDays(){
@@ -719,10 +942,10 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   function openEditor(b){
     var isNew = !b;
     editing = b || { row: 0, ref: newRef(), status: 'Confirmed', unitId: '', start: '', end: '', total: '', discount: '', fee: '', promo: '',
-      handover: (DATA.shop.handover || ['Pick up'])[0], name: '', mobile: '', social: '', address: '', purpose: '', ecName: '', ecRel: '', ecMobile: '', ecAddress: '', notes: '' };
+      handover: (DATA.shop.handover || ['Pick up'])[0], name: '', mobile: '', email: '', social: '', address: '', purpose: '', ecName: '', ecRel: '', ecMobile: '', ecAddress: '', notes: '' };
     var e = editing;
     $('edRef').textContent = isNew ? 'New booking' : e.ref;
-    $('edPill').className = 'pill ' + e.status; $('edPill').textContent = e.status; $('edPill').hidden = isNew;
+    $('edPill').className = 'pill ' + stage(e); $('edPill').textContent = STAGE_LABEL[stage(e)]; $('edPill').hidden = isNew;
     $('edSub').textContent = isNew ? 'For walk-ins and Messenger bookings. It blocks the unit on the booking page.' : (e.submitted ? 'Booked ' + when(e.submitted) : 'Added in the sheet');
     var us = $('fUnit'); us.innerHTML = '';
     if(isNew){ var o0 = el('option', '', 'Choose a unit'); o0.value = ''; us.appendChild(o0); }
@@ -753,10 +976,12 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       bt.addEventListener('click', function(){ if(ask && !confirm(ask)) return; $('fStatus').value = status; save(); });
       q.appendChild(bt);
     };
-    if(e.status === 'Pending') act('Confirm booking', 'Confirmed', 'brand');
-    if(e.status === 'Confirmed') act('Mark as returned', 'Returned', 'brand');
-    if(e.status === 'Pending' || e.status === 'Confirmed') act('Cancel booking', 'Cancelled', 'danger', 'Cancel this booking? The unit becomes free for those times.');
-    if(e.status === 'Cancelled') act('Restore as Pending', 'Pending', 'ghost');
+    var st = stage(e), mailNote = e.email ? ' and ' + e.email + ' gets an email' : '';
+    if(st === 'Pending'){ act('Accept booking', 'Confirmed', 'brand'); act('Decline', 'Cancelled', 'danger', 'Decline this booking? The unit becomes free for those times' + mailNote + '.'); }
+    if(st === 'Ongoing' || st === 'Overdue') act('Mark as completed (returned)', 'Returned', 'brand');
+    if(st === 'Reserved' || st === 'Ongoing' || st === 'Overdue') act('Cancel booking', 'Cancelled', 'danger', 'Cancel this booking? The unit becomes free for those times' + mailNote + '.');
+    if(st === 'Cancelled') act('Restore as Pending', 'Pending', 'ghost');
+    if(st === 'Pending'){ var tip = el('p', 'hint', e.email ? 'Accepting emails ' + e.email + ' with the booking details.' : 'This renter gave no email, so message them yourself.'); tip.style.flexBasis = '100%'; q.appendChild(tip); }
     var digits = String(e.mobile || '').replace(/[^\d+]/g, '');
     var link = function(label, href, newTab){ var a = el('a', 'btn ghost small', label); a.href = href; if(newTab){ a.target = '_blank'; a.rel = 'noopener'; } c.appendChild(a); };
     if(digits.length >= 10){ link('Call', 'tel:' + digits); link('Text', 'sms:' + digits); }
@@ -772,28 +997,22 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     if(!$('fUnit').value){ err.textContent = 'Choose a unit.'; return; }
     if(!$('fSd').value || !$('fSt').value || !$('fEd').value || !$('fEt').value){ err.textContent = 'Fill in the pick-up and return dates and times.'; return; }
     if(!$('fName').value.trim()){ err.textContent = ERR.name; return; }
+    if($('fEmail').value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test($('fEmail').value.trim())){ err.textContent = ERR.email; return; }
     var booking = { row: e.row, ref: e.ref, status: $('fStatus').value, unitId: $('fUnit').value,
       start: toIso($('fSd').value, $('fSt').value), end: toIso($('fEd').value, $('fEt').value),
       discount: $('fDisc').value, fee: $('fFee').value, total: $('fTotal').value };
     if(Date.parse(booking.end) <= Date.parse(booking.start)){ err.textContent = ERR.dates; return; }
     Object.keys(FIELDS).forEach(function(id){ booking[FIELDS[id]] = $(id).value.trim(); });
     err.textContent = 'Saving…'; $('edSave').disabled = true;
-    api('save', { booking: booking }).then(function(d){
-      if(d && d.ok){
-        var i = DATA.bookings.map(function(x){ return x.row; }).indexOf(d.booking.row);
-        if(i > -1) DATA.bookings[i] = d.booking; else DATA.bookings.push(d.booking);
-        closeEditor(); render(); toast(e.row ? 'Saved ' + d.booking.ref : 'Added ' + d.booking.ref);
-        return;
-      }
-      if(d && d.error === 'signed_out'){ closeEditor(); setToken(''); showLogin('You were signed out. Sign in again to save.'); return; }
-      err.textContent = d && d.error === 'taken' ? ERR.taken + ' (' + d.with + ', until ' + when(d.until) + ').' : (ERR[d && d.error] || 'Couldn\'t save. Try again.');
-      if(d && d.error === 'changed') load();
-    }, function(){ err.textContent = ERR.offline; }).then(function(){ $('edSave').disabled = false; });
+    sendSave(booking).then(function(problem){
+      $('edSave').disabled = false;
+      if(!problem) closeEditor(); else if(problem !== 'signed_out') err.textContent = problem;
+    });
   }
   $('newBtn').addEventListener('click', function(){ openEditor(null); });
 
   /* ---- start: the shop must be listed in rent/shops.json (Snaps MNL always is) ---- */
-  function startApp(){ if(getToken()) load(); else showLogin(''); }
+  function startApp(){ if(getToken()) load(); else showEntry(''); }
   function blocked(title, hint){ $('blockedTitle').textContent = title; $('blockedHint').textContent = hint; $('blocked').hidden = false; }
   useShop(shopParam);
   if(!slug && !foreign){ startApp(); return; }
