@@ -45,6 +45,9 @@
  *                        or the promo code or delivery area isn't valid. The sheet
  *                        works out the total itself.
  *   POST {action: "photos"} -> the 3 photos for a booking just saved.
+ *   POST {action: "admin"}  -> the owner app (rent/admin/): sign in with the owner password
+ *                        (menu > Set owner app password), then read all bookings, and edit
+ *                        or add them.
  *
  * Set up (once): paste this file into Extensions > Apps Script, run setup(),
  * then Deploy > New deployment > Web app, Execute as: Me, Who has access:
@@ -562,6 +565,7 @@ function lookup_(ref, mobile) {
 function doPost(e) {
   var d;
   try { d = JSON.parse(e.postData.contents); } catch (err) { return json_({ ok: false, error: 'bad_request' }); }
+  if (d.action === 'admin') return json_(admin_(d));
   if (d.website) return json_({ ok: true, ref: d.ref });   // filled-in hidden field: a bot, not a renter
   if (d.action === 'photos') return savePhotos_(d);
   var c = config_(), start = new Date(d.start), end = new Date(d.end);
@@ -660,6 +664,7 @@ function onOpen() {
     .addItem('Upload an image (banner, rate card or poster)', 'showUpload')
     .addItem('Adjust banner (zoom, position, size)', 'showBannerEditor')
     .addItem('Update earnings dashboard', 'updateDashboard')
+    .addItem('Set owner app password', 'setOwnerPassword')
     .addSeparator()
     .addItem('Add confirmed website bookings to month tabs', 'addConfirmed')
     .addItem('Make banner and poster images public', 'publishImages')
@@ -677,6 +682,156 @@ function addConfirmed() {
     if (tab) { sh.getRange(i + 2, COL.addedTo).setValue(tab); added++; }
   });
   SpreadsheetApp.getActiveSpreadsheet().toast(added ? added + ' booking(s) added to the month tabs.' : 'Nothing new to add.');
+}
+
+/* ---- owner app (rent/admin/) ----
+   The owner signs in with a password set from the sheet's menu. Only its salted hash is kept, in the
+   script's properties (not in any tab). A sign-in gives the device a token that lasts 60 days; setting
+   a new password signs every device out. Too many wrong passwords lock sign-in for 15 minutes. */
+
+var TOKEN_DAYS = 60, MAX_FAILS = 8;
+var TEXT_FIELDS = ['handover', 'name', 'address', 'mobile', 'social', 'purpose', 'ecName', 'ecRel', 'ecMobile', 'ecAddress', 'notes'];
+var FIELD_COL = { ref: 1, submitted: 2, status: 3, unitId: 4, unit: 5, start: 6, end: 7, days: 8, total: 9, handover: 10, name: 11,
+  address: 12, mobile: 13, social: 14, purpose: 15, ecName: 16, ecRel: 17, ecMobile: 18, ecAddress: 19, notes: 20, addedTo: 21,
+  photos: 22, promo: 23, discount: 24, fee: 25 };
+var OWNER_DISCOUNT = 'Owner discount';
+
+/** Menu item: sets (or changes) the password for the owner app. */
+function setOwnerPassword() {
+  var ui = SpreadsheetApp.getUi();
+  var r = ui.prompt('Owner app password', 'Type a password of at least 6 characters. You use it to sign in to the owner page ' +
+    '(the booking link with /admin/ added). Setting a new one signs out every phone and computer.', ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+  var pw = r.getResponseText();
+  if (pw.length < 6) { ui.alert('That password is too short. Use at least 6 characters.'); return; }
+  var props = PropertiesService.getScriptProperties(), salt = Utilities.getUuid();
+  props.setProperty('ownerSalt', salt);
+  props.setProperty('ownerHash', hash_(pw, salt));
+  props.setProperty('ownerTokens', '{}');
+  ui.alert('Password saved. Open your booking link with /admin/ at the end to sign in.');
+}
+
+function hash_(text, salt) {
+  return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + '|' + text, Utilities.Charset.UTF_8));
+}
+
+function admin_(d) {
+  var props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('ownerHash')) return { ok: false, error: 'no_password' };
+  if (d.op === 'login') return login_(props, String(d.password || ''));
+  var tokens = JSON.parse(props.getProperty('ownerTokens') || '{}'), t = String(d.token || '');
+  if (!t || !tokens[hash_(t, 'token')] || tokens[hash_(t, 'token')] < Date.now()) return { ok: false, error: 'signed_out' };
+  if (d.op === 'logout') { delete tokens[hash_(t, 'token')]; props.setProperty('ownerTokens', JSON.stringify(tokens)); return { ok: true }; }
+  if (d.op === 'data') return adminData_();
+  if (d.op === 'save') return adminSave_(d.booking || {});
+  return { ok: false, error: 'bad_request' };
+}
+
+function login_(props, pw) {
+  var cache = CacheService.getScriptCache(), fails = Number(cache.get('ownerFails')) || 0;
+  if (fails >= MAX_FAILS) return { ok: false, error: 'locked' };
+  if (hash_(pw, props.getProperty('ownerSalt')) !== props.getProperty('ownerHash')) {
+    cache.put('ownerFails', String(fails + 1), 900);
+    return { ok: false, error: 'wrong_password' };
+  }
+  cache.remove('ownerFails');
+  var tokens = JSON.parse(props.getProperty('ownerTokens') || '{}'), now = Date.now(), token = Utilities.getUuid() + Utilities.getUuid();
+  Object.keys(tokens).forEach(function (k) { if (tokens[k] < now) delete tokens[k]; });
+  var keys = Object.keys(tokens).sort(function (a, b) { return tokens[a] - tokens[b]; });
+  while (keys.length >= 20) delete tokens[keys.shift()];   // keep the newest devices
+  tokens[hash_(token, 'token')] = now + TOKEN_DAYS * 864e5;
+  props.setProperty('ownerTokens', JSON.stringify(tokens));
+  return { ok: true, token: token, name: config_().name };
+}
+
+function iso_(v) { return v instanceof Date ? v.toISOString() : ''; }
+
+/* One Website Bookings row as the owner app sees it. */
+function bookingOf_(r, row) {
+  var b = { row: row };
+  Object.keys(FIELD_COL).forEach(function (k) {
+    var v = r[FIELD_COL[k] - 1];
+    b[k] = v instanceof Date ? v.toISOString() : typeof v === 'number' ? v : plain_(v);
+  });
+  b.status = String(b.status).trim() || 'Pending';
+  return b;
+}
+
+/* Everything the owner app shows: every booking, every unit (hidden ones too) and the shop's rules. */
+function adminData_() {
+  var sh = sheet_(), last = sh.getLastRow();
+  var rows = last > 1 ? sh.getRange(2, 1, last - 1, HEADERS.length).getValues() : [];
+  var bookings = [];
+  rows.forEach(function (r, i) { if (plain_(r[0]) || String(r[COL.unitId - 1]).trim()) bookings.push(bookingOf_(r, i + 2)); });
+  var c = config_();
+  return { ok: true, bookings: bookings,
+    units: units_().map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, show: u.show }; }),
+    shop: { name: c.name, brandColor: c.brandColor, hoursPerDay: c.hoursPerDay, deposit: c.deposit, handover: c.handover, delivery: c.delivery, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() } };
+}
+
+/* Saves an edited booking (b.row set) or adds a new one (b.row 0). Refused if another Pending or
+   Confirmed booking has that unit at an overlapping time, or if the row has changed in the sheet. */
+function adminSave_(b) {
+  var units = units_(), u = units.filter(function (x) { return x.id === String(b.unitId || ''); })[0];
+  var start = new Date(b.start), end = new Date(b.end), status = String(b.status || '');
+  if (!u) return { ok: false, error: 'unit' };
+  if (isNaN(start) || isNaN(end) || end <= start) return { ok: false, error: 'dates' };
+  if (STATUSES.indexOf(status) < 0) return { ok: false, error: 'status' };
+  if (!String(b.name || '').trim()) return { ok: false, error: 'name' };
+  var money = function (v) { return v === '' || v == null ? '' : Math.max(0, Math.round(Number(v) || 0)); };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = sheet_(), last = sh.getLastRow(), row = Number(b.row) || 0;
+    var rows = last > 1 ? sh.getRange(2, 1, last - 1, HEADERS.length).getValues() : [];
+    if (row && (!rows[row - 2] || plain_(rows[row - 2][0]) !== String(b.ref || ''))) return { ok: false, error: 'changed' };
+    if (BLOCKING.indexOf(status) > -1) {
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (i + 2 === row || BLOCKING.indexOf(String(r[COL.status - 1]).trim()) < 0 || String(r[COL.unitId - 1]).trim() !== u.id) continue;
+        if (r[COL.pickup - 1] instanceof Date && r[COL.ret - 1] instanceof Date && start < r[COL.ret - 1] && r[COL.pickup - 1] < end) {
+          return { ok: false, error: 'taken', with: plain_(r[0]) + ' · ' + plain_(r[10]), until: iso_(r[COL.ret - 1]) };
+        }
+      }
+    }
+    var cur = row ? rows[row - 2] : [];
+    var discount = money(b.discount), promo = row ? plain_(cur[COL.promo - 1]) : '';
+    if (discount && !promo) promo = OWNER_DISCOUNT;
+    if (!discount && promo === OWNER_DISCOUNT) promo = '';
+    var text = function (k) { return text_(b[k] != null ? b[k] : plain_(cur[FIELD_COL[k] - 1])); };
+    /* Status to Notes (columns 3-20), then Promo code, Discount and Delivery fee (23-25). Text is written as text. */
+    var main = [status, u.id, text_(u.name + (u.detail ? ' (' + u.detail + ')' : '')), start, end,
+      Math.max(1, Math.ceil((end - start) / 36e5 / hoursPerDay_() - 1e-9)), money(b.total)].concat(TEXT_FIELDS.map(text));
+    var money3 = [promo ? text_(promo) : '', discount, money(b.fee)];
+    if (!row) {
+      sh.appendRow([text_(b.ref || newRef_()), new Date()].concat(main, ['', ''], money3));
+      row = sh.getLastRow();
+    } else {
+      sh.getRange(row, COL.status, 1, main.length).setValues([main]);
+      sh.getRange(row, COL.promo, 1, 3).setValues([money3]);
+    }
+    var vals = sh.getRange(row, 1, 1, HEADERS.length).getValues()[0];
+    if (status === 'Confirmed' && !vals[COL.addedTo - 1]) {
+      var tab = addToMonth_(vals);
+      if (tab) sh.getRange(row, COL.addedTo).setValue(tab);
+    }
+    var saved = bookingOf_(sh.getRange(row, 1, 1, HEADERS.length).getValues()[0], row);
+  } finally {
+    lock.releaseLock();
+  }
+  try { updateDashboard(); } catch (err) {}
+  return { ok: true, booking: saved };
+}
+
+function hoursPerDay_() { return Number(settings_()['Hours per rental day']) || 24; }
+
+/* A reference for a booking added in the owner app: the shop's initials, a dash and 4 letters/digits. */
+function newRef_() {
+  var words = String(settings_()['Shop name'] || '').replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/).filter(Boolean);
+  var p = (words.length > 1 ? words.map(function (w) { return w[0]; }).join('') : (words[0] || 'BKG')).slice(0, 3).toUpperCase();
+  var abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r = '';
+  for (var i = 0; i < 4; i++) r += abc[Math.floor(Math.random() * abc.length)];
+  return p + '-' + r;
 }
 
 /* ---- earnings dashboard ---- */
