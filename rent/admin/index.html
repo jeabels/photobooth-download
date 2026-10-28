@@ -16,9 +16,9 @@ try{ var t = localStorage.getItem('rent_theme'); if(t === 'light' || t === 'dim'
 <!-- =============================================================================
      Owner page for the phone rental booking page (rent/index.html).
 
-     The owner signs in with the password set in their Google Sheet (menu > Set owner
-     app password), then sees sales and the most-rented units, and checks, edits and
-     adds bookings. Everything is read from and saved to the shop's Google Sheet by
+     The owner registers an admin name and password here (with the "Owner setup code"
+     from their Google Sheet's Settings tab) and signs in with them, then sees sales and
+     the most-rented units, and checks, edits and adds bookings. Staff can register too. Everything is read from and saved to the shop's Google Sheet by
      rent/google-sheet/Code.gs; nothing about renters is kept in this page.
      Another shop's owner page is this page with ?s=<short name> or ?shop=<deployment id>,
      the same as its booking link.
@@ -83,6 +83,13 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
 /* ---- sign in ---- */
 .login{max-width:420px;margin:40px auto 0}
 .login h2{font-size:22px}
+.stack{margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.field small.hint{font-size:12px;margin-top:1px}
+.acct{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.acct b{display:block}
+.acct span{font-size:12.5px;color:var(--sub)}
+.who-me{font-size:12.5px;opacity:.85;white-space:nowrap}
+@media (max-width:560px){ .who-me{display:none} }
 .field{display:flex;flex-direction:column;gap:5px;min-width:0}
 .field > span{font-size:12.5px;font-weight:600;color:var(--sub)}
 .field input,.field select,.field textarea{width:100%;min-width:0;padding:10px 12px;border:1.5px solid var(--line);border-radius:11px;background:var(--bg);font-size:16px}
@@ -217,6 +224,8 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       <button type="button" data-theme="dim" aria-pressed="false">Dim</button>
       <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
     </div>
+    <span class="who-me" id="whoMe"></span>
+    <button class="icon-btn" type="button" id="acctBtn" hidden>Accounts</button>
     <button class="icon-btn" type="button" id="logoutBtn" hidden>Sign out</button>
   </div>
 </header>
@@ -224,14 +233,33 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
 <main class="wrap">
   <section class="card login" id="login" hidden>
     <h2>Owner sign in</h2>
-    <p class="hint" style="margin-top:4px">For the shop owner only. Renters book on the booking page.</p>
-    <form id="loginForm" style="margin-top:14px;display:flex;flex-direction:column;gap:12px" novalidate>
-      <label class="field"><span>Owner password</span><input type="password" id="pw" autocomplete="current-password" required></label>
+    <p class="hint" style="margin-top:4px">For the shop owner and staff only. Renters book on the booking page.</p>
+    <form id="loginForm" class="stack" novalidate>
+      <label class="field"><span>Admin name</span><input type="text" id="user" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+      <label class="field"><span>Password</span><input type="password" id="pw" autocomplete="current-password" required></label>
       <label class="check"><input type="checkbox" id="remember" checked> Keep me signed in on this device</label>
       <button class="btn brand" type="submit" id="loginGo">Sign in</button>
       <p class="err" id="loginErr" role="alert" hidden></p>
     </form>
-    <p class="hint" style="margin-top:14px">No password yet? In your Google Sheet, open the menu with your shop's name and choose <b>Set owner app password</b>. (If you don't see it, paste in the newest script first.)</p>
+    <p class="hint" style="margin-top:16px">No account yet? <button class="linkbtn" type="button" id="toRegister">Register an admin name and password</button></p>
+  </section>
+
+  <section class="card login" id="register" hidden>
+    <h2 id="regTitle">Register an admin account</h2>
+    <p class="hint" style="margin-top:4px" id="regHint">Choose the admin name and password you'll sign in with.</p>
+    <form id="regForm" class="stack" novalidate>
+      <label class="field"><span>Admin name</span><input type="text" id="rUser" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="e.g. jeanelle" required>
+        <small class="hint">3 to 30 letters or numbers (dots, dashes and underscores are OK), no spaces.</small></label>
+      <label class="field"><span>Password</span><input type="password" id="rPw" autocomplete="new-password" required>
+        <small class="hint">At least 6 characters.</small></label>
+      <label class="field"><span>Type the password again</span><input type="password" id="rPw2" autocomplete="new-password" required></label>
+      <label class="field"><span>Owner setup code</span><input type="text" id="rCode" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+        <small class="hint">In your Google Sheet: <b>Settings</b> tab, row <b>Owner setup code</b>, or the menu with your shop's name &gt; <b>Show owner setup code</b>. It stops strangers from making an account.</small></label>
+      <label class="check"><input type="checkbox" id="rRemember" checked> Keep me signed in on this device</label>
+      <button class="btn brand" type="submit" id="regGo">Register and sign in</button>
+      <p class="err" id="regErr" role="alert" hidden></p>
+    </form>
+    <p class="hint" style="margin-top:16px" id="toLoginRow">Already registered? <button class="linkbtn" type="button" id="toLogin">Sign in</button></p>
   </section>
 
   <section class="card login" id="blocked" hidden>
@@ -365,6 +393,22 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   </form>
 </dialog>
 
+<dialog class="editor" id="accounts" aria-labelledby="acTitle" style="width:min(520px,100vw)">
+  <div class="ed-head"><h2 id="acTitle">Admin accounts<small>Everyone here can see and edit bookings.</small></h2><button class="btn ghost small" type="button" id="acClose">Close</button></div>
+  <div class="ed-body" style="padding-bottom:24px">
+    <div id="acList"></div>
+    <p class="hint" style="margin-top:12px">To add staff, give them the owner setup code from your Google Sheet; they register on this page. Make a new code (Sheet menu &gt; <b>Show owner setup code</b>) to stop more sign-ups.</p>
+    <form id="pwForm" class="stack" novalidate style="margin-top:22px">
+      <h3 style="font-size:15px">Change my password</h3>
+      <label class="field"><span>Current password</span><input type="password" id="pOld" autocomplete="current-password"></label>
+      <label class="field"><span>New password</span><input type="password" id="pNew" autocomplete="new-password"></label>
+      <label class="field"><span>Type the new password again</span><input type="password" id="pNew2" autocomplete="new-password"></label>
+      <button class="btn brand" type="submit" id="pGo">Change password</button>
+      <p class="err" id="pErr" role="alert"></p>
+    </form>
+  </div>
+</dialog>
+
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script>
@@ -396,7 +440,8 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   function clock(isoStr){ return new Date(isoStr).toLocaleString('en-PH', { timeZone:'Asia/Manila', hour:'numeric', minute:'2-digit' }); }
   function dayLabel(ds, opts){ return new Date(ds + 'T12:00:00+08:00').toLocaleDateString('en-PH', Object.assign({ timeZone:'Asia/Manila' }, opts)); }
   function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
-  function store(){ try{ return $('remember').checked ? localStorage : sessionStorage; }catch(e){ return null; } }
+  var remember = true;
+  function store(){ try{ return remember ? localStorage : sessionStorage; }catch(e){ return null; } }
   function getToken(){ try{ return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } }
   function setToken(t){ try{ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); if(t){ var s = store(); if(s) s.setItem(TOKEN_KEY, t); } }catch(e){} }
   var toastTimer;
@@ -435,9 +480,16 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     return fetch(SHEET, { method:'POST', body: JSON.stringify(body) }).then(function(r){ return r.json(); });
   }
   var ERR = {
-    no_password: 'This shop has no owner password yet. Set one in the Google Sheet: menu > Set owner app password.',
-    wrong_password: 'That password isn\'t right.',
-    locked: 'Too many wrong passwords. Try again in 15 minutes.',
+    wrong_login: 'That admin name or password isn\'t right.',
+    wrong_password: 'Your current password isn\'t right.',
+    wrong_code: 'That owner setup code isn\'t right. Find it in your Google Sheet: Settings tab, or the menu > Show owner setup code.',
+    bad_username: 'Admin name: 3 to 30 letters or numbers (dots, dashes and underscores are OK), no spaces.',
+    short_password: 'The password needs at least 6 characters.',
+    username_taken: 'That admin name is already registered. Choose another, or sign in.',
+    mismatch: 'The two passwords don\'t match.',
+    self: 'You can\'t remove the account you are signed in with.',
+    old_script: 'Your Google Sheet has an older script. Paste in the newest Code.gs and publish a new version first.',
+    locked: 'Too many wrong tries. Try again in 15 minutes.',
     taken: 'That unit is already booked at an overlapping time',
     changed: 'This booking was changed in the sheet. Refresh and try again.',
     dates: 'The return must be after the pick-up.',
@@ -452,39 +504,123 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   try{ range = localStorage.getItem('rent_owner_range') || 'day'; }catch(e){}
   if(['day','week','month'].indexOf(range) < 0) range = 'day';
 
-  function showLogin(msg){
-    $('app').hidden = true; $('login').hidden = false; $('refreshBtn').hidden = true; $('logoutBtn').hidden = true;
-    $('loginErr').hidden = !msg; $('loginErr').textContent = msg || '';
-    setTimeout(function(){ $('pw').focus(); }, 0);
+  function signedOut(){
+    $('app').hidden = true; $('refreshBtn').hidden = true; $('logoutBtn').hidden = true; $('acctBtn').hidden = true; $('whoMe').textContent = '';
   }
+  function showLogin(msg){
+    signedOut(); $('register').hidden = true; $('login').hidden = false;
+    $('loginErr').hidden = !msg; $('loginErr').textContent = msg || '';
+    setTimeout(function(){ $($('user').value ? 'pw' : 'user').focus(); }, 0);
+  }
+  /* first: no accounts yet, so this is the owner making theirs. */
+  function showRegister(first, msg){
+    signedOut(); $('login').hidden = true; $('register').hidden = false;
+    $('regTitle').textContent = first ? 'Create your owner account' : 'Register an admin account';
+    $('regHint').textContent = first ? 'Welcome! Choose the admin name and password you\'ll sign in with. You only do this once.' : 'Choose the admin name and password you\'ll sign in with.';
+    $('toLoginRow').hidden = !!first;
+    $('regErr').hidden = !msg; $('regErr').textContent = msg || '';
+    setTimeout(function(){ $('rUser').focus(); }, 0);
+  }
+  /* Not signed in: register if the shop has no accounts yet, otherwise sign in. */
+  function showEntry(msg){
+    api('status').then(function(d){
+      if(d && d.ok){ if(d.name) $('shopName').textContent = d.name; return d.hasAccounts ? showLogin(msg) : showRegister(true, msg); }
+      showLogin(d && (d.error === 'bad_request' || d.error === 'no_password') ? ERR.old_script : msg);
+    }, function(){ showLogin(ERR.offline); });
+  }
+  $('toRegister').addEventListener('click', function(){ showRegister(false); });
+  $('toLogin').addEventListener('click', function(){ showLogin(''); });
   function load(){
     $('loadbar').textContent = 'Loading…'; $('app').classList.add('stale');
     return api('data').then(function(d){
       if(!d || !d.ok){
-        if(d && (d.error === 'signed_out' || d.error === 'no_password')){ setToken(''); showLogin(d.error === 'no_password' ? ERR.no_password : ''); return; }
+        if(d && (d.error === 'signed_out' || d.error === 'bad_request')){ setToken(''); showEntry(''); return; }
         $('loadbar').textContent = 'Couldn\'t load. Tap Refresh.'; return;
       }
       DATA = d;
       $('shopName').textContent = d.shop.name || 'Phone rentals';
       document.title = 'Owner · ' + (d.shop.name || 'Phone rentals');
       applyBrand(d.shop.brandColor);
-      $('login').hidden = true; $('app').hidden = false; $('refreshBtn').hidden = false; $('logoutBtn').hidden = false;
+      $('login').hidden = true; $('register').hidden = true; $('app').hidden = false; $('refreshBtn').hidden = false; $('logoutBtn').hidden = false; $('acctBtn').hidden = false;
+      $('whoMe').textContent = d.me ? 'Signed in as ' + d.me : '';
       $('loadbar').textContent = 'Updated ' + new Date().toLocaleTimeString('en-PH', { hour:'numeric', minute:'2-digit' });
       render();
     }, function(){ $('loadbar').textContent = ERR.offline; }).then(function(){ $('app').classList.remove('stale'); });
   }
   $('loginForm').addEventListener('submit', function(e){
     e.preventDefault();
-    var pw = $('pw').value;
-    if(!pw){ $('loginErr').hidden = false; $('loginErr').textContent = 'Enter your owner password.'; return; }
+    var user = $('user').value.trim(), pw = $('pw').value;
+    if(!user || !pw){ $('loginErr').hidden = false; $('loginErr').textContent = 'Enter your admin name and password.'; return; }
     $('loginGo').disabled = true; $('loginErr').hidden = true;
-    api('login', { password: pw }).then(function(d){
-      if(d && d.ok){ setToken(d.token); $('pw').value = ''; return load(); }
-      showLogin(ERR[d && d.error] || ERR.wrong_password);
+    api('login', { username: user, password: pw }).then(function(d){
+      if(d && d.ok){ remember = $('remember').checked; setToken(d.token); $('pw').value = ''; return load(); }
+      showLogin(d && d.error === 'bad_request' ? ERR.old_script : ERR[d && d.error] || ERR.wrong_login);
     }, function(){ showLogin(ERR.offline); }).then(function(){ $('loginGo').disabled = false; });
+  });
+  $('regForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var user = $('rUser').value.trim(), pw = $('rPw').value, err = $('regErr'), first = $('toLoginRow').hidden;
+    var bad = !/^[A-Za-z0-9._-]{3,30}$/.test(user) ? ERR.bad_username : pw.length < 6 ? ERR.short_password : pw !== $('rPw2').value ? ERR.mismatch
+      : !$('rCode').value.trim() ? 'Enter the owner setup code from your Google Sheet.' : '';
+    if(bad){ err.hidden = false; err.textContent = bad; return; }
+    $('regGo').disabled = true; err.hidden = true;
+    api('register', { username: user, password: pw, code: $('rCode').value.trim() }).then(function(d){
+      if(d && d.ok){
+        remember = $('rRemember').checked; setToken(d.token);
+        $('rPw').value = $('rPw2').value = $('rCode').value = ''; $('user').value = user;
+        toast('Welcome, ' + d.user + '!'); return load();
+      }
+      showRegister(first, d && d.error === 'bad_request' ? ERR.old_script : ERR[d && d.error] || 'Couldn\'t register. Try again.');
+    }, function(){ showRegister(first, ERR.offline); }).then(function(){ $('regGo').disabled = false; });
   });
   $('logoutBtn').addEventListener('click', function(){
     api('logout').catch(function(){}); setToken(''); DATA = { bookings: [], units: [], shop: {} }; showLogin('');
+  });
+
+  /* ---- admin accounts: see who can sign in, remove someone, change my password ---- */
+  function paintAccounts(list){
+    var box = $('acList'); box.innerHTML = '';
+    list.forEach(function(a){
+      var row = el('div', 'acct'), info = el('div');
+      info.appendChild(el('b', '', a.username + (a.you ? ' (you)' : '')));
+      info.appendChild(el('span', '', a.created ? 'Registered ' + dayLabel(mday(a.created), { month:'short', day:'numeric', year:'numeric' }) : ''));
+      row.appendChild(info);
+      if(!a.you){
+        var rm = el('button', 'btn danger small', 'Remove'); rm.type = 'button';
+        rm.addEventListener('click', function(){
+          if(!confirm('Remove ' + a.username + '? They are signed out and can\'t sign in again.')) return;
+          rm.disabled = true;
+          api('removeAccount', { username: a.username }).then(function(d){
+            if(d && d.ok){ paintAccounts(d.accounts); toast('Removed ' + a.username); }
+            else { rm.disabled = false; $('pErr').textContent = ERR[d && d.error] || 'Couldn\'t remove. Try again.'; }
+          }, function(){ rm.disabled = false; $('pErr').textContent = ERR.offline; });
+        });
+        row.appendChild(rm);
+      }
+      box.appendChild(row);
+    });
+  }
+  $('acctBtn').addEventListener('click', function(){
+    $('acList').innerHTML = ''; $('acList').appendChild(el('p', 'hint', 'Loading…')); $('pErr').textContent = '';
+    if($('accounts').showModal) $('accounts').showModal(); else $('accounts').setAttribute('open', '');
+    api('accounts').then(function(d){
+      if(d && d.ok) return paintAccounts(d.accounts);
+      if(d && d.error === 'signed_out'){ $('accounts').close(); setToken(''); showEntry(''); return; }
+      $('acList').innerHTML = ''; $('acList').appendChild(el('p', 'err', ERR.offline));
+    }, function(){ $('acList').innerHTML = ''; $('acList').appendChild(el('p', 'err', ERR.offline)); });
+  });
+  $('acClose').addEventListener('click', function(){ if($('accounts').close) $('accounts').close(); else $('accounts').removeAttribute('open'); });
+  $('pwForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var err = $('pErr'), np = $('pNew').value;
+    if(!$('pOld').value){ err.textContent = 'Enter your current password.'; return; }
+    if(np.length < 6){ err.textContent = ERR.short_password; return; }
+    if(np !== $('pNew2').value){ err.textContent = ERR.mismatch; return; }
+    $('pGo').disabled = true; err.textContent = 'Saving…';
+    api('changePassword', { old: $('pOld').value, password: np }).then(function(d){
+      if(d && d.ok){ err.textContent = ''; $('pOld').value = $('pNew').value = $('pNew2').value = ''; toast('Password changed. Other devices sign in again.'); return; }
+      err.textContent = ERR[d && d.error] || 'Couldn\'t change it. Try again.';
+    }, function(){ err.textContent = ERR.offline; }).then(function(){ $('pGo').disabled = false; });
   });
   $('refreshBtn').addEventListener('click', load);
   document.addEventListener('visibilitychange', function(){ if(!document.hidden && !$('app').hidden && !$('editor').open) load(); });
@@ -785,7 +921,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
         closeEditor(); render(); toast(e.row ? 'Saved ' + d.booking.ref : 'Added ' + d.booking.ref);
         return;
       }
-      if(d && d.error === 'signed_out'){ closeEditor(); setToken(''); showLogin('You were signed out. Sign in again to save.'); return; }
+      if(d && d.error === 'signed_out'){ closeEditor(); setToken(''); showEntry('You were signed out. Sign in again to save.'); return; }
       err.textContent = d && d.error === 'taken' ? ERR.taken + ' (' + d.with + ', until ' + when(d.until) + ').' : (ERR[d && d.error] || 'Couldn\'t save. Try again.');
       if(d && d.error === 'changed') load();
     }, function(){ err.textContent = ERR.offline; }).then(function(){ $('edSave').disabled = false; });
@@ -793,7 +929,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   $('newBtn').addEventListener('click', function(){ openEditor(null); });
 
   /* ---- start: the shop must be listed in rent/shops.json (Snaps MNL always is) ---- */
-  function startApp(){ if(getToken()) load(); else showLogin(''); }
+  function startApp(){ if(getToken()) load(); else showEntry(''); }
   function blocked(title, hint){ $('blockedTitle').textContent = title; $('blockedHint').textContent = hint; $('blocked').hidden = false; }
   useShop(shopParam);
   if(!slug && !foreign){ startApp(); return; }

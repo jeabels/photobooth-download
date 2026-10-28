@@ -76,10 +76,18 @@ The booking link is for renters. The owner has their own page, at the booking li
 https://jeabels.github.io/photobooth-download/rent/<your shop's short name>/admin
 ```
 
-1. In the Google Sheet, open the menu with your shop's name and choose **Set owner app password**.
-   Choose a password of at least 6 characters. Only you should know it.
-2. Open the owner page on your phone or computer and sign in. Tick **Keep me signed in on this device**
-   on your own phone so you don't need to type it each time.
+1. Open the owner page. The first time, it asks you to **create your owner account**: choose an
+   **admin name** (no spaces) and a **password** (at least 6 characters), and type the
+   **Owner setup code**. The code is in your Google Sheet's **Settings** tab (row "Owner setup code"),
+   or use the menu with your shop's name → **Show owner setup code**. The code stops strangers who
+   find the link from making an account.
+2. After that, sign in with your admin name and password. Tick **Keep me signed in on this device**
+   on your own phone so you don't need to type them each time.
+3. **Staff:** give them the setup code. They tap **Register an admin name and password** on the
+   sign-in screen. Under **Accounts** you can see everyone who can sign in, remove someone, and change
+   your password. To stop new sign-ups, make a new code (menu → **Show owner setup code** → Yes).
+4. **Forgot your password?** Use the menu → **Remove all owner page accounts**, then register again.
+   Your bookings are not touched.
 
 What's on it:
 
@@ -96,8 +104,7 @@ What's on it:
 - **+ New booking:** add walk-in or Messenger bookings. They block the unit on the booking page too.
 
 The page won't save a change that puts a unit in two Pending or Confirmed bookings at the same time.
-Every change goes straight into the **Website Bookings** tab. If you forget your password, set a new one
-from the menu; that also signs out every phone and computer.
+Every change goes straight into the **Website Bookings** tab.
 
 ## 5. Taking bookings
 

@@ -45,8 +45,8 @@
  *                        or the promo code or delivery area isn't valid. The sheet
  *                        works out the total itself.
  *   POST {action: "photos"} -> the 3 photos for a booking just saved.
- *   POST {action: "admin"}  -> the owner app (rent/admin/): sign in with the owner password
- *                        (menu > Set owner app password), then read all bookings, and edit
+ *   POST {action: "admin"}  -> the owner app (rent/admin/): register an admin name and password
+ *                        (with the Settings "Owner setup code") or sign in, then read all bookings, and edit
  *                        or add them.
  *
  * Set up (once): paste this file into Extensions > Apps Script, run setup(),
@@ -94,7 +94,8 @@ var DEFAULT_SETTINGS = [
   ['Minimum notice (hours)', 2, 'How long before pick-up a renter can still book online'],
   ['Book up to (days ahead)', 180, 'How far ahead renters can book'],
   ['Closed dates', '', 'Days with no pick-ups or returns, comma-separated, e.g. 2026-12-25, 2027-01-01'],
-  ['Notify email', '', 'Each new booking is emailed here. Blank turns the emails off']
+  ['Notify email', '', 'Each new booking is emailed here. Blank turns the emails off'],
+  ['Owner setup code', '', 'Needed to register an admin name and password on the owner page (booking link + /admin). Setup makes one. Change it to stop new sign-ups']
 ];
 var DEFAULT_UNITS = [
   ['16pro-desert', 'iPhone 16 Pro', '128GB · Desert Titanium', 1000, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-16-pro-desert-titanium.webp', 'Yes', '16'],
@@ -167,6 +168,7 @@ function setup() {
   MailApp.getRemainingDailyQuota();  // asks for email access now, so booking emails work later
   var daily = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'updateDashboard'; });
   if (!daily) ScriptApp.newTrigger('updateDashboard').timeBased().everyDays(1).atHour(6).create();
+  ensureSetupCode_();
   CacheService.getScriptCache().remove('config');
   updateDashboard();
 }
@@ -664,7 +666,8 @@ function onOpen() {
     .addItem('Upload an image (banner, rate card or poster)', 'showUpload')
     .addItem('Adjust banner (zoom, position, size)', 'showBannerEditor')
     .addItem('Update earnings dashboard', 'updateDashboard')
-    .addItem('Set owner app password', 'setOwnerPassword')
+    .addItem('Show owner setup code', 'showSetupCode')
+    .addItem('Remove all owner page accounts (forgot password)', 'resetOwnerAccounts')
     .addSeparator()
     .addItem('Add confirmed website bookings to month tabs', 'addConfirmed')
     .addItem('Make banner and poster images public', 'publishImages')
@@ -685,63 +688,126 @@ function addConfirmed() {
 }
 
 /* ---- owner app (rent/admin/) ----
-   The owner signs in with a password set from the sheet's menu. Only its salted hash is kept, in the
-   script's properties (not in any tab). A sign-in gives the device a token that lasts 60 days; setting
-   a new password signs every device out. Too many wrong passwords lock sign-in for 15 minutes. */
+   The owner registers an admin name and password on the owner page. Registering needs the shop's
+   "Owner setup code" from the Settings tab, which only people who can open the sheet can see, so a
+   stranger with the link can't make an account. Staff can register too, with the same code; change
+   the code to stop new sign-ups. Accounts are kept in the script's properties (not in any tab), with
+   only a salted hash of each password. A sign-in gives the device a token that lasts 60 days. Too many
+   wrong passwords or codes lock sign-in and registering for 15 minutes. */
 
-var TOKEN_DAYS = 60, MAX_FAILS = 8;
+var TOKEN_DAYS = 60, MAX_FAILS = 8, SETUP_CODE = 'Owner setup code';
 var TEXT_FIELDS = ['handover', 'name', 'address', 'mobile', 'social', 'purpose', 'ecName', 'ecRel', 'ecMobile', 'ecAddress', 'notes'];
 var FIELD_COL = { ref: 1, submitted: 2, status: 3, unitId: 4, unit: 5, start: 6, end: 7, days: 8, total: 9, handover: 10, name: 11,
   address: 12, mobile: 13, social: 14, purpose: 15, ecName: 16, ecRel: 17, ecMobile: 18, ecAddress: 19, notes: 20, addedTo: 21,
   photos: 22, promo: 23, discount: 24, fee: 25 };
 var OWNER_DISCOUNT = 'Owner discount';
 
-/** Menu item: sets (or changes) the password for the owner app. */
-function setOwnerPassword() {
+function newCode_() {
+  var abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r = '';
+  for (var i = 0; i < 8; i++) r += abc[Math.floor(Math.random() * abc.length)];
+  return r;
+}
+/* The setup code from Settings; setup() makes one when it's blank. */
+function setupCode_() { return String(settings_()[SETUP_CODE] || '').trim().toUpperCase(); }
+function ensureSetupCode_() { if (!setupCode_()) saveSetting_(SETUP_CODE, newCode_()); }
+
+/** Menu item: shows the code for registering on the owner page, with the option to make a new one. */
+function showSetupCode() {
   var ui = SpreadsheetApp.getUi();
-  var r = ui.prompt('Owner app password', 'Type a password of at least 6 characters. You use it to sign in to the owner page ' +
-    '(the booking link with /admin/ added). Setting a new one signs out every phone and computer.', ui.ButtonSet.OK_CANCEL);
-  if (r.getSelectedButton() !== ui.Button.OK) return;
-  var pw = r.getResponseText();
-  if (pw.length < 6) { ui.alert('That password is too short. Use at least 6 characters.'); return; }
-  var props = PropertiesService.getScriptProperties(), salt = Utilities.getUuid();
-  props.setProperty('ownerSalt', salt);
-  props.setProperty('ownerHash', hash_(pw, salt));
-  props.setProperty('ownerTokens', '{}');
-  ui.alert('Password saved. Open your booking link with /admin/ at the end to sign in.');
+  ensureSetupCode_();
+  var r = ui.alert('Owner setup code: ' + setupCode_(),
+    'Type this code on the owner page (your booking link with /admin added) to register an admin name and password. ' +
+    'Give it only to people who should see and edit your bookings.\n\nMake a new code? The old one stops working; ' +
+    'accounts already made keep working.', ui.ButtonSet.YES_NO);
+  if (r === ui.Button.YES) { saveSetting_(SETUP_CODE, newCode_()); ui.alert('New owner setup code: ' + setupCode_()); }
+}
+
+/** Menu item: for a forgotten password. Removes every owner page account and signs out every device. */
+function resetOwnerAccounts() {
+  var ui = SpreadsheetApp.getUi();
+  if (ui.alert('Remove all owner page accounts?', 'Everyone is signed out, and you register again on the owner page ' +
+    'with the owner setup code. Bookings are not touched.', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty('adminAccounts', '{}'); props.setProperty('adminTokens', '{}');
+  ui.alert('Done. Register again on the owner page.');
 }
 
 function hash_(text, salt) {
   return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + '|' + text, Utilities.Charset.UTF_8));
 }
+function prop_(props, key) { try { return JSON.parse(props.getProperty(key) || '{}'); } catch (e) { return {}; } }
+function userKey_(name) { return String(name || '').trim().toLowerCase(); }
 
 function admin_(d) {
-  var props = PropertiesService.getScriptProperties();
-  if (!props.getProperty('ownerHash')) return { ok: false, error: 'no_password' };
-  if (d.op === 'login') return login_(props, String(d.password || ''));
-  var tokens = JSON.parse(props.getProperty('ownerTokens') || '{}'), t = String(d.token || '');
-  if (!t || !tokens[hash_(t, 'token')] || tokens[hash_(t, 'token')] < Date.now()) return { ok: false, error: 'signed_out' };
-  if (d.op === 'logout') { delete tokens[hash_(t, 'token')]; props.setProperty('ownerTokens', JSON.stringify(tokens)); return { ok: true }; }
-  if (d.op === 'data') return adminData_();
+  var props = PropertiesService.getScriptProperties(), accounts = prop_(props, 'adminAccounts');
+  if (d.op === 'status') return { ok: true, hasAccounts: Object.keys(accounts).length > 0, name: config_().name };
+  if (d.op === 'login' || d.op === 'register') {
+    var cache = CacheService.getScriptCache(), fails = Number(cache.get('ownerFails')) || 0;
+    if (fails >= MAX_FAILS) return { ok: false, error: 'locked' };
+    var res = d.op === 'login' ? login_(accounts, d) : register_(props, accounts, d);
+    if (res.fail) { cache.put('ownerFails', String(fails + 1), 900); return { ok: false, error: res.fail }; }
+    if (res.error) return res;
+    cache.remove('ownerFails');
+    return { ok: true, token: newToken_(props, res.key), user: accounts[res.key].name, name: config_().name };
+  }
+  var tokens = prop_(props, 'adminTokens'), t = hash_(String(d.token || ''), 'token'), me = tokens[t];
+  if (!d.token || !me || me.exp < Date.now() || !accounts[me.user]) return { ok: false, error: 'signed_out' };
+  if (d.op === 'logout') { delete tokens[t]; props.setProperty('adminTokens', JSON.stringify(tokens)); return { ok: true }; }
+  if (d.op === 'data') { var out = adminData_(); out.me = accounts[me.user].name; return out; }
   if (d.op === 'save') return adminSave_(d.booking || {});
+  if (d.op === 'accounts') return accountsOut_(accounts, me.user);
+  if (d.op === 'removeAccount') {
+    var k = userKey_(d.username);
+    if (k === me.user) return { ok: false, error: 'self' };
+    delete accounts[k];
+    Object.keys(tokens).forEach(function (x) { if (tokens[x].user === k) delete tokens[x]; });
+    props.setProperty('adminAccounts', JSON.stringify(accounts)); props.setProperty('adminTokens', JSON.stringify(tokens));
+    return accountsOut_(accounts, me.user);
+  }
+  if (d.op === 'changePassword') {
+    var a = accounts[me.user];
+    if (hash_(String(d.old || ''), a.salt) !== a.hash) return { ok: false, error: 'wrong_password' };
+    if (String(d.password || '').length < 6) return { ok: false, error: 'short_password' };
+    a.salt = Utilities.getUuid(); a.hash = hash_(String(d.password), a.salt);
+    Object.keys(tokens).forEach(function (x) { if (tokens[x].user === me.user && x !== t) delete tokens[x]; });   // other devices sign in again
+    props.setProperty('adminAccounts', JSON.stringify(accounts)); props.setProperty('adminTokens', JSON.stringify(tokens));
+    return { ok: true };
+  }
   return { ok: false, error: 'bad_request' };
 }
 
-function login_(props, pw) {
-  var cache = CacheService.getScriptCache(), fails = Number(cache.get('ownerFails')) || 0;
-  if (fails >= MAX_FAILS) return { ok: false, error: 'locked' };
-  if (hash_(pw, props.getProperty('ownerSalt')) !== props.getProperty('ownerHash')) {
-    cache.put('ownerFails', String(fails + 1), 900);
-    return { ok: false, error: 'wrong_password' };
-  }
-  cache.remove('ownerFails');
-  var tokens = JSON.parse(props.getProperty('ownerTokens') || '{}'), now = Date.now(), token = Utilities.getUuid() + Utilities.getUuid();
-  Object.keys(tokens).forEach(function (k) { if (tokens[k] < now) delete tokens[k]; });
-  var keys = Object.keys(tokens).sort(function (a, b) { return tokens[a] - tokens[b]; });
-  while (keys.length >= 20) delete tokens[keys.shift()];   // keep the newest devices
-  tokens[hash_(token, 'token')] = now + TOKEN_DAYS * 864e5;
-  props.setProperty('ownerTokens', JSON.stringify(tokens));
-  return { ok: true, token: token, name: config_().name };
+function login_(accounts, d) {
+  var k = userKey_(d.username), a = accounts[k];
+  if (!a || hash_(String(d.password || ''), a.salt) !== a.hash) return { fail: 'wrong_login' };
+  return { key: k };
+}
+
+function register_(props, accounts, d) {
+  var name = String(d.username || '').trim(), k = userKey_(name), code = setupCode_();
+  if (!code || String(d.code || '').trim().toUpperCase() !== code) return { fail: 'wrong_code' };
+  if (!/^[A-Za-z0-9._-]{3,30}$/.test(name)) return { ok: false, error: 'bad_username' };
+  if (String(d.password || '').length < 6) return { ok: false, error: 'short_password' };
+  if (accounts[k]) return { ok: false, error: 'username_taken' };
+  var salt = Utilities.getUuid();
+  accounts[k] = { name: name, salt: salt, hash: hash_(String(d.password), salt), created: new Date().toISOString() };
+  props.setProperty('adminAccounts', JSON.stringify(accounts));
+  return { key: k };
+}
+
+function newToken_(props, key) {
+  var tokens = prop_(props, 'adminTokens'), now = Date.now(), token = Utilities.getUuid() + Utilities.getUuid();
+  Object.keys(tokens).forEach(function (x) { if (!tokens[x] || tokens[x].exp < now) delete tokens[x]; });
+  var keys = Object.keys(tokens).sort(function (a, b) { return tokens[a].exp - tokens[b].exp; });
+  while (keys.length >= 40) delete tokens[keys.shift()];   // keep the newest devices
+  tokens[hash_(token, 'token')] = { exp: now + TOKEN_DAYS * 864e5, user: key };
+  props.setProperty('adminTokens', JSON.stringify(tokens));
+  return token;
+}
+
+function accountsOut_(accounts, me) {
+  return { ok: true, accounts: Object.keys(accounts).map(function (k) {
+    return { username: accounts[k].name, created: accounts[k].created, you: k === me };
+  }) };
 }
 
 function iso_(v) { return v instanceof Date ? v.toISOString() : ''; }
