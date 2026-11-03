@@ -22,13 +22,16 @@ try{ document.documentElement.dataset.theme = localStorage.getItem('snaps_tracke
 </script>
 <style>
 /* ============================================================================
-   Sales Tracker — a booth owner's phone view of all their booths' sales.
+   Sales Tracker v3 — a booth owner's phone view of all their booths' sales.
    One tracker link holds every booth; each tablet adds itself with its own QR.
+   Overview: one period at a time (today, yesterday, 7 days, this or last month).
+   Trends: today / this week / this month, sales by day, week or month, and the
+   best-selling layouts and booths over the same stretch.
    ========================================================================== */
 :root{
   --bg:#F3F4F8; --bg-2:#E8EAF1; --card:#FFFFFF; --ink:#12131A; --sub:#5C6070; --muted:#8A8FA0; --line:rgba(18,19,26,.08);
   --accent:#5B5BF6; --accent-soft:rgba(91,91,246,.12); --good:#14A166; --good-soft:rgba(20,161,102,.12); --bad:#DE4459;
-  --hero:linear-gradient(135deg,#4F4FF0 0%,#8A55F2 52%,#EE6A8C 100%); --grid:rgba(18,19,26,.06);
+  --hero:linear-gradient(135deg,#4F4FF0 0%,#8A55F2 52%,#EE6A8C 100%); --grid:rgba(18,19,26,.06); --mark:#5B5BF6; --mark-hi:#4343D9;
   --shadow:0 1px 0 rgba(255,255,255,.6) inset,0 12px 32px -22px rgba(26,28,60,.45);
   --head:'Sora',system-ui,sans-serif; --sans:'Manrope',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   color-scheme:light;
@@ -37,7 +40,7 @@ try{ document.documentElement.dataset.theme = localStorage.getItem('snaps_tracke
   :root:not([data-theme="light"]){
     --bg:#0A0B10; --bg-2:#12141B; --card:#14161E; --ink:#F2F3F7; --sub:#A3A7B5; --muted:#747988; --line:rgba(255,255,255,.07);
     --accent:#8C8CFF; --accent-soft:rgba(140,140,255,.16); --good:#3DD68C; --good-soft:rgba(61,214,140,.14); --bad:#FF6B7F;
-    --hero:linear-gradient(135deg,#3B3BD6 0%,#7444DA 52%,#D24E78 100%); --grid:rgba(255,255,255,.06);
+    --hero:linear-gradient(135deg,#3B3BD6 0%,#7444DA 52%,#D24E78 100%); --grid:rgba(255,255,255,.06); --mark:#7C7CFA; --mark-hi:#9C9CFF;
     --shadow:0 1px 0 rgba(255,255,255,.04) inset,0 16px 36px -24px rgba(0,0,0,.9);
     color-scheme:dark;
   }
@@ -45,7 +48,7 @@ try{ document.documentElement.dataset.theme = localStorage.getItem('snaps_tracke
 :root[data-theme="dark"]{
   --bg:#0A0B10; --bg-2:#12141B; --card:#14161E; --ink:#F2F3F7; --sub:#A3A7B5; --muted:#747988; --line:rgba(255,255,255,.07);
   --accent:#8C8CFF; --accent-soft:rgba(140,140,255,.16); --good:#3DD68C; --good-soft:rgba(61,214,140,.14); --bad:#FF6B7F;
-  --hero:linear-gradient(135deg,#3B3BD6 0%,#7444DA 52%,#D24E78 100%); --grid:rgba(255,255,255,.06);
+  --hero:linear-gradient(135deg,#3B3BD6 0%,#7444DA 52%,#D24E78 100%); --grid:rgba(255,255,255,.06); --mark:#7C7CFA; --mark-hi:#9C9CFF;
   --shadow:0 1px 0 rgba(255,255,255,.04) inset,0 16px 36px -24px rgba(0,0,0,.9);
   color-scheme:dark;
 }
@@ -146,6 +149,36 @@ button{font:inherit;color:inherit}
 .tip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:12px;font-weight:700;
   padding:6px 9px;border-radius:9px;white-space:nowrap;pointer-events:none;z-index:2}
 
+/* ---- view switch (Overview / Trends) ---- */
+.views{display:flex;gap:6px;margin-top:4px}
+.views button{flex:1;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:10px 12px;font-weight:800;font-size:13.5px;color:var(--sub);cursor:pointer;
+  box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;gap:7px}
+.views button svg{width:16px;height:16px}
+.views button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:transparent}
+.views button:focus-visible,.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---- trends ---- */
+.tiles3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.tiles3 .tile{padding:13px 13px}
+.tiles3 .v{font-size:clamp(17px,4.6vw,22px);overflow-wrap:anywhere}
+.delta{display:inline-block;margin-top:5px;font-size:11.5px;font-weight:800;color:var(--sub)}
+.delta.up{color:var(--good)} .delta.down{color:var(--bad)}
+.plot{position:relative}
+.plot svg{display:block;width:100%;height:auto;overflow:visible}
+.plot .tick{font-size:11px;fill:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+.plot .peak{font-size:11.5px;font-weight:800;fill:var(--sub)}
+.plot .col{fill:var(--mark);pointer-events:none}
+.plot .hit{fill:transparent;cursor:pointer;outline:none}
+.plot .hit:hover + .col,.plot .hit:focus + .col,.plot .col.on{fill:var(--mark-hi)}
+.plot .tip{bottom:auto;transform:translate(-50%,-100%)}
+.plot .tip span{display:block;font-weight:600;opacity:.75}
+.tbl{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+.tbl th,.tbl td{padding:7px 2px;border-bottom:1px solid var(--line);text-align:left;font-weight:600}
+.tbl th{color:var(--muted);font-size:12px}
+.tbl .n{text-align:right;font-variant-numeric:tabular-nums}
+.tbl-btn{background:none;border:0;color:var(--accent);font-weight:800;font-size:12px;cursor:pointer;padding:0}
+.ver{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em}
+
 /* lists */
 .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
 .row:first-child{border-top:0}
@@ -238,6 +271,12 @@ button{font:inherit;color:inherit}
 
     <div class="rail" id="booths" role="group" aria-label="Booths"></div>
 
+    <div class="views" role="group" aria-label="View">
+      <button type="button" data-v="overview" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overview</button>
+      <button type="button" data-v="trends" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><rect x="5" y="11" width="3" height="6" rx="1"/><rect x="10.5" y="7" width="3" height="10" rx="1"/><rect x="16" y="4" width="3" height="13" rx="1"/></svg>Trends</button>
+    </div>
+
+    <div id="overview">
     <div class="seg" id="ranges" role="group" aria-label="Period">
       <button type="button" data-r="today" aria-pressed="true">Today</button>
       <button type="button" data-r="yesterday" aria-pressed="false">Yesterday</button>
@@ -288,6 +327,35 @@ button{font:inherit;color:inherit}
       <div class="card-head"><h2>Latest sales</h2><span id="recent-sub"></span></div>
       <div id="recent"></div>
     </div>
+    </div>
+
+    <!-- trends: sales by day, week or month -->
+    <div id="trends" hidden>
+      <div class="tiles3">
+        <div class="tile"><div class="l">Today</div><div class="v num" id="tr-today">₱0</div><div class="n" id="tr-today-n"></div><span class="delta" id="tr-today-d"></span></div>
+        <div class="tile"><div class="l">This week</div><div class="v num" id="tr-week">₱0</div><div class="n" id="tr-week-n"></div><span class="delta" id="tr-week-d"></span></div>
+        <div class="tile"><div class="l">This month</div><div class="v num" id="tr-month">₱0</div><div class="n" id="tr-month-n"></div><span class="delta" id="tr-month-d"></span></div>
+      </div>
+      <div class="seg" id="grains" role="group" aria-label="Group sales by">
+        <button type="button" data-g="day" aria-pressed="true">Daily</button>
+        <button type="button" data-g="week" aria-pressed="false">Weekly</button>
+        <button type="button" data-g="month" aria-pressed="false">Monthly</button>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2 id="tr-title">Daily sales</h2><button class="tbl-btn" type="button" id="tr-tbl-btn" aria-expanded="false">Show as table</button></div>
+        <p style="color:var(--sub);font-size:13px;font-weight:600;margin:-6px 0 10px" id="tr-sub"></p>
+        <div class="plot" id="tr-plot"></div>
+        <table class="tbl" id="tr-tbl" hidden></table>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Best-selling layouts</h2><span id="tr-layouts-sub"></span></div>
+        <div id="tr-layouts"></div>
+      </div>
+      <div class="card" id="tr-booths-card" hidden>
+        <div class="card-head"><h2>Booths, best first</h2><span id="tr-booths-sub"></span></div>
+        <div id="tr-booths"></div>
+      </div>
+    </div>
 
     <div class="card" id="locked-card" hidden>
       <p class="empty">🔒 This booth hasn't activated the Sales Tracker yet.</p>
@@ -311,7 +379,7 @@ button{font:inherit;color:inherit}
     </div>
 
     <div class="foot">
-      <span id="updated">Not updated yet</span>
+      <span><span id="updated">Not updated yet</span> · <span class="ver">SALES TRACKER V3</span></span>
       <span><button class="link" id="add-booth" type="button">Add a booth</button> · <button class="link" id="remove-booth" type="button">Remove this booth</button></span>
     </div>
     <p class="msg bad" id="err"></p>
@@ -511,8 +579,12 @@ var SELLER = {
         : (online ? 'Online · ' : 'Offline · last seen ') + ago(last);
     }
 
-    var p = period(state.range);
     var all = (d.sales || []).map(function(e){ return { t:Number(e.t), mode:e.mode, method:e.method, layout:e.layout || 'Layout', copies:Number(e.copies) || 1, amount:Number(e.amount) || 0, booth:e.booth || '' }; });
+    $('overview').hidden = state.view !== 'overview'; $('trends').hidden = state.view !== 'trends';
+    Array.prototype.forEach.call(document.querySelectorAll('.views button'), function(b){ b.setAttribute('aria-pressed', String(b.dataset.v === state.view)); });
+    $('updated').textContent = 'Updated ' + new Date(state.at).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+    if (state.view === 'trends'){ trends(d, all); return; }
+    var p = period(state.range);
     var rows = all.filter(function(e){ return e.t >= p.from && e.t < p.to; });
     var prev = all.filter(function(e){ return e.t >= p.prevFrom && e.t < (p.prevTo || p.from); });
     var s = sum(rows), ps = sum(prev);
@@ -533,25 +605,27 @@ var SELLER = {
     $('t-event').textContent = s.events; $('t-event-n').textContent = s.events ? s.eventPrints + ' prints, rentals' : 'rentals, not per print';
     $('t-prints').textContent = s.prints; $('t-prints-n').textContent = (s.prints - s.eventPrints) + ' paid · ' + s.eventPrints + ' event';
 
-    byBooth(d, p, lastOf, isOn);
+    byBooth(d, p);
     chart(rows, p);
     layouts(rows);
     recent(rows);
-    $('updated').textContent = 'Updated ' + new Date(state.at).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
   }
 
   /* All booths: each booth's total for the period, best first. */
-  function byBooth(d, p, lastOf, isOn){
+  function byBooth(d, p){
     $('by-booth-card').hidden = !d.all;
     if (!d.all) return;
+    $('by-booth-sub').textContent = d.booths.length + ' booths';
+    $('by-booth').innerHTML = boothRows(d, p.from, p.to);
+  }
+  function boothRows(d, from, to){
     var list = d.booths.map(function(b){
       var s = sum(b.sales.map(function(e){ return { t:Number(e.t), mode:e.mode, method:e.method, copies:Number(e.copies) || 1, amount:Number(e.amount) || 0 }; })
-        .filter(function(e){ return e.t >= p.from && e.t < p.to; }));
+        .filter(function(e){ return e.t >= from && e.t < to; }));
       return { b:b, s:s, last:lastOf(b) };
     }).sort(function(x, y){ return y.s.total - x.s.total; });
     var max = Math.max.apply(null, list.map(function(x){ return x.s.total; }).concat([1]));
-    $('by-booth-sub').textContent = d.booths.length + ' booths';
-    $('by-booth').innerHTML = list.map(function(x){
+    return list.map(function(x){
       var status = x.b.locked ? '🔒 not activated' : x.b.error ? esc(x.b.error) : !x.last ? 'not online yet' : (isOn(x.last) ? 'online' : 'last seen ' + ago(x.last));
       return '<div class="row"><span class="dot' + (isOn(x.last) && !x.b.error ? ' on' : '') + '"></span><div class="grow"><div class="t">' + esc(x.b.name) + '</div>' +
         '<div class="s">' + x.s.paid + ' session' + (x.s.paid === 1 ? '' : 's') + ' · ' + x.s.prints + ' print' + (x.s.prints === 1 ? '' : 's') + ' · ' + status + '</div>' +
@@ -609,13 +683,13 @@ var SELLER = {
     $('axis').innerHTML = labels.map(function(l){ return '<span>' + esc(l) + '</span>'; }).join('');
   }
 
-  function layouts(rows){
+  function layouts(rows, box, sub){
     var by = {};
     rows.forEach(function(e){ var l = by[e.layout] || (by[e.layout] = { name:e.layout, n:0, v:0, prints:0 }); l.n++; l.v += e.amount; l.prints += e.copies; });
     var list = Object.keys(by).map(function(k){ return by[k]; }).sort(function(a, b){ return b.v - a.v || b.n - a.n; }).slice(0, 6);
     var max = Math.max.apply(null, list.map(function(l){ return l.v; }).concat([1]));
-    $('layouts-sub').textContent = list.length ? Object.keys(by).length + ' layout' + (Object.keys(by).length === 1 ? '' : 's') : '';
-    $('layouts').innerHTML = list.length ? list.map(function(l){
+    $(sub || 'layouts-sub').textContent = list.length ? Object.keys(by).length + ' layout' + (Object.keys(by).length === 1 ? '' : 's') : '';
+    $(box || 'layouts').innerHTML = list.length ? list.map(function(l){
       return '<div class="row"><div class="grow"><div class="t">' + esc(l.name) + '</div><div class="s">' + l.n + ' session' + (l.n === 1 ? '' : 's') + ' · ' + l.prints + ' print' + (l.prints === 1 ? '' : 's') + '</div>' +
         '<div class="meter"><i style="width:' + Math.max(2, l.v / max * 100) + '%"></i></div></div><div class="amt">' + peso(l.v) + '</div></div>';
     }).join('') : '<p class="empty">No sales yet.</p>';
@@ -632,6 +706,124 @@ var SELLER = {
         '<span class="pill' + (e.method === 'cash' && e.mode !== 'event' ? ' cash' : '') + '">' + name(e) + '</span><div class="amt">' + (e.mode === 'event' ? '—' : peso(e.amount)) + '</div></div>';
     }).join('') : '<p class="empty">No sales ' + period(state.range).label + '.</p>';
   }
+
+  /* ---- trends (v3): today / this week / this month, and sales by day, week or month ----
+     Weeks start on Monday. Sales are paid sessions (event rentals have no price per print).
+     Each comparison is to the same stretch of the period before: today so far vs yesterday
+     by this time, this week so far vs last week by now, this month so far vs last month's same days. */
+  var VIEW = 'snaps_tracker_view', GRAIN = 'snaps_tracker_grain';
+  state.view = get(VIEW) === 'trends' ? 'trends' : 'overview';
+  state.grain = ['day', 'week', 'month'].indexOf(get(GRAIN)) > -1 ? get(GRAIN) : 'day';
+  function addDays(t, n){ var d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); }
+  function weekStart(t){ var d = new Date(dayStart(t)); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.getTime(); }
+  function monthStart(t){ var d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); }
+  function addMonths(t, n){ var d = new Date(t); return new Date(d.getFullYear(), d.getMonth() + n, 1).getTime(); }
+  var plural = function(n, w){ return n.toLocaleString('en-PH') + ' ' + w + (n === 1 ? '' : 's'); };
+  var paidIn = function(all, from, to){ return all.filter(function(e){ return e.mode !== 'event' && e.t >= from && e.t < to; }); };
+  var total = function(rows){ return rows.reduce(function(a, e){ return a + e.amount; }, 0); };
+
+  /* The bars: 14 days, 12 weeks or 12 months, oldest first, each ending where the next starts. */
+  function trendBuckets(all){
+    var now = Date.now(), out = [], i, f;
+    if (state.grain === 'day') for (i = 13; i >= 0; i--){ f = addDays(dayStart(now), -i);
+      out.push({ from:f, to:addDays(f, 1), label:String(new Date(f).getDate()), long:new Date(f).toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' }) }); }
+    if (state.grain === 'week') for (i = 11; i >= 0; i--){ f = addDays(weekStart(now), -7 * i);
+      out.push({ from:f, to:addDays(f, 7), label:new Date(f).toLocaleDateString([], { month:'short', day:'numeric' }), long:'Week of ' + new Date(f).toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' }) }); }
+    if (state.grain === 'month') for (i = 11; i >= 0; i--){ f = addMonths(monthStart(now), -i);
+      out.push({ from:f, to:addMonths(f, 1), label:new Date(f).toLocaleDateString([], { month:'short' }), long:new Date(f).toLocaleDateString([], { month:'long', year:'numeric' }) }); }
+    out.forEach(function(b){ b.rows = paidIn(all, b.from, b.to); b.v = total(b.rows); b.n = b.rows.length; });
+    out[out.length - 1].long += ' (so far)';
+    return out;
+  }
+
+  function trends(d, all){
+    var now = Date.now(), DAY = 864e5;
+    var tile = function(id, from, prevFrom, prevTo, vs){
+      var cur = paidIn(all, from, now + 1), prev = paidIn(all, prevFrom, prevTo), v = total(cur), pv = total(prev), el = $(id + '-d');
+      $(id).textContent = peso(v);
+      $(id + '-n').textContent = plural(cur.length, 'session');
+      if (pv > 0){ var pct = Math.round((v - pv) / pv * 100); el.textContent = (pct >= 0 ? '↑ ' : '↓ ') + Math.abs(pct) + '% vs ' + vs; el.className = 'delta ' + (pct >= 0 ? 'up' : 'down'); }
+      else { el.textContent = v ? 'First sales vs ' + vs : ''; el.className = 'delta'; }
+    };
+    var td = dayStart(now), wk = weekStart(now), mo = monthStart(now), pm = addMonths(mo, -1);
+    tile('tr-today', td, td - DAY, now - DAY, 'yesterday');
+    tile('tr-week', wk, addDays(wk, -7), addDays(now, -7), 'last week');
+    tile('tr-month', mo, pm, Math.min(mo, pm + (now - mo)), 'last month');
+    Array.prototype.forEach.call(document.querySelectorAll('#grains button'), function(b){ b.setAttribute('aria-pressed', String(b.dataset.g === state.grain)); });
+
+    var bk = trendBuckets(all), from = bk[0].from, to = bk[bk.length - 1].to;
+    var span = { day:'the last 14 days', week:'the last 12 weeks', month:'the last 12 months' }[state.grain];
+    var sumV = bk.reduce(function(a, b){ return a + b.v; }, 0), sumN = bk.reduce(function(a, b){ return a + b.n; }, 0);
+    $('tr-title').textContent = { day:'Daily sales', week:'Weekly sales', month:'Monthly sales' }[state.grain];
+    $('tr-sub').textContent = peso(sumV) + ' from ' + plural(sumN, 'paid session') + ' in ' + span + (sumN ? ' · ' + peso(sumV / bk.length) + ' a ' + state.grain + ' on average' : '');
+    trendChart(bk);
+    var win = all.filter(function(e){ return e.t >= from && e.t < to; });
+    layouts(win, 'tr-layouts', 'tr-layouts-sub');
+    $('tr-booths-card').hidden = !d.all;
+    if (d.all){ $('tr-booths-sub').textContent = span; $('tr-booths').innerHTML = boothRows(d, from, to); }
+  }
+
+  /* One series of columns from one baseline: a value on the tallest, a tooltip on tap, hover or
+     keyboard focus, and the same numbers as a table. */
+  /* Round axis steps (₱500, ₱1K, ₱2.5K …) and a top that is a whole number of steps. */
+  function niceStep(v){ var p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+  function compact(n){ return n >= 1e6 ? '₱' + +(n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? '₱' + +(n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'K' : '₱' + Math.round(n); }
+  function trendChart(bk){
+    var box = $('tr-plot'), W = Math.max(280, box.clientWidth || 560), H = 200, L = 42, R = 4, T = 22, B = 24;
+    var top = Math.max.apply(null, bk.map(function(b){ return b.v; })), step = top > 0 ? niceStep(top / 4) : 250, steps = Math.max(1, Math.ceil(top / step)), max = step * steps;
+    var pw = W - L - R, ph = H - T - B, band = pw / bk.length, bw = Math.min(24, band * .62);
+    var NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', $('tr-title').textContent + '. ' + $('tr-sub').textContent);
+    var mk = function(tag, a, text){ var e = document.createElementNS(NS, tag); Object.keys(a).forEach(function(k){ e.setAttribute(k, a[k]); }); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
+    var cs = getComputedStyle(document.documentElement);
+    for (var g = 0; g <= steps; g++){
+      var gy = T + ph - ph * g / steps;
+      mk('line', { x1:L, x2:W - R, y1:gy, y2:gy, stroke: cs.getPropertyValue(g ? '--grid' : '--line').trim() || '#ddd', 'stroke-width':1 });
+      mk('text', { x:L - 6, y:gy + 4, 'text-anchor':'end', class:'tick' }, compact(step * g));
+    }
+    var peak = bk.reduce(function(a, b, i){ return b.v > bk[a].v ? i : a; }, 0), every = band < 24 ? 2 : 1;
+    var hide = function(){ Array.prototype.forEach.call(box.querySelectorAll('.tip'), function(x){ x.remove(); }); };
+    bk.forEach(function(b, i){
+      var x = L + band * i + (band - bw) / 2, h = b.v ? Math.max(2, ph * b.v / max) : 0, y = T + ph - h, r = Math.min(4, h, bw / 2);
+      var hit = mk('rect', { x:L + band * i, y:T, width:band, height:ph, class:'hit', tabindex:0, role:'img', 'aria-label':b.long + ': ' + peso(b.v) + ', ' + plural(b.n, 'session') });
+      if (h) mk('path', { class:'col', d:'M' + x + ',' + (T + ph) + 'V' + (y + r) + 'Q' + x + ',' + y + ' ' + (x + r) + ',' + y + 'H' + (x + bw - r) + 'Q' + (x + bw) + ',' + y + ' ' + (x + bw) + ',' + (y + r) + 'V' + (T + ph) + 'Z' });
+      else mk('g', {});
+      if (i % every === (bk.length - 1) % every) mk('text', { x:L + band * i + band / 2, y:H - 6, 'text-anchor':'middle', class:'tick' }, b.label);
+      /* The tallest column's value, kept clear of the axis labels at either end. */
+      if (i === peak && b.v) mk('text', { x: i === 0 ? x : i === bk.length - 1 ? x + bw : x + bw / 2, y:y - 6, 'text-anchor': i === 0 ? 'start' : i === bk.length - 1 ? 'end' : 'middle', class:'peak' }, peso(b.v));
+      var show = function(){
+        hide();
+        var t = document.createElement('div'); t.className = 'tip';
+        var v = document.createElement('b'); v.textContent = peso(b.v); t.appendChild(v);
+        var sp = document.createElement('span'); sp.textContent = b.long + ' · ' + plural(b.n, 'session'); t.appendChild(sp);
+        t.style.left = Math.min(84, Math.max(16, (L + band * i + band / 2) / W * 100)) + '%'; t.style.top = 'calc(' + ((h ? y : T + ph) / H * 100) + '% - 8px)';
+        box.appendChild(t);
+      };
+      hit.addEventListener('pointerenter', show); hit.addEventListener('focus', show); hit.addEventListener('click', show);
+      hit.addEventListener('pointerleave', hide); hit.addEventListener('blur', hide);
+    });
+    box.innerHTML = ''; box.appendChild(svg);
+    var tbl = $('tr-tbl'); tbl.innerHTML = '';
+    var head = document.createElement('tr');
+    [[{ day:'Day', week:'Week', month:'Month' }[state.grain], ''], ['Sessions', 'n'], ['Sales', 'n']].forEach(function(c){ var th = document.createElement('th'); th.textContent = c[0]; th.className = c[1]; head.appendChild(th); });
+    tbl.appendChild(head);
+    bk.slice().reverse().forEach(function(b){
+      var tr = document.createElement('tr');
+      [[b.long, ''], [b.n, 'n'], [peso(b.v), 'n']].forEach(function(c){ var td = document.createElement('td'); td.textContent = c[0]; td.className = c[1]; tr.appendChild(td); });
+      tbl.appendChild(tr);
+    });
+  }
+  $('tr-tbl-btn').onclick = function(){
+    var open = $('tr-tbl').hidden; $('tr-tbl').hidden = !open;
+    this.setAttribute('aria-expanded', String(open)); this.textContent = open ? 'Hide table' : 'Show as table';
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('.views button'), function(b){
+    b.onclick = function(){ state.view = b.dataset.v; put(VIEW, state.view); show(); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#grains button'), function(b){
+    b.onclick = function(){ state.grain = b.dataset.g; put(GRAIN, state.grain); show(); };
+  });
+  var rsz; window.addEventListener('resize', function(){ clearTimeout(rsz); rsz = setTimeout(function(){ if (state.data && state.view === 'trends') render(); }, 150); });
 
   /* ---- appearance: Auto (the phone's setting), Light or Dark ---- */
   var THEME = 'snaps_tracker_theme';
@@ -653,7 +845,7 @@ var SELLER = {
   }
   $('theme').onclick = function(e){ e.stopPropagation(); $('theme-menu').hidden = !$('theme-menu').hidden; };
   Array.prototype.forEach.call(document.querySelectorAll('#theme-menu button'), function(b){
-    b.onclick = function(){ put(THEME, b.dataset.theme); $('theme-menu').hidden = true; applyTheme(); };
+    b.onclick = function(){ put(THEME, b.dataset.theme); $('theme-menu').hidden = true; applyTheme(); if (state.data) render(); };
   });
   document.addEventListener('click', function(){ $('theme-menu').hidden = true; });
   if (dark && dark.addEventListener) dark.addEventListener('change', applyTheme);
