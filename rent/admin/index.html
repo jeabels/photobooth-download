@@ -85,6 +85,15 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
 .login h2{font-size:22px}
 .stack{margin-top:14px;display:flex;flex-direction:column;gap:12px}
 .field small.hint{font-size:12px;margin-top:1px}
+.rate-row{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:end;padding:10px 0;border-top:1px solid var(--line)}
+.rate-row:first-child{border-top:0}
+.rate-row b{display:block;font-size:14px}
+.rate-row small{color:var(--sub);font-size:12px}
+@media (max-width:480px){ .rate-row{grid-template-columns:1fr 1fr} .rate-row > div:first-child{grid-column:1/-1} }
+.dd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.dd b{display:block}
+.dd span{font-size:12.5px;color:var(--sub)}
+.dd.past{opacity:.55}
 .acct{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .acct b{display:block}
 .acct span{font-size:12.5px;color:var(--sub)}
@@ -286,7 +295,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   <div id="app" hidden>
     <p class="notice" id="pausedNote" hidden></p>
     <div class="tabs">
-      <div class="seg" role="group" aria-label="View"><button type="button" data-tab="dash" aria-pressed="true">Dashboard</button><button type="button" data-tab="list" aria-pressed="false">Bookings</button></div>
+      <div class="seg" role="group" aria-label="View"><button type="button" data-tab="dash" aria-pressed="true">Dashboard</button><button type="button" data-tab="list" aria-pressed="false">Bookings</button><button type="button" data-tab="rates" aria-pressed="false">Rates</button></div>
       <span class="spacer"></span>
       <span class="loadbar" id="loadbar" role="status"></span>
       <button class="btn gold small" type="button" id="newBtn">+ New booking</button>
@@ -327,6 +336,25 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       <section class="card" style="margin-top:12px">
         <div class="chart-head"><div><h2>Today and tomorrow</h2><p>Pick-ups and returns. Tap one to open it.</p></div></div>
         <div class="agenda" id="agenda"></div>
+      </section>
+    </section>
+
+    <!-- rates: regular and in-demand daily rates, and the in-demand dates -->
+    <section id="rates" hidden>
+      <section class="card">
+        <div class="chart-head"><div><h2>Daily rates</h2><p>The regular rate, and the higher rate on in-demand dates. The booking page shows each unit as a range, like ₱600 – ₱800 / day.</p></div></div>
+        <div id="rateRows" style="margin-top:12px"></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap"><button class="btn brand" type="button" id="ratesSave">Save rates</button><span class="err" id="ratesErr" role="alert"></span></div>
+      </section>
+      <section class="card" style="margin-top:12px">
+        <div class="chart-head"><div><h2>In-demand dates</h2><p>On these dates the booking page charges the in-demand rate, marks them on the calendar, and lists them in the rates reminder. A rental day that touches one of these dates is charged the in-demand rate.</p></div></div>
+        <form id="demandForm" class="grid" style="margin-top:12px" novalidate>
+          <label class="field"><span>From</span><input type="date" id="dFrom" required></label>
+          <label class="field"><span>To (blank for one day)</span><input type="date" id="dTo"></label>
+          <label class="field full"><span>Label (optional)</span><input type="text" id="dLabel" maxlength="60" placeholder="e.g. Christmas, Taylor Swift concert"></label>
+          <div class="full" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn gold" type="submit" id="dAdd">Add in-demand date</button><span class="err" id="dErr" role="alert"></span></div>
+        </form>
+        <div id="demandList" style="margin-top:14px"></div>
       </section>
     </section>
 
@@ -383,7 +411,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
           <label class="field full"><span>Full name</span><input type="text" id="fName"></label>
           <label class="field"><span>Mobile</span><input type="tel" id="fMobile" inputmode="tel"></label>
           <label class="field"><span>Email</span><input type="email" id="fEmail" inputmode="email" autocapitalize="none" spellcheck="false"></label>
-          <label class="field"><span>Social (FB/IG)</span><input type="text" id="fSocial"></label>
+          <label class="field"><span>FB name</span><input type="text" id="fSocial"></label>
           <label class="field full"><span>Address</span><input type="text" id="fAddress"></label>
           <label class="field full"><span>Hand-over</span><input type="text" id="fHandover"></label>
           <label class="field full"><span>Purpose</span><input type="text" id="fPurpose"></label>
@@ -557,7 +585,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
         if(d && (d.error === 'signed_out' || d.error === 'bad_request')){ setToken(''); showEntry(''); return; }
         $('loadbar').textContent = 'Couldn\'t load. Tap Refresh.'; return;
       }
-      DATA = d;
+      DATA = d; DATA.demandDates = d.demandDates || [];
       $('shopName').textContent = d.shop.name || 'Phone rentals';
       document.title = 'Owner · ' + (d.shop.name || 'Phone rentals');
       applyBrand(d.shop.brandColor);
@@ -649,13 +677,13 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   function setTab(t){
     tab = t;
     document.querySelectorAll('[data-tab]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.tab === t); });
-    $('dash').hidden = t !== 'dash'; $('list').hidden = t !== 'list';
+    $('dash').hidden = t !== 'dash'; $('list').hidden = t !== 'list'; $('rates').hidden = t !== 'rates';
     render();
   }
   document.querySelectorAll('[data-tab]').forEach(function(b){ b.addEventListener('click', function(){ setTab(b.dataset.tab); }); });
   document.querySelectorAll('[data-go]').forEach(function(b){ b.addEventListener('click', function(){ chip = b.dataset.go; setTab('list'); }); });
 
-  function render(){ if(tab === 'dash') renderDash(); else renderList(); }
+  function render(){ if(tab === 'dash') renderDash(); else if(tab === 'rates') renderRates(); else renderList(); }
 
   /* ---- sales ---- */
   var EARNING = ['Confirmed', 'Returned'], BLOCKING = ['Pending', 'Confirmed'];
@@ -841,7 +869,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     var q = $('q').value.trim().toLowerCase(), qd = q.replace(/\D/g, '');
     var list = DATA.bookings.filter(function(b){ return matches(b, chip); }).filter(function(b){
       if(!q) return true;
-      var hay = [b.name, b.ref, b.unit, unitName(b.unitId), b.social, b.email].join(' ').toLowerCase();
+      var hay = [b.name, b.fbName, b.ref, b.unit, unitName(b.unitId), b.email].join(' ').toLowerCase();
       return hay.indexOf(q) > -1 || (qd.length >= 4 && String(b.mobile).replace(/\D/g, '').indexOf(qd) > -1);
     });
     var soonFirst = ['Pending', 'Reserved', 'Today'].indexOf(chip) > -1;
@@ -860,7 +888,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     var who = el('div', 'who'); who.appendChild(el('span', '', b.name || '(no name)')); who.appendChild(el('span', 'pill ' + st, STAGE_LABEL[st]));
     c.appendChild(who);
     c.appendChild(el('div', 'amt', b.total !== '' && b.total != null ? peso(b.total) : ''));
-    c.appendChild(el('div', 'meta', (lead ? lead + ' · ' : '') + unitName(b.unitId)));
+    c.appendChild(el('div', 'meta', (lead ? lead + ' · ' : '') + unitName(b.unitId) + (b.fbName && b.fbName !== b.name ? ' · FB: ' + b.fbName : '')));
     c.appendChild(el('div', 'ref', b.ref));
     var m = el('div', 'meta', b.start ? when(b.start) + ' → ' + when(b.end) : 'No dates'); m.style.gridColumn = '1 / -1'; c.appendChild(m);
     c.addEventListener('click', function(){ openEditor(b); });
@@ -883,7 +911,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   /* Changes only a booking's status, keeping everything else as it is. */
   function setStatus(b, status){
     var booking = {};
-    ['row','ref','unitId','start','end','discount','fee','total','email','handover','name','address','mobile','social','purpose','ecName','ecRel','ecMobile','ecAddress','notes']
+    ['row','ref','unitId','start','end','discount','fee','total','email','handover','name','address','mobile','fbName','purpose','ecName','ecRel','ecMobile','ecAddress','notes']
       .forEach(function(k){ booking[k] = b[k] == null ? '' : b[k]; });
     booking.status = status;
     return sendSave(booking).then(function(err){ if(err) alert(err); });
@@ -904,21 +932,106 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     }, function(){ return ERR.offline; });
   }
 
+  /* ---- rates tab: regular and in-demand daily rates, and in-demand dates ---- */
+  function renderRates(){
+    var box = $('rateRows'); box.innerHTML = '';
+    DATA.units.forEach(function(u){
+      var row = el('div', 'rate-row'), info = el('div');
+      info.appendChild(el('b', '', u.name)); info.appendChild(el('small', '', (u.detail || '') + (u.show ? '' : ' · hidden on the website')));
+      row.appendChild(info);
+      var f = function(label, key, val){
+        var l = el('label', 'field'); l.appendChild(el('span', '', label));
+        var i = document.createElement('input'); i.type = 'number'; i.min = '1'; i.step = '1'; i.inputMode = 'numeric'; i.value = val || '';
+        i.dataset.id = u.id; i.dataset.k = key; l.appendChild(i); row.appendChild(l);
+      };
+      f('Regular (₱/day)', 'rate', u.rate); f('In-demand (₱/day)', 'rateHigh', u.rateHigh);
+      box.appendChild(row);
+    });
+    var list = $('demandList'); list.innerHTML = '';
+    var t = today(), all = (DATA.demandDates || []).slice().sort(function(a, b){ return a.from < b.from ? -1 : 1; });
+    if(!all.length) list.appendChild(el('p', 'hint', 'No in-demand dates yet. Every day uses the regular rate.'));
+    all.forEach(function(x, i){
+      var past = x.to < t, row = el('div', 'dd' + (past ? ' past' : '')), info = el('div');
+      info.appendChild(el('b', '', dayLabel(x.from, { weekday:'short', month:'short', day:'numeric', year:'numeric' }) + (x.to !== x.from ? ' – ' + dayLabel(x.to, { weekday:'short', month:'short', day:'numeric', year:'numeric' }) : '')));
+      info.appendChild(el('span', '', (x.label || 'In-demand') + (past ? ' · past' : '')));
+      row.appendChild(info);
+      var rm = el('button', 'btn danger small', 'Remove'); rm.type = 'button';
+      rm.addEventListener('click', function(){ saveDemand(all.filter(function(y){ return y !== x; }), 'Removed'); });
+      row.appendChild(rm); list.appendChild(row);
+    });
+  }
+  $('ratesSave').addEventListener('click', function(){
+    var rates = {}, err = $('ratesErr'), bad = '';
+    document.querySelectorAll('#rateRows input').forEach(function(i){
+      var r = rates[i.dataset.id] = rates[i.dataset.id] || { id: i.dataset.id };
+      r[i.dataset.k] = i.value.trim();
+    });
+    var list = Object.keys(rates).map(function(k){ return rates[k]; });
+    list.forEach(function(r){
+      if(!(Number(r.rate) > 0)) bad = 'Every unit needs a regular rate.';
+      else if(r.rateHigh !== '' && Number(r.rateHigh) < Number(r.rate)) bad = 'An in-demand rate can\'t be lower than the regular rate.';
+    });
+    if(bad){ err.textContent = bad; return; }
+    err.textContent = 'Saving…'; $('ratesSave').disabled = true;
+    api('saveRates', { rates: list }).then(function(d){
+      if(d && d.ok){ DATA.units = d.units; err.textContent = ''; renderRates(); toast('Rates saved. The booking page updates within a minute.'); return; }
+      if(d && d.error === 'signed_out'){ setToken(''); showEntry('You were signed out. Sign in again to save.'); return; }
+      err.textContent = d && d.error === 'bad_request' ? ERR.old_script : 'Couldn\'t save. Try again.';
+    }, function(){ err.textContent = ERR.offline; }).then(function(){ $('ratesSave').disabled = false; });
+  });
+  function saveDemand(list, said){
+    $('dErr').textContent = 'Saving…';
+    return api('saveDemand', { dates: list }).then(function(d){
+      if(d && d.ok){ DATA.demandDates = d.demandDates; $('dErr').textContent = ''; renderRates(); toast(said + '. The booking page updates within a minute.'); return true; }
+      if(d && d.error === 'signed_out'){ setToken(''); showEntry('You were signed out. Sign in again to save.'); return false; }
+      $('dErr').textContent = d && d.error === 'bad_request' ? ERR.old_script : 'Couldn\'t save. Try again.'; return false;
+    }, function(){ $('dErr').textContent = ERR.offline; return false; });
+  }
+  $('demandForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var from = $('dFrom').value, to = $('dTo').value || from;
+    if(!from){ $('dErr').textContent = 'Choose the date.'; return; }
+    if(to < from){ $('dErr').textContent = 'The To date must be on or after From.'; return; }
+    $('dAdd').disabled = true;
+    saveDemand((DATA.demandDates || []).concat([{ from: from, to: to, label: $('dLabel').value.trim() }]), 'Added').then(function(ok){
+      $('dAdd').disabled = false;
+      if(ok){ $('dFrom').value = ''; $('dTo').value = ''; $('dLabel').value = ''; }
+    });
+  });
+
   /* ---- booking editor ---- */
   var editing = null, totalTouched = false;
-  var FIELDS = { fName:'name', fMobile:'mobile', fEmail:'email', fSocial:'social', fAddress:'address', fHandover:'handover', fPurpose:'purpose',
+  var FIELDS = { fName:'name', fMobile:'mobile', fEmail:'email', fSocial:'fbName', fAddress:'address', fHandover:'handover', fPurpose:'purpose',
     fEcName:'ecName', fEcRel:'ecRel', fEcMobile:'ecMobile', fEcAddress:'ecAddress', fNotes:'notes' };
-  function rateOf(id){ var u = DATA.units.filter(function(x){ return x.id === id; })[0]; return u && u.rate ? u.rate : 0; }
+  function unitOf(id){ return DATA.units.filter(function(x){ return x.id === id; })[0] || null; }
+  function rateOf(id){ var u = unitOf(id); return u && u.rate ? u.rate : 0; }
+  /* Each rental day touching an in-demand date at the unit's in-demand rate, the rest at its regular rate (as the booking page does). */
+  function rentalOf(id, startIso, endIso, days){
+    var u = unitOf(id), rate = (u && u.rate) || 0, high = (u && u.rateHigh) || rate, H = (Number(DATA.shop.hoursPerDay) || 24) * 36e5, out = { rental: 0, peak: 0 };
+    var s = Date.parse(startIso), e = Date.parse(endIso);
+    for(var i = 0; i < days; i++){
+      var a = s + i * H, b = Math.min(e, a + H);
+      var hot = high !== rate && (DATA.demandDates || []).some(function(x){ return a < Date.parse(x.to + 'T00:00:00+08:00') + 864e5 && Date.parse(x.from + 'T00:00:00+08:00') < b; });
+      if(hot) out.peak++;
+      out.rental += hot ? high : rate;
+    }
+    return out;
+  }
   function edDays(){
     var s = Date.parse(toIso($('fSd').value, $('fSt').value)), e = Date.parse(toIso($('fEd').value, $('fEt').value));
     if(!$('fSd').value || !$('fEd').value || isNaN(s) || isNaN(e) || e <= s) return 0;
     return Math.max(1, Math.ceil((e - s) / 36e5 / (Number(DATA.shop.hoursPerDay) || 24) - 1e-9));
   }
-  function suggested(){ var d = edDays(), rental = rateOf($('fUnit').value) * d; return { days: d, rental: rental, total: Math.max(0, rental - (Number($('fDisc').value) || 0) + (Number($('fFee').value) || 0)) }; }
+  function suggested(){
+    var d = edDays(), r = d ? rentalOf($('fUnit').value, toIso($('fSd').value, $('fSt').value), toIso($('fEd').value, $('fEt').value), d) : { rental: 0, peak: 0 };
+    return { days: d, rental: r.rental, peak: r.peak, total: Math.max(0, r.rental - (Number($('fDisc').value) || 0) + (Number($('fFee').value) || 0)) };
+  }
   function paintPrice(){
     var p = suggested(), box = $('priceBox'); box.innerHTML = '';
     var line = function(a, b, cls){ box.appendChild(el('span', cls, a)); box.appendChild(el('span', cls, b)); };
-    if(p.days) line('Rental · ' + plural(p.days, 'day') + ' × ' + peso(rateOf($('fUnit').value)), peso(p.rental));
+    var u = unitOf($('fUnit').value), reg = p.days - p.peak;
+    if(reg) line('Regular · ' + plural(reg, 'day') + ' × ' + peso(rateOf($('fUnit').value)), peso(reg * rateOf($('fUnit').value)));
+    if(p.peak && u) line('In-demand · ' + plural(p.peak, 'day') + ' × ' + peso(u.rateHigh), peso(p.rental - reg * rateOf($('fUnit').value)));
     if(Number($('fDisc').value)) line('Discount' + (editing && editing.promo && editing.promo !== 'Owner discount' ? ' (incl. promo ' + editing.promo + ')' : ''), '−' + peso($('fDisc').value));
     if(Number($('fFee').value)) line('Delivery fee', peso($('fFee').value));
     line('Total', peso($('fTotal').value || 0), 'tot');
@@ -942,7 +1055,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   function openEditor(b){
     var isNew = !b;
     editing = b || { row: 0, ref: newRef(), status: 'Confirmed', unitId: '', start: '', end: '', total: '', discount: '', fee: '', promo: '',
-      handover: (DATA.shop.handover || ['Pick up'])[0], name: '', mobile: '', email: '', social: '', address: '', purpose: '', ecName: '', ecRel: '', ecMobile: '', ecAddress: '', notes: '' };
+      handover: (DATA.shop.handover || ['Pick up'])[0], name: '', mobile: '', email: '', fbName: '', address: '', purpose: '', ecName: '', ecRel: '', ecMobile: '', ecAddress: '', notes: '' };
     var e = editing;
     $('edRef').textContent = isNew ? 'New booking' : e.ref;
     $('edPill').className = 'pill ' + stage(e); $('edPill').textContent = STAGE_LABEL[stage(e)]; $('edPill').hidden = isNew;

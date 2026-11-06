@@ -39,7 +39,8 @@ Setup adds these tabs. Edit them any time; the website updates within a minute.
 | Tab | What to change |
 |---|---|
 | **Settings** | Shop name, area, pick-up place, mobile, Messenger page, Facebook link, **banner image** and how it is **zoomed, positioned and sized**, **rate card images**, **brand colour**, deposit, hours per rental day, late fee per hour, hand-over options, what's included, minimum notice, how far ahead renters can book, **closed dates**, and the email for new bookings. |
-| **Units** | One row per phone: Unit ID (short, no spaces, never change it once bookings exist), name, detail (storage · colour), rate per day, **poster image**, Show on website (Yes/No), and how it's written in the month tabs. |
+| **Units** | One row per phone: Unit ID (short, no spaces, never change it once bookings exist), name, detail (storage · colour), **rate per day** (regular), **poster image**, Show on website (Yes/No), how it's written in the month tabs, and the **In-demand rate** (per day, on in-demand dates). |
+| **In-demand dates** | Dates when the higher In-demand rate applies (From, To, Label), e.g. Christmas or a big concert. Easiest from the owner page's **Rates** tab. |
 | **Policies** | The rules renters must tick: **Operational** and **Financial** sections. |
 | **Promos** | Promo codes. **Discount** is pesos (`100`) or a percent (`10%`) off the rental. Optional start and end dates, and **Max uses** (blank for no limit). Set **Active** to **Yes** to use it. The example code is off until you switch it on. |
 | **Delivery** | One row per area you deliver to, with its fee. Renters who choose delivery pick their area and the fee is added to their total. Leave it empty if renters book their own courier. |
@@ -112,6 +113,35 @@ What's on it:
 
 The page won't save a change that puts a unit in two Pending or Confirmed bookings at the same time.
 Every change goes straight into the **Website Bookings** tab.
+
+## Rates and in-demand dates
+
+Each unit has a **regular** daily rate and an **in-demand** daily rate. The booking page shows each
+unit as a range (for example **₱600 – ₱800 per day**), with a reminder above the units that rates
+vary by date and a list of the next in-demand dates. In-demand dates have a gold mark on the
+calendar.
+
+- Change the rates on the owner page → **Rates** → **Save rates** (or in the Units tab).
+- Add in-demand dates on the owner page → **Rates** → **In-demand dates**: a single day, or a From–To
+  stretch, with an optional label. Remove one with **Remove**.
+- A rental day (one day = the hours per rental day, from pick-up) that touches an in-demand date is
+  charged the in-demand rate; the other days are charged the regular rate. The renter sees the split
+  in their total, and the sheet works the total out the same way.
+- Change the reminder's wording in Settings → **Rates note**.
+
+## The Website Bookings columns
+
+The first columns follow the shop's own format: **Ref, FB name, Unit, Days, Pick-up, Return,
+Estimate rate, Real name, Address, Mobile number, Purpose of renting, Emergency contact name,
+Relationship, Emergency number, Photos**. After them come the columns the website and owner page
+use: Status, Unit ID, Submitted, Hand-over, Email, Emergency address, Notes, Promo code, Discount,
+Delivery fee, Added to (month tab), Renter emailed.
+
+**FB name** is the name the renter uses on Facebook to message the shop, asked on the booking form.
+
+Running **setup** on a sheet from an older version moves its bookings into this order, matching
+columns by their names, and keeps a copy of the tab as it was ("Website Bookings (old layout …)").
+Delete that copy once you've checked the new tab.
 
 ## 5. Emails to renters
 
