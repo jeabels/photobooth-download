@@ -58,15 +58,35 @@
 
 var SHEET_NAME = 'Website Bookings';
 var SETTINGS_TAB = 'Settings', UNITS_TAB = 'Units', POLICIES_TAB = 'Policies';
-var PROMOS_TAB = 'Promos', DELIVERY_TAB = 'Delivery', DASH_TAB = 'Dashboard';
-var OWNER_TABS = [SETTINGS_TAB, UNITS_TAB, POLICIES_TAB, PROMOS_TAB, DELIVERY_TAB];
+var PROMOS_TAB = 'Promos', DELIVERY_TAB = 'Delivery', DASH_TAB = 'Dashboard', DEMAND_TAB = 'In-demand dates';
+var OWNER_TABS = [SETTINGS_TAB, UNITS_TAB, POLICIES_TAB, PROMOS_TAB, DELIVERY_TAB, DEMAND_TAB];
 var TZ = 'Asia/Manila';
-var HEADERS = ['Ref', 'Submitted', 'Status', 'Unit ID', 'Unit', 'Pick-up', 'Return', 'Days', 'Estimate',
-  'Hand-over', 'Name', 'Address', 'Mobile', 'Social (FB/IG)', 'Purpose',
-  'Emergency name', 'Emergency relationship', 'Emergency mobile', 'Emergency address', 'Notes', 'Added to', 'Photos',
-  'Promo code', 'Discount', 'Delivery fee', 'Email', 'Renter emailed'];
-var COL = { status: 3, unitId: 4, pickup: 6, ret: 7, days: 8, estimate: 9, addedTo: 21, photos: 22, promo: 23, discount: 24, fee: 25,
-  email: 26, emailed: 27 };
+/* Website Bookings columns, in the owner's order: what they read first (up to Photos), then what the
+   website and owner page also keep. Everywhere else in this file a column is found by its key here,
+   never by its position, and setup moves rows from an older order into this one. */
+var BOOKING_COLS = [
+  ['ref', 'Ref'], ['fbName', 'FB name'], ['unit', 'Unit'], ['days', 'Days'], ['start', 'Pick-up'], ['end', 'Return'],
+  ['total', 'Estimate rate'], ['name', 'Real name'], ['address', 'Address'], ['mobile', 'Mobile number'],
+  ['purpose', 'Purpose of renting'], ['ecName', 'Emergency contact name'], ['ecRel', 'Relationship'], ['ecMobile', 'Emergency number'],
+  ['photos', 'Photos'],
+  ['status', 'Status'], ['unitId', 'Unit ID'], ['submitted', 'Submitted'], ['handover', 'Hand-over'], ['email', 'Email'],
+  ['ecAddress', 'Emergency address'], ['notes', 'Notes'], ['promo', 'Promo code'], ['discount', 'Discount'], ['fee', 'Delivery fee'],
+  ['addedTo', 'Added to'], ['emailed', 'Renter emailed']
+];
+var HEADERS = BOOKING_COLS.map(function (c) { return c[1]; });
+var C = {};
+BOOKING_COLS.forEach(function (c, i) { C[c[0]] = i + 1; });
+var COL = { status: C.status, unitId: C.unitId, pickup: C.start, ret: C.end, days: C.days, estimate: C.total, addedTo: C.addedTo,
+  photos: C.photos, promo: C.promo, discount: C.discount, fee: C.fee, email: C.email, emailed: C.emailed };
+/* Header names from older versions of this script, for moving their rows into the order above. */
+var OLD_HEADERS = { 'Estimate': 'total', 'Name': 'name', 'Mobile': 'mobile', 'Social (FB/IG)': 'fbName', 'Purpose': 'purpose',
+  'Emergency name': 'ecName', 'Emergency relationship': 'ecRel', 'Emergency mobile': 'ecMobile' };
+/* Columns written as plain text, so Sheets never turns 0917… into a number or runs anything starting with =. */
+var TEXT_KEYS = ['ref', 'fbName', 'unit', 'name', 'address', 'mobile', 'purpose', 'ecName', 'ecRel', 'ecMobile', 'handover', 'email',
+  'ecAddress', 'notes', 'promo', 'emailed'];
+function v_(r, k) { return r[C[k] - 1]; }
+/* A Website Bookings row from { key: value }; missing keys are blank. */
+function row_(o) { return BOOKING_COLS.map(function (c) { return o[c[0]] == null ? '' : o[c[0]]; }); }
 var STATUSES = ['Pending', 'Confirmed', 'Cancelled', 'Returned'];
 var BLOCKING = ['Pending', 'Confirmed'];
 var EARNING = ['Confirmed', 'Returned'];
@@ -98,20 +118,22 @@ var DEFAULT_SETTINGS = [
   ['Book up to (days ahead)', 180, 'How far ahead renters can book'],
   ['Closed dates', '', 'Days with no pick-ups or returns, comma-separated, e.g. 2026-12-25, 2027-01-01'],
   ['Notify email', '', 'Each new booking is emailed here. Blank turns the emails off'],
+  ['Rates note', 'Rates vary by date. In-demand dates (holidays, concerts and big events) use the higher in-demand rate.', 'Reminder shown above the units on the booking page'],
   ['Email renters', 'Yes', 'Yes emails the renter when their booking is accepted (Confirmed) or cancelled. No turns it off'],
   ['Payment details', '', 'Put in the email when a booking is accepted, e.g. GCash 0917 000 0000 (Juan Cruz). Send a screenshot of your payment on Messenger'],
   ['Booking page link', '', 'Your booking page, for the renter emails. Filled in by the first website booking'],
   ['Owner setup code', '', 'Needed to register an admin name and password on the owner page (booking link + /admin). Setup makes one. Change it to stop new sign-ups']
 ];
 var DEFAULT_UNITS = [
-  ['16pro-desert', 'iPhone 16 Pro', '128GB · Desert Titanium', 1000, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-16-pro-desert-titanium.webp', 'Yes', '16'],
-  ['14pm-black', 'iPhone 14 Pro Max', '128GB · Space Black', 800, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-14-pro-max.webp', 'Yes', '14'],
-  ['13pm-blue', 'iPhone 13 Pro Max', '256GB · Sierra Blue', 700, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-pro-max-sierra-blue.webp', 'Yes', '13pm'],
-  ['13pm-graphite', 'iPhone 13 Pro Max', '256GB · Graphite', 700, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-pro-max-graphite.webp', 'Yes', '13pm (2)'],
-  ['13-starlight-z1', 'iPhone 13', '128GB · Starlight #Z1', 600, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-starlight.webp', 'Yes', '13 (Z1)'],
-  ['13-starlight-j2', 'iPhone 13', '128GB · Starlight #J2', 600, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-starlight.webp', 'Yes', '13 (J2)']
+  ['16pro-desert', 'iPhone 16 Pro', '128GB · Desert Titanium', 1000, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-16-pro-desert-titanium.webp', 'Yes', '16', 1800],
+  ['14pm-black', 'iPhone 14 Pro Max', '128GB · Space Black', 800, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-14-pro-max.webp', 'Yes', '14', 1100],
+  ['13pm-blue', 'iPhone 13 Pro Max', '256GB · Sierra Blue', 700, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-pro-max-sierra-blue.webp', 'Yes', '13pm', 900],
+  ['13pm-graphite', 'iPhone 13 Pro Max', '256GB · Graphite', 700, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-pro-max-graphite.webp', 'Yes', '13pm (2)', 900],
+  ['13-starlight-z1', 'iPhone 13', '128GB · Starlight #Z1', 600, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-starlight.webp', 'Yes', '13 (Z1)', 800],
+  ['13-starlight-j2', 'iPhone 13', '128GB · Starlight #J2', 600, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-starlight.webp', 'Yes', '13 (J2)', 800]
 ];
-var UNIT_HEADERS = ['Unit ID', 'Name', 'Detail', 'Rate per day', 'Poster image', 'Show on website', 'Month-tab name'];
+var UNIT_HEADERS = ['Unit ID', 'Name', 'Detail', 'Rate per day', 'Poster image', 'Show on website', 'Month-tab name', 'In-demand rate'];
+var DEMAND_HEADERS = ['From', 'To', 'Label'];
 var DEFAULT_POLICIES = [
   ['Operational', 'Rental duration is strictly limited to 25 hours from pick-up.'],
   ['Operational', 'A late return penalty of ₱100 per hour applies.'],
@@ -145,6 +167,12 @@ function setup() {
   addTab_(ss, POLICIES_TAB, ['Section', 'Policy'], DEFAULT_POLICIES);
   addTab_(ss, PROMOS_TAB, PROMO_HEADERS, DEFAULT_PROMOS);
   addTab_(ss, DELIVERY_TAB, DELIVERY_HEADERS, []);
+  addTab_(ss, DEMAND_TAB, DEMAND_HEADERS, []);
+  ss.getSheetByName(DEMAND_TAB).getRange(1, 1).setNote('One row per in-demand date or stretch of dates (To can be blank for one day), ' +
+    'e.g. 2026-12-24 to 2026-12-25, Christmas. On these dates the booking page charges each unit\'s In-demand rate (Units tab). ' +
+    'Easiest: the owner page, Rates tab.');
+  ss.getSheetByName(DEMAND_TAB).getRange(2, 1, ss.getSheetByName(DEMAND_TAB).getMaxRows() - 1, 2).setNumberFormat('yyyy-mm-dd');
+  addDemandRates_(ss.getSheetByName(UNITS_TAB));
   ss.getSheetByName(DELIVERY_TAB).getRange(1, 1).setNote('One row per area you deliver to, with its fee in pesos, e.g. "Quezon City" and 150. ' +
     'Renters who choose delivery pick their area and the fee is added to their total. Leave empty if renters book their own courier.');
   var pol = ss.getSheetByName(POLICIES_TAB);
@@ -159,6 +187,7 @@ function setup() {
   promos.getRange(2, 3, promos.getMaxRows() - 1, 2).setNumberFormat('mmm d, yyyy');
 
   var sh = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
+  reorderBookings_(ss, sh);
   sh.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
   sh.setFrozenRows(1);
   var rows = sh.getMaxRows() - 1;
@@ -166,10 +195,10 @@ function setup() {
     SpreadsheetApp.newDataValidation().requireValueInList(STATUSES, true).build());
   sh.getRange(2, COL.unitId, rows, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInRange(units.getRange('A2:A'), true).build());
-  sh.getRange(2, 2, rows, 1).setNumberFormat('mmm d, yyyy h:mm am/pm');
-  sh.getRange(2, COL.pickup, rows, 2).setNumberFormat('ddd mmm d, yyyy h:mm am/pm');
-  sh.getRange(2, 13, rows, 1).setNumberFormat('@');
-  sh.getRange(2, 18, rows, 1).setNumberFormat('@');
+  sh.getRange(2, C.submitted, rows, 1).setNumberFormat('mmm d, yyyy h:mm am/pm');
+  sh.getRange(2, C.start, rows, 2).setNumberFormat('ddd mmm d, yyyy h:mm am/pm');
+  sh.getRange(2, C.mobile, rows, 1).setNumberFormat('@');
+  sh.getRange(2, C.ecMobile, rows, 1).setNumberFormat('@');
   photoFolder_();                    // asks for Drive access now, so photo uploads work later
   MailApp.getRemainingDailyQuota();  // asks for email access now, so booking emails work later
   var daily = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'updateDashboard'; });
@@ -189,6 +218,48 @@ function addTab_(ss, name, headers, rows) {
   if (rows.length) sh.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
   sh.setFrozenRows(1);
   sh.autoResizeColumns(1, headers.length);
+}
+
+/* A Website Bookings tab in an older column order: its rows are moved into the order of BOOKING_COLS,
+   matching columns by header name. A copy of the tab as it was is kept first, named with today's date. */
+function reorderBookings_(ss, sh) {
+  var lastCol = sh.getLastColumn(), last = sh.getLastRow();
+  if (last < 1 || lastCol < 1) return;
+  var head = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h).trim(); });
+  if (!head.some(Boolean) || head.slice(0, HEADERS.length).join('|') === HEADERS.join('|')) return;
+  var keyOf = {};
+  BOOKING_COLS.forEach(function (c) { keyOf[c[1]] = c[0]; keyOf[c[0]] = c[0]; });
+  Object.keys(OLD_HEADERS).forEach(function (h) { keyOf[h] = OLD_HEADERS[h]; });
+  var keys = head.map(function (h) { return keyOf[h] || ''; });
+  if (last > 1) {
+    sh.copyTo(ss).setName(SHEET_NAME + ' (old layout ' + fmt_(new Date(), 'yyyy-MM-dd HH-mm') + ')');
+    var rows = sh.getRange(2, 1, last - 1, lastCol).getValues().map(function (r) {
+      var o = {};
+      r.forEach(function (v, i) {
+        var k = keys[i]; if (!k || v === '' || v == null) return;
+        o[k] = TEXT_KEYS.indexOf(k) > -1 && typeof v === 'string' ? text_(plain_(v)) : v;
+      });
+      return row_(o);
+    });
+    var width = Math.max(lastCol, HEADERS.length);
+    sh.getRange(2, 1, sh.getMaxRows() - 1, width).clearContent().clearDataValidations().clearFormat();
+    sh.getRange(2, C.mobile, rows.length, 1).setNumberFormat('@');
+    sh.getRange(2, C.ecMobile, rows.length, 1).setNumberFormat('@');
+    sh.getRange(2, 1, rows.length, HEADERS.length).setValues(rows);
+  }
+  if (lastCol > HEADERS.length) sh.getRange(1, HEADERS.length + 1, 1, lastCol - HEADERS.length).clearContent();
+}
+
+/* A Units tab from an older version gets the In-demand rate column, filled in for the units it ships with. */
+function addDemandRates_(sh) {
+  if (String(sh.getRange(1, 8).getValue()).trim() !== 'In-demand rate') sh.getRange(1, 8).setValue('In-demand rate').setFontWeight('bold');
+  if (sh.getLastRow() < 2) return;
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 8).getValues();
+  rows.forEach(function (r, i) {
+    if (r[7] !== '' && r[7] != null) return;
+    var d = DEFAULT_UNITS.filter(function (u) { return u[0] === String(r[0]).trim(); })[0];
+    if (d) sh.getRange(i + 2, 8).setValue(d[7]);
+  });
 }
 
 /* A Settings tab from an older version gets the settings it doesn't have yet, with their defaults. */
@@ -265,7 +336,8 @@ function units_() {
   var rows = sh && sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, UNIT_HEADERS.length).getValues() : DEFAULT_UNITS;
   return rows.map(function (r, i) {
     return { id: String(r[0]).trim(), name: String(r[1]).trim(), detail: String(r[2]).trim(), rate: Number(r[3]) || null,
-      poster: imageUrl_(r[4]), rawPoster: r[4], show: String(r[5]).trim().toLowerCase() !== 'no', monthName: String(r[6]).trim(), row: i + 2 };
+      poster: imageUrl_(r[4]), rawPoster: r[4], show: String(r[5]).trim().toLowerCase() !== 'no', monthName: String(r[6]).trim(),
+      rateHigh: Number(r[7]) || null, row: i + 2 };
   }).filter(function (u) { return u.id && u.name; });
 }
 
@@ -278,6 +350,38 @@ function policies_() {
     (String(r[0]).trim().toLowerCase() === 'financial' ? out.financial : out.operational).push(text);
   });
   return out;
+}
+
+/* In-demand dates from their tab: [{ from, to, label }] as yyyy-MM-dd, oldest first. */
+function day_(v) {
+  if (v instanceof Date) return fmt_(v, 'yyyy-MM-dd');
+  var m = String(v == null ? '' : v).trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  return m ? m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2) : '';
+}
+function demand_() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(DEMAND_TAB);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues().map(function (r) {
+    var from = day_(r[0]), to = day_(r[1]) || from;
+    return from ? { from: from, to: to < from ? from : to, label: plain_(r[2]).trim().slice(0, 60) } : null;
+  }).filter(Boolean).sort(function (a, b) { return a.from < b.from ? -1 : 1; });
+}
+
+/* The rental for one booking: each rental day (hours-per-day long, from pick-up) is charged the unit's
+   In-demand rate if any part of it falls on an in-demand date, and the regular rate otherwise.
+   The booking page and the owner page work it out the same way. */
+function rentalPrice_(u, start, end, hoursPerDay, demand) {
+  var H = hoursPerDay * 36e5, days = Math.max(1, Math.ceil((end - start) / H - 1e-9)), rental = 0, peak = 0;
+  var rate = (u && u.rate) || 0, high = (u && u.rateHigh) || rate;
+  for (var i = 0; i < days; i++) {
+    var a = start.getTime() + i * H, b = Math.min(end.getTime(), a + H);
+    var hot = high !== rate && demand.some(function (x) {
+      return a < Date.parse(x.to + 'T00:00:00+08:00') + 864e5 && Date.parse(x.from + 'T00:00:00+08:00') < b;
+    });
+    if (hot) peak++;
+    rental += hot ? high : rate;
+  }
+  return { days: days, rental: rental, peakDays: peak };
 }
 
 /* Delivery areas and fees from the Delivery tab. */
@@ -305,7 +409,9 @@ function config_() {
     lateFeePerHour: Number(s['Late fee per hour']) || 0, handover: list_(s['Hand-over options']),
     inclusions: list_(s['Included with every rental']), minNoticeHours: Number(s['Minimum notice (hours)']) || 0,
     maxDaysAhead: Number(s['Book up to (days ahead)']) || 365, closedDates: list_(s['Closed dates']).filter(function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d); }),
-    units: units_().filter(function (u) { return u.show; }).map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, poster: u.poster }; }),
+    units: units_().filter(function (u) { return u.show; }).map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, poster: u.poster }; }),
+    demandDates: demand_().filter(function (x) { return x.to >= fmt_(new Date(Date.now() - 864e5), 'yyyy-MM-dd'); }),
+    ratesNote: String(s['Rates note'] || '').trim(),
     policies: pol.operational, liabilities: pol.financial,
     delivery: delivery_(), promos: promoRows_().some(function (p) { return p.active; })
   };
@@ -494,12 +600,12 @@ function promo_(code) {
   return { ok: true, code: p.code, percent: p.percent, amount: p.amount };
 }
 
-/* The booking's price, worked out here so the sheet's total can be trusted:
-   rental days x rate, less the promo, plus the delivery fee. */
+/* The booking's price, worked out here so the sheet's total can be trusted: the rental (regular and
+   in-demand days, see rentalPrice_), less the promo, plus the delivery fee. */
 function quote_(c, unitId, start, end, promoCode, area, delivering) {
   var u = c.units.filter(function (x) { return x.id === unitId; })[0];
-  var days = Math.max(1, Math.ceil((end - start) / 36e5 / c.hoursPerDay - 1e-9));
-  var rental = u && u.rate ? u.rate * days : 0, discount = 0, fee = 0, code = '';
+  var price = rentalPrice_(u, start, end, c.hoursPerDay, c.demandDates || []);
+  var days = price.days, rental = price.rental, discount = 0, fee = 0, code = '';
   if (promoCode) {
     var p = promo_(promoCode);
     if (!p.ok) return { error: 'promo', reason: p.error };
@@ -511,7 +617,7 @@ function quote_(c, unitId, start, end, promoCode, area, delivering) {
     if (!a) return { error: 'area' };
     fee = a.fee;
   }
-  return { days: days, rental: rental, code: code, discount: discount, fee: fee, total: rental - discount + fee };
+  return { days: days, rental: rental, peakDays: price.peakDays, code: code, discount: discount, fee: fee, total: rental - discount + fee };
 }
 
 /* ---- bookings ---- */
@@ -563,12 +669,12 @@ function doGet(e) {
 function lookup_(ref, mobile) {
   var sh = sheet_(), last = sh.getLastRow();
   if (last < 2 || digits_(mobile).length < 10) return { ok: false, error: 'not_found' };
-  var rows = sh.getRange(2, 1, last - 1, 13).getValues();
+  var rows = sh.getRange(2, 1, last - 1, HEADERS.length).getValues();
   for (var i = rows.length - 1; i >= 0; i--) {
     var r = rows[i];
-    if (plain_(r[0]).toUpperCase() !== ref || digits_(plain_(r[12])) !== digits_(mobile)) continue;
-    return { ok: true, ref: ref, status: String(r[COL.status - 1]).trim() || 'Pending', unit: plain_(r[4]),
-      start: r[5] instanceof Date ? r[5].toISOString() : '', end: r[6] instanceof Date ? r[6].toISOString() : '' };
+    if (plain_(v_(r, 'ref')).toUpperCase() !== ref || digits_(plain_(v_(r, 'mobile'))) !== digits_(mobile)) continue;
+    return { ok: true, ref: ref, status: String(v_(r, 'status')).trim() || 'Pending', unit: plain_(v_(r, 'unit')),
+      start: iso_(v_(r, 'start')), end: iso_(v_(r, 'end')) };
   }
   return { ok: false, error: 'not_found' };
 }
@@ -599,10 +705,11 @@ function doPost(e) {
     if (taken) return json_({ ok: false, error: 'taken', until: taken.end, busy: busy_() });
     q = quote_(c, d.unitId, start, end, d.promo, d.area, !!d.delivering);   // inside the lock, so a promo's last use can't go twice
     if (q.error) return json_({ ok: false, error: q.error, reason: q.reason });
-    sheet_().appendRow([text_(d.ref), new Date(), 'Pending', d.unitId, text_(d.unit), start, end, q.days,
-      q.total || '', text_(d.handover), text_(d.name), text_(d.address), text_(d.mobile), text_(d.social),
-      text_(d.purpose), text_(d.ecName), text_(d.ecRel), text_(d.ecMobile), text_(d.ecAddress), text_(d.notes), '', '',
-      q.code ? text_(q.code) : '', q.discount || '', q.fee || '', email ? text_(email) : '', '']);
+    sheet_().appendRow(row_({ ref: text_(d.ref), fbName: text_(d.fbName || d.social), unit: text_(d.unit), days: q.days,
+      start: start, end: end, total: q.total || '', name: text_(d.name), address: text_(d.address), mobile: text_(d.mobile),
+      purpose: text_(d.purpose), ecName: text_(d.ecName), ecRel: text_(d.ecRel), ecMobile: text_(d.ecMobile),
+      status: 'Pending', unitId: d.unitId, submitted: new Date(), handover: text_(d.handover), email: email ? text_(email) : '',
+      ecAddress: text_(d.ecAddress), notes: text_(d.notes), promo: q.code ? text_(q.code) : '', discount: q.discount || '', fee: q.fee || '' }));
   } finally {
     lock.releaseLock();
   }
@@ -620,10 +727,10 @@ function notify_(d, start, end, c, q) {
     MailApp.sendEmail(to, 'New booking ' + d.ref + ' · ' + d.unit + ' · ' + fmt_(start, 'MMM d, h:mm a'),
       'New website booking for ' + c.name + ' (Pending)\n\n' +
       'Ref: ' + d.ref + '\nUnit: ' + d.unit + '\nPick-up: ' + fmt_(start, 'EEE MMM d, h:mm a') + '\nReturn: ' + fmt_(end, 'EEE MMM d, h:mm a') +
-      '\nDays: ' + q.days + (q.rental ? '\nRental: ₱' + q.rental : '') +
+      '\nDays: ' + q.days + (q.peakDays ? ' (' + q.peakDays + ' in-demand)' : '') + (q.rental ? '\nRental: ₱' + q.rental : '') +
       (q.discount ? '\nPromo ' + q.code + ': -₱' + q.discount : '') + (q.fee ? '\nDelivery fee: ₱' + q.fee : '') +
       (q.total ? '\nTotal: ₱' + q.total : '') + '\nHand-over: ' + d.handover +
-      '\n\nName: ' + d.name + '\nMobile: ' + d.mobile + (d.email ? '\nEmail: ' + d.email : '') + '\nSocial: ' + d.social + '\nPurpose: ' + d.purpose +
+      '\n\nName: ' + d.name + '\nMobile: ' + d.mobile + (d.email ? '\nEmail: ' + d.email : '') + '\nFB name: ' + (d.fbName || d.social || '') + '\nPurpose: ' + d.purpose +
       '\nEmergency: ' + d.ecName + ' (' + d.ecRel + '), ' + d.ecMobile +
       (d.notes ? '\nNotes: ' + d.notes : '') +
       '\n\nThe requirement photos upload to Google Drive in a moment; the link appears in the Photos column.\n' +
@@ -649,7 +756,7 @@ function emailRenter_(sh, row, r) {
   if ((status !== 'Confirmed' && status !== 'Cancelled') || !EMAIL_RE.test(to) || sent.indexOf(status) > -1) return false;
   var s = settings_();
   if (String(s['Email renters']).trim().toLowerCase() === 'no') return false;
-  var shop = String(s['Shop name'] || '').trim() || 'Phone rentals', ref = plain_(r[0]), name = plain_(r[10]) || 'there';
+  var shop = String(s['Shop name'] || '').trim() || 'Phone rentals', ref = plain_(v_(r, 'ref')), name = plain_(v_(r, 'name')) || 'there';
   var start = r[COL.pickup - 1], end = r[COL.ret - 1], total = Number(r[COL.estimate - 1]) || 0, deposit = Number(s['Deposit']) || 0;
   var page = String(s['Booking page link'] || '').trim(), pay = String(s['Payment details'] || '').trim();
   var messenger = String(s['Messenger page'] || '').trim(), mobile = String(s['Mobile'] || '').trim();
@@ -658,15 +765,15 @@ function emailRenter_(sh, row, r) {
   if (status === 'Confirmed') {
     subject = 'Your booking is accepted · ' + ref + ' · ' + shop;
     intro = 'Good news! ' + shop + ' accepted your booking. Here are the details:';
-    rows = [['Booking ref', ref], ['Phone', plain_(r[4])], ['Pick-up', when(start)], ['Return', when(end)], ['Hand-over', plain_(r[9])]];
+    rows = [['Booking ref', ref], ['Phone', plain_(v_(r, 'unit'))], ['Pick-up', when(start)], ['Return', when(end)], ['Hand-over', plain_(v_(r, 'handover'))]];
     if (total) rows.push(['Total', '₱' + total.toLocaleString() + (deposit ? ' + ₱' + deposit.toLocaleString() + ' refundable deposit' : '')]);
     if (pay) after.push('Payment: ' + pay);
-    if (String(s['Pick-up place'] || '').trim() && /pick/i.test(plain_(r[9]))) after.push('Pick-up place: ' + String(s['Pick-up place']).trim());
+    if (String(s['Pick-up place'] || '').trim() && /pick/i.test(plain_(v_(r, 'handover')))) after.push('Pick-up place: ' + String(s['Pick-up place']).trim());
     after.push('Please be on time, and bring the IDs you sent us.');
   } else {
     subject = (wasAccepted ? 'Your booking was cancelled · ' : 'We couldn\'t accept your booking · ') + ref + ' · ' + shop;
     intro = wasAccepted ? 'Your booking ' + ref + ' with ' + shop + ' was cancelled.'
-      : 'Sorry, ' + shop + ' couldn\'t accept your booking ' + ref + ' for ' + plain_(r[4]) + ' on ' + when(start) + '.';
+      : 'Sorry, ' + shop + ' couldn\'t accept your booking ' + ref + ' for ' + plain_(v_(r, 'unit')) + ' on ' + when(start) + '.';
     after.push('If you think this is a mistake, or want to book other dates, message us.');
   }
   var contact = (messenger ? 'Messenger: https://m.me/' + encodeURIComponent(messenger) : '') + (messenger && mobile ? ' · ' : '') + (mobile ? 'Text or call ' + mobile : '');
@@ -711,12 +818,12 @@ function savePhotos_(d) {
   if (!d.ref || !files.length) return json_({ ok: false, error: 'missing' });
   var sh = sheet_(), last = sh.getLastRow(), row = -1;
   if (last >= 2) {
-    var refs = sh.getRange(2, 1, last - 1, 1).getValues();
+    var refs = sh.getRange(2, C.ref, last - 1, 1).getValues();
     for (var i = refs.length - 1; i >= 0; i--) { if (plain_(refs[i][0]) === d.ref) { row = i + 2; break; } }
   }
   if (row < 0) return json_({ ok: false, error: 'not_found' });
   if (sh.getRange(row, COL.photos).getValue()) return json_({ ok: false, error: 'exists' });
-  var folder = photoFolder_().createFolder(d.ref + ' ' + plain_(sh.getRange(row, 11).getValue()));
+  var folder = photoFolder_().createFolder(d.ref + ' ' + plain_(sh.getRange(row, C.name).getValue()));
   files.forEach(function (f, n) {
     var bytes = Utilities.base64Decode(String(f.data || ''));
     if (!bytes.length || bytes.length > 8e6) return;
@@ -784,10 +891,8 @@ function addConfirmed() {
    wrong passwords or codes lock sign-in and registering for 15 minutes. */
 
 var TOKEN_DAYS = 60, MAX_FAILS = 8, SETUP_CODE = 'Owner setup code';
-var TEXT_FIELDS = ['handover', 'name', 'address', 'mobile', 'social', 'purpose', 'ecName', 'ecRel', 'ecMobile', 'ecAddress', 'notes'];
-var FIELD_COL = { ref: 1, submitted: 2, status: 3, unitId: 4, unit: 5, start: 6, end: 7, days: 8, total: 9, handover: 10, name: 11,
-  address: 12, mobile: 13, social: 14, purpose: 15, ecName: 16, ecRel: 17, ecMobile: 18, ecAddress: 19, notes: 20, addedTo: 21,
-  photos: 22, promo: 23, discount: 24, fee: 25, email: 26, emailed: 27 };
+var TEXT_FIELDS = ['handover', 'name', 'address', 'mobile', 'fbName', 'purpose', 'ecName', 'ecRel', 'ecMobile', 'ecAddress', 'notes'];
+var FIELD_COL = C;
 var OWNER_DISCOUNT = 'Owner discount';
 
 function newCode_() {
@@ -843,6 +948,8 @@ function admin_(d) {
   if (d.op === 'logout') { delete tokens[t]; props.setProperty('adminTokens', JSON.stringify(tokens)); return { ok: true }; }
   if (d.op === 'data') { var out = adminData_(); out.me = accounts[me.user].name; return out; }
   if (d.op === 'save') return adminSave_(d.booking || {});
+  if (d.op === 'saveRates') return saveRates_(d.rates || []);
+  if (d.op === 'saveDemand') return saveDemand_(d.dates || []);
   if (d.op === 'accounts') return accountsOut_(accounts, me.user);
   if (d.op === 'removeAccount') {
     var k = userKey_(d.username);
@@ -916,10 +1023,11 @@ function adminData_() {
   var sh = sheet_(), last = sh.getLastRow();
   var rows = last > 1 ? sh.getRange(2, 1, last - 1, HEADERS.length).getValues() : [];
   var bookings = [];
-  rows.forEach(function (r, i) { if (plain_(r[0]) || String(r[COL.unitId - 1]).trim()) bookings.push(bookingOf_(r, i + 2)); });
+  rows.forEach(function (r, i) { if (plain_(v_(r, 'ref')) || String(v_(r, 'unitId')).trim()) bookings.push(bookingOf_(r, i + 2)); });
   var c = config_();
   return { ok: true, bookings: bookings,
-    units: units_().map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, show: u.show }; }),
+    units: units_().map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, show: u.show }; }),
+    demandDates: demand_(),
     shop: { name: c.name, brandColor: c.brandColor, hoursPerDay: c.hoursPerDay, deposit: c.deposit, handover: c.handover, delivery: c.delivery, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() } };
 }
 
@@ -938,13 +1046,13 @@ function adminSave_(b) {
   try {
     var sh = sheet_(), last = sh.getLastRow(), row = Number(b.row) || 0;
     var rows = last > 1 ? sh.getRange(2, 1, last - 1, HEADERS.length).getValues() : [];
-    if (row && (!rows[row - 2] || plain_(rows[row - 2][0]) !== String(b.ref || ''))) return { ok: false, error: 'changed' };
+    if (row && (!rows[row - 2] || plain_(v_(rows[row - 2], 'ref')) !== String(b.ref || ''))) return { ok: false, error: 'changed' };
     if (BLOCKING.indexOf(status) > -1) {
       for (var i = 0; i < rows.length; i++) {
         var r = rows[i];
         if (i + 2 === row || BLOCKING.indexOf(String(r[COL.status - 1]).trim()) < 0 || String(r[COL.unitId - 1]).trim() !== u.id) continue;
         if (r[COL.pickup - 1] instanceof Date && r[COL.ret - 1] instanceof Date && start < r[COL.ret - 1] && r[COL.pickup - 1] < end) {
-          return { ok: false, error: 'taken', with: plain_(r[0]) + ' · ' + plain_(r[10]), until: iso_(r[COL.ret - 1]) };
+          return { ok: false, error: 'taken', with: plain_(v_(r, 'ref')) + ' · ' + plain_(v_(r, 'name')), until: iso_(r[COL.ret - 1]) };
         }
       }
     }
@@ -952,20 +1060,22 @@ function adminSave_(b) {
     var discount = money(b.discount), promo = row ? plain_(cur[COL.promo - 1]) : '';
     if (discount && !promo) promo = OWNER_DISCOUNT;
     if (!discount && promo === OWNER_DISCOUNT) promo = '';
-    var text = function (k) { return text_(b[k] != null ? b[k] : plain_(cur[FIELD_COL[k] - 1])); };
-    /* Status to Notes (columns 3-20), then Promo code, Discount and Delivery fee (23-25). Text is written as text. */
-    var main = [status, u.id, text_(u.name + (u.detail ? ' (' + u.detail + ')' : '')), start, end,
-      Math.max(1, Math.ceil((end - start) / 36e5 / hoursPerDay_() - 1e-9)), money(b.total)].concat(TEXT_FIELDS.map(text));
+    if (b.fbName == null && b.social != null) b.fbName = b.social;   // an owner page from before FB name
     var email = String(b.email != null ? b.email : plain_(cur[COL.email - 1] || '')).trim();
     if (email && !EMAIL_RE.test(email)) return { ok: false, error: 'email' };
-    var tail = [promo ? text_(promo) : '', discount, money(b.fee), email ? text_(email) : ''];
-    if (!row) {
-      sh.appendRow([text_(b.ref || newRef_()), new Date()].concat(main, ['', ''], tail, ['']));
-      row = sh.getLastRow();
-    } else {
-      sh.getRange(row, COL.status, 1, main.length).setValues([main]);
-      sh.getRange(row, COL.promo, 1, tail.length).setValues([tail]);
-    }
+    /* The whole row: what the owner changed, and the rest as it was (text kept as text). */
+    var o = {};
+    BOOKING_COLS.forEach(function (c) {
+      var k = c[0], v = row ? cur[C[k] - 1] : '';
+      o[k] = TEXT_KEYS.indexOf(k) > -1 && typeof v === 'string' && v !== '' ? text_(plain_(v)) : v;
+    });
+    TEXT_FIELDS.forEach(function (k) { if (b[k] != null) o[k] = text_(b[k]); });
+    o.status = status; o.unitId = u.id; o.unit = text_(u.name + (u.detail ? ' (' + u.detail + ')' : ''));
+    o.start = start; o.end = end; o.days = Math.max(1, Math.ceil((end - start) / 36e5 / hoursPerDay_() - 1e-9));
+    o.total = money(b.total); o.promo = promo ? text_(promo) : ''; o.discount = discount; o.fee = money(b.fee);
+    o.email = email ? text_(email) : '';
+    if (!row) { o.ref = text_(b.ref || newRef_()); o.submitted = new Date(); sh.appendRow(row_(o)); row = sh.getLastRow(); }
+    else sh.getRange(row, 1, 1, HEADERS.length).setValues([row_(o)]);
     var vals = sh.getRange(row, 1, 1, HEADERS.length).getValues()[0];
     if (status === 'Confirmed' && !vals[COL.addedTo - 1]) {
       var tab = addToMonth_(vals);
@@ -978,6 +1088,39 @@ function adminSave_(b) {
   }
   try { updateDashboard(); } catch (err) {}
   return { ok: true, booking: saved, emailed: emailed };
+}
+
+/* Owner page, Rates tab: each unit's regular and in-demand rate, written into the Units tab. */
+function saveRates_(list) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(UNITS_TAB);
+  if (!sh) return { ok: false, error: 'bad_request' };
+  addDemandRates_(sh);
+  var units = units_(), n = 0;
+  list.forEach(function (x) {
+    var u = units.filter(function (y) { return y.id === String(x.id || ''); })[0];
+    var rate = Math.round(Number(x.rate)), high = x.rateHigh === '' || x.rateHigh == null ? '' : Math.round(Number(x.rateHigh));
+    if (!u || !(rate > 0) || (high !== '' && !(high > 0))) return;
+    sh.getRange(u.row, 4).setValue(rate); sh.getRange(u.row, 8).setValue(high); n++;
+  });
+  CacheService.getScriptCache().remove('config');
+  return { ok: true, saved: n, units: units_().map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, show: u.show }; }) };
+}
+
+/* Owner page, Rates tab: the whole list of in-demand dates, replacing the tab's rows. */
+function saveDemand_(list) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(DEMAND_TAB);
+  if (!sh) { sh = ss.insertSheet(DEMAND_TAB); sh.getRange(1, 1, 1, 3).setValues([DEMAND_HEADERS]).setFontWeight('bold'); sh.setFrozenRows(1); }
+  var rows = list.map(function (x) {
+    var from = day_(x.from), to = day_(x.to) || from;
+    return from ? [from, to < from ? from : to, String(x.label || '').trim().slice(0, 60)] : null;
+  }).filter(Boolean).sort(function (a, b) { return a[0] < b[0] ? -1 : 1; }).slice(0, 300);
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 3).clearContent();
+  if (rows.length) {
+    sh.getRange(2, 1, rows.length, 2).setNumberFormat('yyyy-mm-dd');
+    sh.getRange(2, 1, rows.length, 3).setValues(rows.map(function (r) { return [new Date(r[0] + 'T00:00:00+08:00'), new Date(r[1] + 'T00:00:00+08:00'), text_(r[2])]; }));
+  }
+  CacheService.getScriptCache().remove('config');
+  return { ok: true, demandDates: demand_() };
 }
 
 function hoursPerDay_() { return Number(settings_()['Hours per rental day']) || 24; }
@@ -1008,10 +1151,10 @@ function updateDashboard() {
     if (status === 'Pending') pending++;
     if (!(start instanceof Date)) return;
     if (BLOCKING.indexOf(status) > -1 && start.getTime() >= now.getTime() - 36e5 && start.getTime() <= week) {
-      upcoming.push([start, end instanceof Date ? end : '', plain_(r[4]), plain_(r[10]), status, plain_(r[0])]);
+      upcoming.push([start, end instanceof Date ? end : '', plain_(v_(r, 'unit')), plain_(v_(r, 'name')), status, plain_(v_(r, 'ref'))]);
     }
     if (EARNING.indexOf(status) < 0) return;
-    var amt = Number(r[COL.estimate - 1]) || 0, m = fmt_(start, 'yyyy-MM'), unit = plain_(r[4]) || String(r[COL.unitId - 1]);
+    var amt = Number(r[COL.estimate - 1]) || 0, m = fmt_(start, 'yyyy-MM'), unit = plain_(v_(r, 'unit')) || String(r[COL.unitId - 1]);
     var add = function (k) { tot[k][0]++; tot[k][1] += amt; };
     add('all');
     if (m.slice(0, 4) === year) add('year');
@@ -1102,13 +1245,14 @@ function addToMonth_(r) {
   var tab = monthSheet_(start);
   var sameDay = fmt_(start, 'MMM d') === fmt_(end, 'MMM d');
   var duration = (sameDay ? fmt_(start, 'MMM d') : fmt_(start, 'MMM d') + ' - ' + fmt_(end, 'MMM d')) +
-    ' (' + (r[7] || 1) + (Number(r[7]) === 1 || !r[7] ? ' day' : ' days') + ')';
+    ' (' + (v_(r, 'days') || 1) + (Number(v_(r, 'days')) === 1 || !v_(r, 'days') ? ' day' : ' days') + ')';
   var id = String(r[COL.unitId - 1]).trim();
   var u = units_().filter(function (x) { return x.id === id; })[0];
-  var unit = (u && u.monthName) || plain_(r[4]);
-  tab.appendRow(['', fmt_(start, 'MMM d, h:mm a'), duration, plain_(r[10]), unit, MONTH_STATUS, '', Number(r[8]) || '']);
+  var unit = (u && u.monthName) || plain_(v_(r, 'unit'));
+  tab.appendRow(['', fmt_(start, 'MMM d, h:mm a'), duration, plain_(v_(r, 'name')), unit, MONTH_STATUS, '', Number(v_(r, 'total')) || '']);
   var nameCell = tab.getRange(tab.getLastRow(), 4);
-  nameCell.setNote('Website booking ' + plain_(r[0]) + '\nMobile: ' + plain_(r[12]) + '\nHand-over: ' + plain_(r[9]) +
+  nameCell.setNote('Website booking ' + plain_(v_(r, 'ref')) + (plain_(v_(r, 'fbName')) ? '\nFB name: ' + plain_(v_(r, 'fbName')) : '') +
+    '\nMobile: ' + plain_(v_(r, 'mobile')) + '\nHand-over: ' + plain_(v_(r, 'handover')) +
     '\nReturn: ' + fmt_(end, 'MMM d, h:mm a') + (r[COL.photos - 1] ? '\nPhotos: ' + r[COL.photos - 1] : '') +
     (plain_(r[COL.promo - 1]) ? '\nPromo: ' + plain_(r[COL.promo - 1]) + ' (-₱' + (Number(r[COL.discount - 1]) || 0) + ')' : '') +
     (Number(r[COL.fee - 1]) ? '\nDelivery fee: ₱' + Number(r[COL.fee - 1]) : '') +

@@ -43,21 +43,26 @@ var SHOP = {
   rateCards: [],          /* price list pictures shown above the units */
   delivery: [],           /* [{ area, fee }] delivery areas; empty means renters pay the courier themselves */
   promos: false,          /* true shows the promo code box (codes are checked by the booking sheet) */
+  /* Each unit has a regular `rate` and a `rateHigh` for in-demand dates: [{ from, to, label }] as
+     "YYYY-MM-DD". A rental day that touches an in-demand date is charged rateHigh. */
+  demandDates: [],
+  ratesNote: "Rates vary by date. In-demand dates (holidays, concerts and big events) use the higher in-demand rate.",
   deposit: 500,
   hoursPerDay: 25,        /* one rental day = 25 hours from pick-up */
   lateFeePerHour: 100,
   minNoticeHours: 2,      /* how soon before pick-up a renter can still book */
   maxDaysAhead: 180,      /* how far ahead renters can book */
   closedDates: [],        /* "YYYY-MM-DD" days with no pick-ups or returns */
-  /* `poster` is the unit's rate-and-inclusions poster in rent/units/ (shown on the card, tap to enlarge). */
+  /* `poster` is the unit's rate-and-inclusions poster in rent/units/ (shown on the card, tap to enlarge).
+     `rate` is the regular daily rate and `rateHigh` the daily rate on in-demand dates. */
   /* `id` must match UNIT_IDS in rent/google-sheet/Code.gs (the sheet's Unit ID column). */
   models: [
-    { id: "16pro-desert",    name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000, poster: "units/iphone-16-pro-desert-titanium.webp" },
-    { id: "14pm-black",      name: "iPhone 14 Pro Max", detail: "128GB · Space Black",     rate: 800,  poster: "units/iphone-14-pro-max.webp" },
-    { id: "13pm-blue",       name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700,  poster: "units/iphone-13-pro-max-sierra-blue.webp" },
-    { id: "13pm-graphite",   name: "iPhone 13 Pro Max", detail: "256GB · Graphite",        rate: 700,  poster: "units/iphone-13-pro-max-graphite.webp" },
-    { id: "13-starlight-z1", name: "iPhone 13",         detail: "128GB · Starlight #Z1",   rate: 600,  poster: "units/iphone-13-starlight.webp" },
-    { id: "13-starlight-j2", name: "iPhone 13",         detail: "128GB · Starlight #J2",   rate: 600,  poster: "units/iphone-13-starlight.webp" }
+    { id: "16pro-desert",    name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000, rateHigh: 1800, poster: "units/iphone-16-pro-desert-titanium.webp" },
+    { id: "14pm-black",      name: "iPhone 14 Pro Max", detail: "128GB · Space Black",     rate: 800,  rateHigh: 1100, poster: "units/iphone-14-pro-max.webp" },
+    { id: "13pm-blue",       name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700,  rateHigh: 900, poster: "units/iphone-13-pro-max-sierra-blue.webp" },
+    { id: "13pm-graphite",   name: "iPhone 13 Pro Max", detail: "256GB · Graphite",        rate: 700,  rateHigh: 900, poster: "units/iphone-13-pro-max-graphite.webp" },
+    { id: "13-starlight-z1", name: "iPhone 13",         detail: "128GB · Starlight #Z1",   rate: 600,  rateHigh: 800, poster: "units/iphone-13-starlight.webp" },
+    { id: "13-starlight-j2", name: "iPhone 13",         detail: "128GB · Starlight #J2",   rate: 600,  rateHigh: 800, poster: "units/iphone-13-starlight.webp" }
   ],
   /* Google Sheet web app (rent/google-sheet/Code.gs). When set, bookings are saved to the
      sheet and units already booked for the chosen times can't be picked. Empty turns this off. */
@@ -224,6 +229,15 @@ main.wrap{margin-top:18px;position:relative;z-index:2}
 .tally .lines{flex-basis:100%;display:grid;grid-template-columns:1fr auto;gap:2px 12px;font-size:13.5px;color:var(--sub);font-variant-numeric:tabular-nums}
 .tally .lines .tot{color:var(--ink);font-weight:700}
 .tally .lines .off{color:var(--good)}
+.tally .lines .hot{color:var(--some-ink)}
+.rates-note{margin-top:12px;padding:11px 13px;border-radius:12px;background:var(--some);font-size:13.5px;line-height:1.45}
+.rates-note b{display:block;font-size:14px}
+.rates-note ul{margin:6px 0 0 18px}
+.day.hot{box-shadow:inset 0 3px 0 var(--gold)}
+.day.hot.sel{box-shadow:inset 0 3px 0 var(--gold),0 0 0 2px var(--ink) inset}
+.mini .g i.hot{box-shadow:inset 0 2px 0 var(--gold)}
+.model label strong{white-space:normal}
+.model label .range{display:block;font-family:var(--body);font-weight:600;font-size:11.5px;color:var(--sub);margin-top:1px}
 .promo{display:flex;gap:10px;align-items:flex-end;margin-top:14px}
 .promo .field{flex:1}
 .promo .btn{padding:12px 18px;font-size:14px}
@@ -413,6 +427,7 @@ footer b{color:var(--ink)}
     <section class="step">
       <h2><i>01</i><span id="unitTitle">iPhone model to rent</span></h2>
       <p class="hint" id="unitHint">Tap a unit to choose it. Tap the magnifier to see its full poster.</p>
+      <div class="rates-note" id="ratesNote" role="note" hidden></div>
       <div class="models" id="models"></div>
       <div class="err" id="modelErr" hidden>Pick a phone.</div>
     </section>
@@ -451,7 +466,8 @@ footer b{color:var(--ink)}
         <label class="field full"><span>Full name (as on your ID) <span class="req">*</span></span><input type="text" id="name" autocomplete="name" required></label>
         <label class="field full"><span>Address <span class="req">*</span></span><input type="text" id="address" autocomplete="street-address" placeholder="House no., street, barangay, city" required></label>
         <label class="field"><span>Phone number <span class="req">*</span></span><input type="tel" id="mobile" autocomplete="tel" inputmode="tel" placeholder="09XX XXX XXXX" required></label>
-        <label class="field"><span>Active social media (FB/IG) <span class="req">*</span></span><input type="text" id="social" placeholder="Name or @handle" required></label>
+        <label class="field"><span>Facebook name you message us with <span class="req">*</span></span><input type="text" id="social" placeholder="The name on your FB account" autocomplete="off" required>
+          <small class="hint" style="margin-top:2px">If it's different from your real name, so we can match your inquiry.</small></label>
         <label class="field full" id="emailField"><span>Active email (Gmail) <span class="req">*</span></span><input type="email" id="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="yourname@gmail.com" required>
           <small class="hint" style="margin-top:2px">We'll email you here when your booking is accepted. Check your spelling.</small></label>
         <label class="field full"><span>Usage purpose <span class="req">*</span></span><input type="text" id="purpose" placeholder="Concert, trip, wedding, event coverage…" required></label>
@@ -761,7 +777,9 @@ footer b{color:var(--ink)}
       wrap.querySelector('input').checked = label(m) === keep;
       wrap.querySelector('b').textContent = m.name;
       wrap.querySelector('small').textContent = m.detail || '';
-      wrap.querySelector('strong').textContent = m.rate ? peso(m.rate) + ' / day' : 'Rate on confirmation';
+      var st = wrap.querySelector('strong');
+      st.textContent = !m.rate ? 'Rate on confirmation' : hasRange(m) ? peso(m.rate) + ' – ' + peso(m.rateHigh) : peso(m.rate) + ' / day';
+      if(hasRange(m)){ var rg = document.createElement('span'); rg.className = 'range'; rg.textContent = 'per day · ' + peso(m.rateHigh) + ' on in-demand dates'; st.appendChild(rg); }
       $('models').appendChild(wrap);
     });
     var sel = $('calUnit'), keepUnit = sel.value;
@@ -802,6 +820,41 @@ footer b{color:var(--ink)}
     checklist('policies', SHOP.policies, 'pol');
     checklist('liabilities', SHOP.liabilities, 'lia');
   }
+  /* ---- regular and in-demand rates ---- */
+  function hasRange(m){ return !!(m && m.rate && m.rateHigh && m.rateHigh !== m.rate); }
+  function anyRange(){ return SHOP.models.some(hasRange); }
+  function dayMs(ds){ return Date.parse(ds + 'T00:00:00+08:00'); }
+  function demandOn(ds){ return (SHOP.demandDates || []).filter(function(x){ return x.from <= ds && ds <= x.to; })[0] || null; }
+  function shortDay(ds){ return new Date(ds + 'T12:00:00+08:00').toLocaleDateString('en-PH', { timeZone:'Asia/Manila', month:'short', day:'numeric' }); }
+  function demandText(x){ return shortDay(x.from) + (x.to !== x.from ? ' – ' + shortDay(x.to) : '') + (x.label ? ' (' + x.label + ')' : ''); }
+  /* The rental for a unit and times: each rental day touching an in-demand date at rateHigh, the rest at rate.
+     The booking sheet works it out the same way. */
+  function rentalPrice(m, sl, days){
+    var H = SHOP.hoursPerDay * 36e5, rate = (m && m.rate) || 0, high = (m && m.rateHigh) || rate, out = { rental: 0, peakDays: 0 };
+    for(var i = 0; i < days; i++){
+      var a = sl.start.getTime() + i * H, b = Math.min(sl.end.getTime(), a + H);
+      var hot = high !== rate && (SHOP.demandDates || []).some(function(x){ return a < dayMs(x.to) + 864e5 && dayMs(x.from) < b; });
+      if(hot) out.peakDays++;
+      out.rental += hot ? high : rate;
+    }
+    return out;
+  }
+  /* The reminder above the units: rates vary by date, with the next in-demand dates. */
+  function buildRatesNote(){
+    var box = $('ratesNote'), soon = (SHOP.demandDates || []).filter(function(x){ return x.to >= today; }).slice(0, 6);
+    box.innerHTML = ''; box.hidden = !anyRange();
+    if(box.hidden) return;
+    var b = document.createElement('b'); b.textContent = 'Rates vary by date'; box.appendChild(b);
+    box.appendChild(document.createTextNode((SHOP.ratesNote || '').replace(/^Rates vary by date\.?\s*/i, '') ||
+      'In-demand dates use the higher in-demand rate.'));
+    if(soon.length){
+      var p = document.createElement('div'); p.style.marginTop = '6px'; p.style.fontWeight = '700'; p.textContent = 'Upcoming in-demand dates:'; box.appendChild(p);
+      var ul = document.createElement('ul');
+      soon.forEach(function(x){ var li = document.createElement('li'); li.textContent = demandText(x); ul.appendChild(li); });
+      box.appendChild(ul);
+    }
+  }
+
   function buildRateCards(){
     var cards = SHOP.rateCards || [];
     $('rcGrid').innerHTML = '';
@@ -884,7 +937,7 @@ footer b{color:var(--ink)}
   function applyConfig(c){
     if(!c || !c.name) return false;
     var units = (c.units || []).filter(function(u){ return u && u.id && u.name; }).map(function(u){
-      return { id: String(u.id), name: String(u.name), detail: String(u.detail || ''), rate: Number(u.rate) || null, poster: u.poster || '' };
+      return { id: String(u.id), name: String(u.name), detail: String(u.detail || ''), rate: Number(u.rate) || null, rateHigh: Number(u.rateHigh) || null, poster: u.poster || '' };
     });
     var next = {
       name: c.name, area: c.area || '', pickupPlace: c.pickupPlace || c.area || '', mobile: c.mobile || '',
@@ -893,12 +946,15 @@ footer b{color:var(--ink)}
       rateCards: (c.rateCards || []).filter(function(u){ return /^https:\/\//.test(u); }),
       delivery: (c.delivery || []).filter(function(a){ return a && a.area; }).map(function(a){ return { area: String(a.area), fee: Math.max(0, Number(a.fee) || 0) }; }),
       promos: !!c.promos,
+      demandDates: (c.demandDates || []).filter(function(x){ return x && /^\d{4}-\d{2}-\d{2}$/.test(x.from); })
+        .map(function(x){ return { from: x.from, to: /^\d{4}-\d{2}-\d{2}$/.test(x.to || '') ? x.to : x.from, label: String(x.label || '') }; }),
+      ratesNote: c.ratesNote != null ? String(c.ratesNote) : SHOP.ratesNote,
       deposit: Number(c.deposit) || 0, hoursPerDay: Number(c.hoursPerDay) || 24, lateFeePerHour: Number(c.lateFeePerHour) || 0,
       handover: (c.handover && c.handover.length) ? c.handover : ['Pick up'], inclusions: c.inclusions || [],
       minNoticeHours: Number(c.minNoticeHours) || 0, maxDaysAhead: Number(c.maxDaysAhead) || 365, closedDates: c.closedDates || [],
       models: units, policies: c.policies || [], liabilities: c.liabilities || []
     };
-    var lists = function(){ return JSON.stringify([SHOP.models, SHOP.handover, SHOP.inclusions, SHOP.policies, SHOP.liabilities, SHOP.rateCards, SHOP.delivery]); };
+    var lists = function(){ return JSON.stringify([SHOP.models, SHOP.handover, SHOP.inclusions, SHOP.policies, SHOP.liabilities, SHOP.rateCards, SHOP.delivery, SHOP.demandDates, SHOP.ratesNote]); };
     var before = lists();
     Object.keys(next).forEach(function(k){ SHOP[k] = next[k]; });
     applyShop();
@@ -910,7 +966,7 @@ footer b{color:var(--ink)}
     var max = addDaysIso(today, SHOP.maxDaysAhead || 365);
     $('start').max = max; $('end').max = addDaysIso(max, 30);
   }
-  function buildAll(){ buildUnits(); buildHandover(); buildAreas(); buildInclusions(); buildPolicies(); buildRateCards(); }
+  function buildAll(){ buildUnits(); buildHandover(); buildAreas(); buildInclusions(); buildPolicies(); buildRateCards(); buildRatesNote(); }
   function showPage(){ document.documentElement.classList.remove('loading-shop'); }
   /* A page that can't show its shop: no other shop's banner, contact details or form. */
   function blankShop(name){
@@ -1021,8 +1077,9 @@ footer b{color:var(--ink)}
         var ds = ymd(cal.y, cal.m, d), past = ds < today || ds > last, closed = !past && isClosed(ds);
         var L = past ? { lv:'past', n:0 } : closed ? { lv:'closed', n:0 } : dayLevel(ds);
         var tag = past ? '' : closed ? 'Closed' : cal.unit ? (L.n ? 'Booked' : 'Free') : (L.n ? L.n + '/' + SHOP.models.length : 'Free');
-        html += '<button type="button" class="day ' + L.lv + (ds === today ? ' today' : '') + (ds === cal.sel ? ' sel' : '') + '" data-day="' + ds + '"' +
-          (past || closed ? ' disabled' : '') + ' aria-label="' + ds + (past ? '' : ', ' + tag) + '"><b>' + d + '</b><small>' + tag + '</small></button>';
+        var hot = !past && !closed && anyRange() && demandOn(ds);
+        html += '<button type="button" class="day ' + L.lv + (hot ? ' hot' : '') + (ds === today ? ' today' : '') + (ds === cal.sel ? ' sel' : '') + '" data-day="' + ds + '"' +
+          (past || closed ? ' disabled' : '') + ' aria-label="' + ds + (past ? '' : ', ' + tag) + (hot ? ', in-demand date' : '') + '"><b>' + d + '</b><small>' + tag + '</small></button>';
       }
       html += '</div>';
     } else {
@@ -1035,7 +1092,7 @@ footer b{color:var(--ink)}
         for(var k = 0; k < firstDow(cal.y, m); k++) html += '<i></i>';
         for(var dd = 1; dd <= daysIn(cal.y, m); dd++){
           var s2 = ymd(cal.y, m, dd), p2 = s2 < today || s2 > last;
-          html += '<i class="' + (p2 ? 'past' : isClosed(s2) ? 'closed' : dayLevel(s2).lv) + '">' + dd + '</i>';
+          html += '<i class="' + (p2 ? 'past' : isClosed(s2) ? 'closed' : dayLevel(s2).lv) + (!p2 && anyRange() && demandOn(s2) ? ' hot' : '') + '">' + dd + '</i>';
         }
         html += '</div></div>';
       }
@@ -1045,7 +1102,8 @@ footer b{color:var(--ink)}
     $('calLegend').innerHTML = (cal.unit
       ? '<span><i style="background:var(--free)"></i>Free</span><span><i style="background:var(--full)"></i>Booked</span>'
       : '<span><i style="background:var(--free)"></i>All units free</span><span><i style="background:var(--some)"></i>Some units booked</span><span><i style="background:var(--full)"></i>All units booked</span>') +
-      ((SHOP.closedDates || []).length ? '<span><i style="background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)"></i>Closed</span>' : '');
+      ((SHOP.closedDates || []).length ? '<span><i style="background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)"></i>Closed</span>' : '') +
+      (anyRange() && (SHOP.demandDates || []).length ? '<span><i style="box-shadow:inset 0 3px 0 var(--gold);background:var(--free)"></i>In-demand date (higher rate)</span>' : '');
     if(cal.sel) showDay(cal.sel);
   }
   /* Each unit on one day: booked (with times) or free, with a button to start a booking from that day. */
@@ -1054,6 +1112,8 @@ footer b{color:var(--ink)}
     var box = $('calDay'), d = new Date(ds + 'T12:00:00+08:00'), wrap = document.createElement('div');
     var h = document.createElement('h3');
     h.textContent = d.toLocaleDateString('en-PH', { timeZone:'Asia/Manila', weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    var hotDay = anyRange() && demandOn(ds);
+    if(hotDay) h.textContent += ' · In-demand date' + (hotDay.label ? ' (' + hotDay.label + ')' : '') + ', higher rates';
     wrap.appendChild(h);
     SHOP.models.forEach(function(m, i){
       if(cal.unit && cal.unit !== m.id) return;
@@ -1159,12 +1219,13 @@ footer b{color:var(--ink)}
     if(promo && this.value.trim().toUpperCase() !== promo.code){ promo = null; promoMsg(''); refresh(); }
   });
 
-  /* The price: rental days x rate, less the promo, plus the delivery fee. The sheet works it out the same way. */
+  /* The price: the rental (regular and in-demand days), less the promo, plus the delivery fee. The sheet works it out the same way. */
   function quote(){
-    var sp = span(); if(!sp || sp.hours <= 0) return null;
-    var m = model(), rental = m && m.rate ? m.rate * sp.days : 0, a = isDelivery() ? areaFee() : null, fee = a ? a.fee : 0, disc = 0;
+    var sp = span(), sl = slot(); if(!sp || sp.hours <= 0 || !sl) return null;
+    var m = model(), pr = m && m.rate ? rentalPrice(m, sl, sp.days) : { rental: 0, peakDays: 0 };
+    var rental = pr.rental, a = isDelivery() ? areaFee() : null, fee = a ? a.fee : 0, disc = 0;
     if(promo && rental) disc = promo.percent ? Math.round(rental * promo.percent / 100) : Math.min(promo.amount, rental);
-    return { days: sp.days, hours: sp.hours, rental: rental, discount: disc, fee: fee, area: a ? a.area : '', total: rental - disc + fee };
+    return { days: sp.days, hours: sp.hours, rental: rental, peakDays: pr.peakDays, discount: disc, fee: fee, area: a ? a.area : '', total: rental - disc + fee };
   }
   function shipNote(){ return isDelivery() && !(SHOP.delivery || []).length; }
 
@@ -1177,7 +1238,7 @@ footer b{color:var(--ink)}
     $('tally').hidden = !ok;
     var lines = $('tallyLines'); lines.innerHTML = ''; lines.hidden = true;
     if(ok){
-      var m = model(), h = Math.round(sp.hours * 10) / 10, q = quote(), extra = q.discount || q.fee;
+      var m = model(), h = Math.round(sp.hours * 10) / 10, q = quote() || { total: 0, rental: 0, peakDays: 0, discount: 0, fee: 0, days: sp.days }, extra = q.discount || q.fee || q.peakDays;
       $('tallyDays').textContent = sp.days + (sp.days === 1 ? ' day' : ' days');
       $('tallyCost').textContent = h + ' hours' + (m && m.rate
         ? ' · ' + peso(q.total) + (extra ? ' total' : ' rental') + (SHOP.deposit ? ' + ' + peso(SHOP.deposit) + ' refundable deposit' : '') + (shipNote() ? ' + shipping both ways' : '')
@@ -1188,7 +1249,9 @@ footer b{color:var(--ink)}
           x.textContent = a; y.textContent = b; if(cls){ x.className = y.className = cls; }
           lines.appendChild(x); lines.appendChild(y);
         };
-        add('Rental · ' + q.days + (q.days === 1 ? ' day' : ' days') + ' × ' + peso(m.rate), peso(q.rental));
+        var reg = q.days - q.peakDays;
+        if(reg) add('Regular · ' + reg + (reg === 1 ? ' day' : ' days') + ' × ' + peso(m.rate), peso(reg * m.rate));
+        if(q.peakDays) add('In-demand · ' + q.peakDays + (q.peakDays === 1 ? ' day' : ' days') + ' × ' + peso(m.rateHigh), peso(q.rental - reg * m.rate), 'hot');
         if(q.discount) add('Promo ' + promo.code, '−' + peso(q.discount), 'off');
         if(q.fee) add('Delivery to ' + q.area, peso(q.fee));
         add('Total', peso(q.total), 'tot');
@@ -1315,7 +1378,7 @@ footer b{color:var(--ink)}
     lines.push('Address: ' + $('address').value.trim());
     lines.push('Mobile: ' + prettyMobile($('mobile').value.trim()));
     if($('email').value.trim()) lines.push('Email: ' + $('email').value.trim());
-    lines.push('Social: ' + $('social').value.trim());
+    lines.push('FB name: ' + $('social').value.trim());
     lines.push('Purpose: ' + $('purpose').value.trim());
     lines.push('Emergency name: ' + $('ecName').value.trim());
     lines.push('Emergency relationship: ' + $('ecRel').value.trim());
@@ -1343,7 +1406,7 @@ footer b{color:var(--ink)}
       handover: handoverText(),
       name: $('name').value.trim(), address: $('address').value.trim(), mobile: prettyMobile($('mobile').value.trim()),
       email: $('email').value.trim(), page: location.origin + location.pathname + (slug ? '?s=' + slug : shopParam ? '?shop=' + shopParam : ''),
-      social: $('social').value.trim(), purpose: $('purpose').value.trim(),
+      fbName: $('social').value.trim(), social: $('social').value.trim(), purpose: $('purpose').value.trim(),
       ecName: $('ecName').value.trim(), ecRel: $('ecRel').value.trim(), ecMobile: prettyMobile($('ecMobile').value.trim()),
       ecAddress: $('ecAddress').value.trim(), notes: $('notes').value.trim(), website: $('website').value
     };
@@ -1428,7 +1491,7 @@ footer b{color:var(--ink)}
       ['Phone', label(m)],
       ['Pick-up', nice($('start').value) + ', ' + niceTime($('time').value)],
       ['Return', nice($('end').value) + ', ' + niceTime($('rtime').value)],
-      ['Rental', q.days + (q.days === 1 ? ' day' : ' days') + (m.rate ? ' · ' + peso(q.rental) : '')]
+      ['Rental', q.days + (q.days === 1 ? ' day' : ' days') + (q.peakDays ? ' (' + q.peakDays + ' in-demand)' : '') + (m.rate ? ' · ' + peso(q.rental) : '')]
     ];
     if(q.discount) rows.push(['Promo ' + promo.code, '−' + peso(q.discount)]);
     if(q.fee) rows.push(['Delivery fee', peso(q.fee)]);
