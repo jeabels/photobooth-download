@@ -367,6 +367,16 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       <div class="chips" id="chips" role="group" aria-label="More filters"></div>
       <p class="hint" id="stageHint" style="margin-top:10px"></p>
       <div class="list" id="rows"></div>
+      <section class="card" style="margin-top:16px" id="importCard">
+        <h2 style="font-size:16px">Old bookings</h2>
+        <p class="hint" style="margin-top:4px">Bring in bookings from before the website: your month tabs (October, September…), a Google Form's responses, or a copy of an older Website Bookings tab. Nothing in those tabs changes, and you can undo it.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button class="btn ghost small" type="button" id="impCheck">Check for old bookings</button>
+          <button class="btn brand small" type="button" id="impGo" hidden>Add them</button>
+          <button class="btn danger small" type="button" id="impUndo">Undo the import</button>
+        </div>
+        <p class="hint" id="impMsg" style="margin-top:10px;white-space:pre-line" role="status"></p>
+      </section>
     </section>
   </div>
 </main>
@@ -689,7 +699,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   var EARNING = ['Confirmed', 'Returned'], BLOCKING = ['Pending', 'Confirmed'];
   function earned(){ return DATA.bookings.filter(function(b){ return EARNING.indexOf(b.status) > -1 && b.start; }); }
   function sum(list){ return list.reduce(function(a, b){ return a + (Number(b.total) || 0); }, 0); }
-  function unitName(id){ var u = DATA.units.filter(function(x){ return x.id === id; })[0]; return u ? u.name + (u.detail ? ' · ' + u.detail : '') : id; }
+  function unitName(id, text){ var u = DATA.units.filter(function(x){ return x.id === id; })[0]; return u ? u.name + (u.detail ? ' · ' + u.detail : '') : (id || text || 'No unit'); }
 
   /* The buckets for the chosen period: 14 days, 12 weeks or 12 months, oldest first. */
   function buckets(){
@@ -785,7 +795,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     DATA.units.forEach(function(u){ stats[u.id] = { n: 0, days: 0, s: 0 }; });
     earned().forEach(function(b){
       var d = mday(b.start); if(d < from || d > to) return;
-      var s = stats[b.unitId] = stats[b.unitId] || { n: 0, days: 0, s: 0 };
+      var key = b.unitId || b.unit || 'No unit', s = stats[key] = stats[key] || { n: 0, days: 0, s: 0 };
       s.n++; s.days += Number(b.days) || 0; s.s += Number(b.total) || 0;
     });
     var ids = Object.keys(stats).sort(function(a, b){ return stats[b].n - stats[a].n || stats[b].s - stats[a].s; });
@@ -888,7 +898,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     var who = el('div', 'who'); who.appendChild(el('span', '', b.name || '(no name)')); who.appendChild(el('span', 'pill ' + st, STAGE_LABEL[st]));
     c.appendChild(who);
     c.appendChild(el('div', 'amt', b.total !== '' && b.total != null ? peso(b.total) : ''));
-    c.appendChild(el('div', 'meta', (lead ? lead + ' · ' : '') + unitName(b.unitId) + (b.fbName && b.fbName !== b.name ? ' · FB: ' + b.fbName : '')));
+    c.appendChild(el('div', 'meta', (lead ? lead + ' · ' : '') + unitName(b.unitId, b.unit) + (b.fbName && b.fbName !== b.name ? ' · FB: ' + b.fbName : '')));
     c.appendChild(el('div', 'ref', b.ref));
     var m = el('div', 'meta', b.start ? when(b.start) + ' → ' + when(b.end) : 'No dates'); m.style.gridColumn = '1 / -1'; c.appendChild(m);
     c.addEventListener('click', function(){ openEditor(b); });
@@ -996,6 +1006,41 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     saveDemand((DATA.demandDates || []).concat([{ from: from, to: to, label: $('dLabel').value.trim() }]), 'Added').then(function(ok){
       $('dAdd').disabled = false;
       if(ok){ $('dFrom').value = ''; $('dTo').value = ''; $('dLabel').value = ''; }
+    });
+  });
+
+  /* ---- old bookings: copied in from the sheet's older tabs (see importPlan_ in Code.gs) ---- */
+  function importCall(op, busyText){
+    $('impMsg').textContent = busyText; $('impCheck').disabled = $('impGo').disabled = $('impUndo').disabled = true;
+    return api(op).then(function(d){
+      if(d && d.error === 'signed_out'){ setToken(''); showEntry('You were signed out. Sign in again.'); return null; }
+      if(!d || !d.ok){ $('impMsg').textContent = d && d.error === 'bad_request' ? ERR.old_script : 'Couldn\'t do that. Try again.'; return null; }
+      return d;
+    }, function(){ $('impMsg').textContent = ERR.offline; return null; })
+      .then(function(d){ $('impCheck').disabled = $('impGo').disabled = $('impUndo').disabled = false; return d; });
+  }
+  $('impCheck').addEventListener('click', function(){
+    importCall('importPreview', 'Looking through your sheet…').then(function(d){
+      if(!d) return;
+      $('impGo').hidden = !d.count;
+      $('impMsg').textContent = d.count ? d.text : (d.text || 'Every booking in your other tabs is already here.');
+    });
+  });
+  $('impGo').addEventListener('click', function(){
+    importCall('importOld', 'Adding old bookings…').then(function(d){
+      if(!d) return;
+      $('impGo').hidden = true;
+      $('impMsg').textContent = 'Added ' + d.added + ' old booking' + (d.added === 1 ? '' : 's') + '. You\'ll find them under All, Completed and Reserved.';
+      chip = 'All'; load();
+    });
+  });
+  $('impUndo').addEventListener('click', function(){
+    if(!confirm('Remove every imported old booking from Website Bookings? Your month tabs are not touched.')) return;
+    importCall('undoImport', 'Removing…').then(function(d){
+      if(!d) return;
+      $('impGo').hidden = true;
+      $('impMsg').textContent = d.removed ? 'Removed ' + d.removed + ' imported booking' + (d.removed === 1 ? '' : 's') + '.' : 'There were no imported bookings to remove.';
+      load();
     });
   });
 
