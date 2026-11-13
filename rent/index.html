@@ -668,6 +668,7 @@ footer b{color:var(--ink)}
   function label(m){ return m.name + (m.detail ? ' (' + m.detail + ')' : ''); }
   function model(){ var n = val('model'); return SHOP.models.filter(function(m){ return label(m) === n; })[0]; }
   function isDelivery(){ return val('handover') !== SHOP.handover[0]; }
+  function tickedTexts(prefix, list){ return list.filter(function(t, i){ return $(prefix + i) && $(prefix + i).checked; }); }
   function ticked(prefix, n){ var c = 0; for(var i = 0; i < n; i++) if($(prefix + i) && $(prefix + i).checked) c++; return c; }
   function refPrefix(){
     if(!foreign) return 'SNP';
@@ -1405,6 +1406,7 @@ footer b{color:var(--ink)}
       days: q.days, estimate: m.rate ? q.total : '', promo: promo ? promo.code : '', area: q.area, delivering: isDelivery(),
       handover: handoverText(),
       name: $('name').value.trim(), address: $('address').value.trim(), mobile: prettyMobile($('mobile').value.trim()),
+      agreed: { policies: tickedTexts('pol', SHOP.policies), liabilities: tickedTexts('lia', SHOP.liabilities) },
       email: $('email').value.trim(), page: location.origin + location.pathname + (slug ? '?s=' + slug : shopParam ? '?shop=' + shopParam : ''),
       fbName: $('social').value.trim(), social: $('social').value.trim(), purpose: $('purpose').value.trim(),
       ecName: $('ecName').value.trim(), ecRel: $('ecRel').value.trim(), ecMobile: prettyMobile($('ecMobile').value.trim()),

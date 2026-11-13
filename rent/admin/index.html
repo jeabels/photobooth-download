@@ -230,6 +230,36 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
 .contact{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .price{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--brand-soft);font-size:14px;font-variant-numeric:tabular-nums}
 .price .tot{font-weight:800}
+.kv{display:grid;grid-template-columns:minmax(96px,34%) 1fr;gap:6px 12px;font-size:14px;margin:4px 0 14px}
+.kv dt{color:var(--sub)}
+.kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.kv dd small{display:block;font-weight:500;color:var(--sub)}
+#reviewSec h3{margin-top:4px}
+.shots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0 14px}
+.shot{appearance:none;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:0;overflow:hidden;cursor:zoom-in;text-align:left;display:flex;flex-direction:column}
+.shot img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;background:var(--neutral-soft)}
+.shot span{display:block;padding:6px 8px;font-size:11.5px;font-weight:600;color:var(--sub);line-height:1.3}
+.shot:focus-visible{outline:2px solid var(--brand-2);outline-offset:2px}
+.agreed{list-style:none;display:flex;flex-direction:column;gap:6px;margin:4px 0 6px;font-size:13.5px}
+.agreed li{display:grid;grid-template-columns:20px 1fr;gap:6px}
+.agreed li::before{content:"✓";color:var(--good);font-weight:800}
+.agreed-h{font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.04em;margin-top:8px}
+.edit-more{border-top:1px solid var(--line);padding-top:12px}
+.edit-more > summary{cursor:pointer;font-family:var(--display);font-stretch:112%;font-weight:800;font-size:14px;color:var(--brand-2);list-style:none;padding:6px 0}
+.edit-more > summary::-webkit-details-marker{display:none}
+.edit-more > summary::before{content:"▸ ";}
+.edit-more[open] > summary::before{content:"▾ ";}
+.viewer{border:0;padding:0;margin:auto;width:min(760px,100vw);max-width:100vw;height:min(92dvh,100dvh);max-height:100dvh;background:var(--card);color:var(--ink);border-radius:16px;display:flex;flex-direction:column}
+.viewer:not([open]){display:none}
+.viewer::backdrop{background:rgba(10,4,5,.8)}
+.v-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.v-bar b{font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v-view{flex:1;overflow:auto;background:#0d0607;display:flex}
+.v-view img{display:block;margin:auto;max-width:100%;max-height:100%;object-fit:contain}
+.viewer.zoomed .v-view img{max-width:none;max-height:none;width:calc(var(--z,1) * 100%);margin:0}
+.due{font-weight:700}
+.bk .unit-line{color:var(--ink);font-weight:600}
+.due.late{color:var(--bad)}
 .ed-foot{position:sticky;bottom:0;z-index:2;background:var(--card);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center}
 .ed-foot .err{flex:1}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:20;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;box-shadow:0 12px 30px -12px rgba(0,0,0,.5)}
@@ -367,6 +397,16 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       <div class="chips" id="chips" role="group" aria-label="More filters"></div>
       <p class="hint" id="stageHint" style="margin-top:10px"></p>
       <div class="list" id="rows"></div>
+      <section class="card" style="margin-top:16px" id="importCard">
+        <h2 style="font-size:16px">Old bookings</h2>
+        <p class="hint" style="margin-top:4px">Bring in bookings from before the website: your month tabs (October, September…), a Google Form's responses, or a copy of an older Website Bookings tab. Nothing in those tabs changes, and you can undo it.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button class="btn ghost small" type="button" id="impCheck">Check for old bookings</button>
+          <button class="btn brand small" type="button" id="impGo" hidden>Add them</button>
+          <button class="btn danger small" type="button" id="impUndo">Undo the import</button>
+        </div>
+        <p class="hint" id="impMsg" style="margin-top:10px;white-space:pre-line" role="status"></p>
+      </section>
     </section>
   </div>
 </main>
@@ -383,6 +423,32 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
         <div class="contact" id="contact"></div>
       </div>
 
+      <!-- everything the renter sent, to check before accepting -->
+      <div class="ed-sec" id="reviewSec">
+        <h3>Booking</h3>
+        <dl class="kv" id="rvBooking"></dl>
+        <h3>Renter</h3>
+        <dl class="kv" id="rvRenter"></dl>
+        <h3>Emergency contact</h3>
+        <dl class="kv" id="rvEc"></dl>
+        <h3>Requirement photos</h3>
+        <div class="shots" id="rvPhotos"></div>
+        <h3>Policies the renter agreed to</h3>
+        <div id="rvAgreed"></div>
+      </div>
+
+      <div class="ed-sec">
+        <h3>Discount and total</h3>
+        <div class="grid">
+          <label class="field"><span>Discount for this renter (₱)</span><input type="number" id="fDisc" min="0" step="1" inputmode="numeric" placeholder="0"></label>
+          <label class="field"><span>Total to pay, without deposit (₱) <button class="linkbtn" type="button" id="recalc" hidden>Recalculate</button></span><input type="number" id="fTotal" min="0" step="1" inputmode="numeric"></label>
+          <input type="hidden" id="fFee">
+        </div>
+        <div class="price" id="priceBox"></div>
+      </div>
+
+      <details class="ed-sec edit-more" id="editSec">
+      <summary>Edit booking details</summary>
       <div class="ed-sec">
         <h3>Booking</h3>
         <div class="grid">
@@ -393,16 +459,6 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
           <label class="field"><span>Return date</span><input type="date" id="fEd"></label>
           <label class="field"><span>Return time</span><input type="time" id="fEt" step="900"></label>
         </div>
-      </div>
-
-      <div class="ed-sec">
-        <h3>Price and discount</h3>
-        <div class="grid">
-          <label class="field"><span>Discount for this renter (₱)</span><input type="number" id="fDisc" min="0" step="1" inputmode="numeric" placeholder="0"></label>
-          <label class="field"><span>Delivery fee (₱)</span><input type="number" id="fFee" min="0" step="1" inputmode="numeric" placeholder="0"></label>
-          <label class="field full"><span>Total to pay, without deposit (₱) <button class="linkbtn" type="button" id="recalc" hidden>Recalculate</button></span><input type="number" id="fTotal" min="0" step="1" inputmode="numeric"></label>
-        </div>
-        <div class="price" id="priceBox"></div>
       </div>
 
       <div class="ed-sec">
@@ -432,12 +488,20 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
         <h3>Notes</h3>
         <label class="field"><span class="sr-only">Notes</span><textarea id="fNotes"></textarea></label>
       </div>
+      </details>
     </div>
     <div class="ed-foot">
       <p class="err" id="edErr" role="alert"></p>
       <button class="btn brand" type="submit" id="edSave">Save</button>
     </div>
   </form>
+</dialog>
+
+<dialog class="viewer" id="viewer" aria-label="Requirement photo">
+  <div class="v-bar"><b id="vTitle"></b><span style="flex:1"></span>
+    <button class="btn ghost small" type="button" id="vOut" aria-label="Zoom out">−</button><button class="btn ghost small" type="button" id="vIn" aria-label="Zoom in">+</button>
+    <button class="btn ghost small" type="button" id="vClose">Close</button></div>
+  <div class="v-view" id="vView"><img id="vImg" alt=""></div>
 </dialog>
 
 <dialog class="editor" id="accounts" aria-labelledby="acTitle" style="width:min(520px,100vw)">
@@ -689,7 +753,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   var EARNING = ['Confirmed', 'Returned'], BLOCKING = ['Pending', 'Confirmed'];
   function earned(){ return DATA.bookings.filter(function(b){ return EARNING.indexOf(b.status) > -1 && b.start; }); }
   function sum(list){ return list.reduce(function(a, b){ return a + (Number(b.total) || 0); }, 0); }
-  function unitName(id){ var u = DATA.units.filter(function(x){ return x.id === id; })[0]; return u ? u.name + (u.detail ? ' · ' + u.detail : '') : id; }
+  function unitName(id, text){ var u = DATA.units.filter(function(x){ return x.id === id; })[0]; return u ? u.name + (u.detail ? ' · ' + u.detail : '') : (text || id || 'No unit'); }
 
   /* The buckets for the chosen period: 14 days, 12 weeks or 12 months, oldest first. */
   function buckets(){
@@ -785,7 +849,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     DATA.units.forEach(function(u){ stats[u.id] = { n: 0, days: 0, s: 0 }; });
     earned().forEach(function(b){
       var d = mday(b.start); if(d < from || d > to) return;
-      var s = stats[b.unitId] = stats[b.unitId] || { n: 0, days: 0, s: 0 };
+      var key = b.unitId || b.unit || 'No unit', s = stats[key] = stats[key] || { n: 0, days: 0, s: 0 };
       s.n++; s.days += Number(b.days) || 0; s.s += Number(b.total) || 0;
     });
     var ids = Object.keys(stats).sort(function(a, b){ return stats[b].n - stats[a].n || stats[b].s - stats[a].s; });
@@ -888,9 +952,12 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     var who = el('div', 'who'); who.appendChild(el('span', '', b.name || '(no name)')); who.appendChild(el('span', 'pill ' + st, STAGE_LABEL[st]));
     c.appendChild(who);
     c.appendChild(el('div', 'amt', b.total !== '' && b.total != null ? peso(b.total) : ''));
-    c.appendChild(el('div', 'meta', (lead ? lead + ' · ' : '') + unitName(b.unitId) + (b.fbName && b.fbName !== b.name ? ' · FB: ' + b.fbName : '')));
+    c.appendChild(el('div', 'meta unit-line', (lead ? lead + ' · ' : '') + unitName(b.unitId, b.unit)));
     c.appendChild(el('div', 'ref', b.ref));
+    if(b.fbName && b.fbName !== b.name){ var fb = el('div', 'meta', 'FB: ' + b.fbName); fb.style.gridColumn = '1 / -1'; c.appendChild(fb); }
     var m = el('div', 'meta', b.start ? when(b.start) + ' → ' + when(b.end) : 'No dates'); m.style.gridColumn = '1 / -1'; c.appendChild(m);
+    var due = dueText(b);
+    if(due){ var dm = el('div', 'meta due' + (st === 'Overdue' ? ' late' : ''), due); dm.style.gridColumn = '1 / -1'; c.appendChild(dm); }
     c.addEventListener('click', function(){ openEditor(b); });
     wrap.appendChild(c);
     if(actions){
@@ -999,6 +1066,41 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     });
   });
 
+  /* ---- old bookings: copied in from the sheet's older tabs (see importPlan_ in Code.gs) ---- */
+  function importCall(op, busyText){
+    $('impMsg').textContent = busyText; $('impCheck').disabled = $('impGo').disabled = $('impUndo').disabled = true;
+    return api(op).then(function(d){
+      if(d && d.error === 'signed_out'){ setToken(''); showEntry('You were signed out. Sign in again.'); return null; }
+      if(!d || !d.ok){ $('impMsg').textContent = d && d.error === 'bad_request' ? ERR.old_script : 'Couldn\'t do that. Try again.'; return null; }
+      return d;
+    }, function(){ $('impMsg').textContent = ERR.offline; return null; })
+      .then(function(d){ $('impCheck').disabled = $('impGo').disabled = $('impUndo').disabled = false; return d; });
+  }
+  $('impCheck').addEventListener('click', function(){
+    importCall('importPreview', 'Looking through your sheet…').then(function(d){
+      if(!d) return;
+      $('impGo').hidden = !d.count;
+      $('impMsg').textContent = d.count ? d.text : (d.text || 'Every booking in your other tabs is already here.');
+    });
+  });
+  $('impGo').addEventListener('click', function(){
+    importCall('importOld', 'Adding old bookings…').then(function(d){
+      if(!d) return;
+      $('impGo').hidden = true;
+      $('impMsg').textContent = 'Added ' + d.added + ' old booking' + (d.added === 1 ? '' : 's') + '. You\'ll find them under All, Completed and Reserved.';
+      chip = 'All'; load();
+    });
+  });
+  $('impUndo').addEventListener('click', function(){
+    if(!confirm('Remove every imported old booking from Website Bookings? Your month tabs are not touched.')) return;
+    importCall('undoImport', 'Removing…').then(function(d){
+      if(!d) return;
+      $('impGo').hidden = true;
+      $('impMsg').textContent = d.removed ? 'Removed ' + d.removed + ' imported booking' + (d.removed === 1 ? '' : 's') + '.' : 'There were no imported bookings to remove.';
+      load();
+    });
+  });
+
   /* ---- booking editor ---- */
   var editing = null, totalTouched = false;
   var FIELDS = { fName:'name', fMobile:'mobile', fEmail:'email', fSocial:'fbName', fAddress:'address', fHandover:'handover', fPurpose:'purpose',
@@ -1033,7 +1135,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     if(reg) line('Regular · ' + plural(reg, 'day') + ' × ' + peso(rateOf($('fUnit').value)), peso(reg * rateOf($('fUnit').value)));
     if(p.peak && u) line('In-demand · ' + plural(p.peak, 'day') + ' × ' + peso(u.rateHigh), peso(p.rental - reg * rateOf($('fUnit').value)));
     if(Number($('fDisc').value)) line('Discount' + (editing && editing.promo && editing.promo !== 'Owner discount' ? ' (incl. promo ' + editing.promo + ')' : ''), '−' + peso($('fDisc').value));
-    if(Number($('fFee').value)) line('Delivery fee', peso($('fFee').value));
+    if(Number($('fFee').value)) line('Delivery fee (from the booking)', peso($('fFee').value));
     line('Total', peso($('fTotal').value || 0), 'tot');
     if(DATA.shop.deposit) line('Refundable deposit (separate)', peso(DATA.shop.deposit));
     var differs = p.days && Number($('fTotal').value) !== p.total;
@@ -1076,10 +1178,89 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     if(isNew) onPriceInput(); else paintPrice();
     Object.keys(FIELDS).forEach(function(id){ $(id).value = e[FIELDS[id]] == null ? '' : e[FIELDS[id]]; });
     $('edErr').textContent = '';
+    $('reviewSec').hidden = isNew; $('editSec').open = isNew;
+    if(!isNew) review(e);
     quickActions(isNew);
     if($('editor').showModal) $('editor').showModal(); else $('editor').setAttribute('open', '');
     $('editor').querySelector('.ed-body').scrollTop = 0;
   }
+  /* ---- the review: everything the renter sent, read-only ---- */
+  function kv(box, rows){
+    var dl = $(box); dl.innerHTML = '';
+    rows.forEach(function(r){
+      if(r[1] == null || r[1] === '') return;
+      dl.appendChild(el('dt', '', r[0]));
+      var dd = el('dd', '', r[1]); if(r[2]) dd.appendChild(el('small', '', r[2])); dl.appendChild(dd);
+    });
+    if(!dl.childNodes.length){ dl.appendChild(el('dt', '', '')); dl.appendChild(el('dd', '', 'Not filled in')); }
+  }
+  function review(e){
+    var days = Number(e.days) || 0, u = unitOf(e.unitId);
+    var price = e.start && e.end && days ? rentalOf(e.unitId, e.start, e.end, days) : null;
+    kv('rvBooking', [
+      ['Phone', unitName(e.unitId, e.unit)],
+      ['Pick-up', e.start ? when(e.start) : ''],
+      ['Return', e.end ? when(e.end) : '', dueText(e)],
+      ['Rental', days ? plural(days, 'day') : '', price && price.peak ? price.peak + ' in-demand ' + (price.peak === 1 ? 'day' : 'days') + ' at ' + peso(u && u.rateHigh) : ''],
+      ['Total to pay', e.total !== '' && e.total != null ? peso(e.total) : '', (Number(e.discount) ? 'after a ' + peso(e.discount) + ' discount' + (e.promo && e.promo !== 'Owner discount' ? ' (promo ' + e.promo + ')' : '') : '') + (DATA.shop.deposit ? (Number(e.discount) ? ' · ' : '') + 'plus ' + peso(DATA.shop.deposit) + ' refundable deposit' : '')],
+      ['Hand-over', e.handover],
+      ['Booked', e.submitted ? when(e.submitted) : '']
+    ]);
+    kv('rvRenter', [['Real name', e.name], ['FB name', e.fbName], ['Mobile', e.mobile], ['Email', e.email], ['Address', e.address], ['Purpose', e.purpose], ['Notes', e.notes]]);
+    kv('rvEc', [['Name', e.ecName], ['Relationship', e.ecRel], ['Number', e.ecMobile], ['Address', e.ecAddress]]);
+    /* What they ticked: kept with each booking since this version; older bookings had to tick them all too. */
+    var ag = $('rvAgreed'); ag.innerHTML = '';
+    var lines = String(e.agreed || '').split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
+    if(!lines.length) ag.appendChild(el('p', 'hint', e.submitted ? 'Not saved for this booking (made before the website kept this). The form only sends a booking once every policy is ticked.' : 'Added by hand, so there are no ticked policies.'));
+    else {
+      var ul = null;
+      lines.forEach(function(x){
+        if(/^#/.test(x)){ ag.appendChild(el('div', 'agreed-h', x.replace(/^#\s*/, ''))); ul = null; return; }
+        if(!ul){ ul = el('ul', 'agreed'); ag.appendChild(ul); }
+        ul.appendChild(el('li', '', x.replace(/^✓\s*/, '')));
+      });
+    }
+    photosFor(e);
+  }
+  function dueText(b){
+    var st = stage(b), now = Date.now(), t = Date.parse(b.end), s = Date.parse(b.start);
+    var span = function(ms){ var h = Math.round(Math.abs(ms) / 36e5); return h < 1 ? 'less than an hour' : h < 48 ? plural(h, 'hour') : plural(Math.round(h / 24), 'day'); };
+    if(st === 'Overdue') return 'Late by ' + span(now - t);
+    if(st === 'Ongoing') return 'Due back in ' + span(t - now);
+    if(st === 'Reserved' && s) return 'Pick-up in ' + span(s - now);
+    return '';
+  }
+  /* The 3 requirement photos, fetched from the booking's private Drive folder through the sheet. */
+  var shots = {};
+  function photosFor(e){
+    var box = $('rvPhotos'); box.innerHTML = '';
+    if(!/^https:\/\//.test(e.photos || '')){ box.appendChild(el('p', 'hint', e.submitted ? 'No photos were uploaded with this booking. Ask the renter to send them on Messenger.' : 'No photos for this booking.')); return; }
+    var show = function(list){
+      box.innerHTML = '';
+      if(!list.length){ box.appendChild(el('p', 'hint', 'The photo folder is empty.')); return; }
+      list.forEach(function(ph){
+        var b = el('button', 'shot'); b.type = 'button';
+        var img = document.createElement('img'); img.alt = ph.name; img.src = 'data:' + ph.type + ';base64,' + ph.data; b.appendChild(img);
+        b.appendChild(el('span', '', ph.name)); b.addEventListener('click', function(){ openViewer(img.src, ph.name); });
+        box.appendChild(b);
+      });
+    };
+    if(shots[e.ref]) return show(shots[e.ref]);
+    box.appendChild(el('p', 'hint', 'Loading photos…'));
+    api('photos', { row: e.row, ref: e.ref }).then(function(d){
+      if(editing !== e) return;
+      if(d && d.ok){ shots[e.ref] = d.photos; show(d.photos); return; }
+      box.innerHTML = ''; box.appendChild(el('p', 'hint', d && d.error === 'bad_request' ? ERR.old_script : 'Couldn\'t load the photos. Use "Requirement photos" above to open them in Google Drive.'));
+    }, function(){ if(editing === e){ box.innerHTML = ''; box.appendChild(el('p', 'hint', ERR.offline)); } });
+  }
+  var vZoom = 1;
+  function setVZoom(z){ vZoom = Math.min(4, Math.max(1, z)); $('viewer').classList.toggle('zoomed', vZoom > 1); $('viewer').style.setProperty('--z', vZoom); $('vOut').disabled = vZoom <= 1; $('vIn').disabled = vZoom >= 4; }
+  function openViewer(src, title){ $('vImg').src = src; $('vImg').alt = title; $('vTitle').textContent = title; setVZoom(1); if($('viewer').showModal) $('viewer').showModal(); else $('viewer').setAttribute('open', ''); }
+  $('vIn').addEventListener('click', function(){ setVZoom(vZoom + .5); });
+  $('vOut').addEventListener('click', function(){ setVZoom(vZoom - .5); });
+  $('vImg').addEventListener('dblclick', function(){ setVZoom(vZoom > 1 ? 1 : 2); });
+  $('vClose').addEventListener('click', function(){ if($('viewer').close) $('viewer').close(); else $('viewer').removeAttribute('open'); });
+
   function quickActions(isNew){
     var q = $('quick'), c = $('contact'), e = editing; q.innerHTML = ''; c.innerHTML = '';
     $('quickSec').hidden = isNew;
@@ -1098,8 +1279,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     var digits = String(e.mobile || '').replace(/[^\d+]/g, '');
     var link = function(label, href, newTab){ var a = el('a', 'btn ghost small', label); a.href = href; if(newTab){ a.target = '_blank'; a.rel = 'noopener'; } c.appendChild(a); };
     if(digits.length >= 10){ link('Call', 'tel:' + digits); link('Text', 'sms:' + digits); }
-    if(/^https:\/\//.test(e.photos || '')) link('Requirement photos', e.photos, true);
-    if(DATA.shop.sheetUrl) link('Open in Google Sheet', DATA.shop.sheetUrl, true);
+    if(/^https:\/\//.test(e.photos || '')) link('Requirement photos (Drive)', e.photos, true);
   }
   function closeEditor(){ if($('editor').close) $('editor').close(); else $('editor').removeAttribute('open'); }
   $('edClose').addEventListener('click', closeEditor);

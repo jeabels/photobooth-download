@@ -71,7 +71,7 @@ var BOOKING_COLS = [
   ['photos', 'Photos'],
   ['status', 'Status'], ['unitId', 'Unit ID'], ['submitted', 'Submitted'], ['handover', 'Hand-over'], ['email', 'Email'],
   ['ecAddress', 'Emergency address'], ['notes', 'Notes'], ['promo', 'Promo code'], ['discount', 'Discount'], ['fee', 'Delivery fee'],
-  ['addedTo', 'Added to'], ['emailed', 'Renter emailed']
+  ['addedTo', 'Added to'], ['emailed', 'Renter emailed'], ['agreed', 'Policies agreed']
 ];
 var HEADERS = BOOKING_COLS.map(function (c) { return c[1]; });
 var C = {};
@@ -226,7 +226,9 @@ function reorderBookings_(ss, sh) {
   var lastCol = sh.getLastColumn(), last = sh.getLastRow();
   if (last < 1 || lastCol < 1) return;
   var head = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h).trim(); });
-  if (!head.some(Boolean) || head.slice(0, HEADERS.length).join('|') === HEADERS.join('|')) return;
+  /* Already in this order (perhaps without columns added at the end since): nothing to move. */
+  var inOrder = head.every(function (h, i) { return !h || h === HEADERS[i]; });
+  if (!head.some(Boolean) || inOrder) return;
   var keyOf = {};
   BOOKING_COLS.forEach(function (c) { keyOf[c[1]] = c[0]; keyOf[c[0]] = c[0]; });
   Object.keys(OLD_HEADERS).forEach(function (h) { keyOf[h] = OLD_HEADERS[h]; });
@@ -592,7 +594,7 @@ function promo_(code) {
   if (p.until && today > p.until) return { ok: false, error: 'expired' };
   if (p.max) {
     var sh = sheet_(), last = sh.getLastRow(), used = 0;
-    if (last > 1) sh.getRange(2, 1, last - 1, COL.promo).getValues().forEach(function (r) {
+    if (last > 1) sh.getRange(2, 1, last - 1, HEADERS.length).getValues().forEach(function (r) {
       if (plain_(r[COL.promo - 1]).toUpperCase() === code && String(r[COL.status - 1]).trim() !== 'Cancelled') used++;
     });
     if (used >= p.max) return { ok: false, error: 'used_up' };
@@ -638,7 +640,7 @@ function sheet_() {
 function busy_() {
   var sh = sheet_(), last = sh.getLastRow();
   if (last < 2) return [];
-  var rows = sh.getRange(2, 1, last - 1, COL.ret).getValues(), now = Date.now(), out = [];
+  var rows = sh.getRange(2, 1, last - 1, HEADERS.length).getValues(), now = Date.now(), out = [];
   rows.forEach(function (r) {
     var status = String(r[COL.status - 1]).trim(), unit = String(r[COL.unitId - 1]).trim();
     var start = r[COL.pickup - 1], end = r[COL.ret - 1];
@@ -709,13 +711,28 @@ function doPost(e) {
       start: start, end: end, total: q.total || '', name: text_(d.name), address: text_(d.address), mobile: text_(d.mobile),
       purpose: text_(d.purpose), ecName: text_(d.ecName), ecRel: text_(d.ecRel), ecMobile: text_(d.ecMobile),
       status: 'Pending', unitId: d.unitId, submitted: new Date(), handover: text_(d.handover), email: email ? text_(email) : '',
-      ecAddress: text_(d.ecAddress), notes: text_(d.notes), promo: q.code ? text_(q.code) : '', discount: q.discount || '', fee: q.fee || '' }));
+      ecAddress: text_(d.ecAddress), notes: text_(d.notes), promo: q.code ? text_(q.code) : '', discount: q.discount || '', fee: q.fee || '',
+      agreed: agreed_(d.agreed) }));
+    var bs = sheet_();
+    if (String(bs.getRange(1, C.agreed).getValue()).trim() !== HEADERS[C.agreed - 1]) bs.getRange(1, C.agreed).setValue(HEADERS[C.agreed - 1]).setFontWeight('bold');
   } finally {
     lock.releaseLock();
   }
   rememberPage_(d.page);
   notify_(d, start, end, c, q);
   return json_({ ok: true, ref: d.ref, total: q.total, discount: q.discount, fee: q.fee, busy: busy_() });
+}
+
+/* The policies the renter ticked, as the owner page shows them: "# Operational policies", then a
+   "✓ …" line for each, then the financial ones. Plain text, at most 5,000 characters. */
+function agreed_(a) {
+  if (!a || typeof a !== 'object') return '';
+  var part = function (title, list) {
+    list = (list || []).map(function (x) { return String(x).replace(/\s+/g, ' ').trim().slice(0, 400); }).filter(Boolean);
+    return list.length ? ['# ' + title].concat(list.map(function (x) { return '✓ ' + x; })) : [];
+  };
+  var lines = part('Operational policies', a.policies).concat(part('Financial liabilities and security protocols', a.liabilities));
+  return lines.length ? "'" + lines.join('\n').slice(0, 5000) : '';
 }
 
 /* Emails the owner about a new booking. A failed email never stops the booking. */
@@ -863,6 +880,8 @@ function onOpen() {
     .addItem('Remove all owner page accounts (forgot password)', 'resetOwnerAccounts')
     .addSeparator()
     .addItem('Add confirmed website bookings to month tabs', 'addConfirmed')
+    .addItem('Import old bookings (month tabs, old copies, form responses)', 'importOldBookings')
+    .addItem('Undo the import of old bookings', 'removeImportedBookings')
     .addItem('Make banner and poster images public', 'publishImages')
     .addToUi();
 }
@@ -950,6 +969,10 @@ function admin_(d) {
   if (d.op === 'save') return adminSave_(d.booking || {});
   if (d.op === 'saveRates') return saveRates_(d.rates || []);
   if (d.op === 'saveDemand') return saveDemand_(d.dates || []);
+  if (d.op === 'importPreview') { var plan = importPlan_(); return { ok: true, count: plan.rows.length, text: plan.text }; }
+  if (d.op === 'importOld') { var pl = importPlan_(); return { ok: true, added: pl.rows.length ? importRows_(pl.rows) : 0, text: pl.text }; }
+  if (d.op === 'undoImport') return { ok: true, removed: removeImported_(false) };
+  if (d.op === 'photos') return adminPhotos_(Number(d.row) || 0, String(d.ref || ''));
   if (d.op === 'accounts') return accountsOut_(accounts, me.user);
   if (d.op === 'removeAccount') {
     var k = userKey_(d.username);
@@ -1090,6 +1113,25 @@ function adminSave_(b) {
   return { ok: true, booking: saved, emailed: emailed };
 }
 
+/* Owner page: a booking's requirement photos from its private Drive folder, so the owner can check
+   them without leaving the page. Oldest first (the order the renter added them), each under 4 MB. */
+function adminPhotos_(row, ref) {
+  var sh = sheet_();
+  if (row < 2 || row > sh.getLastRow()) return { ok: false, error: 'changed' };
+  var r = sh.getRange(row, 1, 1, HEADERS.length).getValues()[0];
+  if (plain_(v_(r, 'ref')) !== ref) return { ok: false, error: 'changed' };
+  var id = (String(v_(r, 'photos') || '').match(/folders\/([\w-]{10,})/) || [])[1];
+  if (!id) return { ok: true, photos: [] };
+  var files = DriveApp.getFolderById(id).getFiles(), list = [];
+  while (files.hasNext() && list.length < 6) {
+    var f = files.next();
+    if (!/^image\//.test(f.getMimeType()) || f.getSize() > 4e6) continue;
+    list.push({ at: f.getDateCreated().getTime(), name: f.getName().replace(/\.\w+$/, ''), type: f.getMimeType(), data: Utilities.base64Encode(f.getBlob().getBytes()) });
+  }
+  list.sort(function (a, b) { return a.at - b.at; });
+  return { ok: true, photos: list.map(function (p) { return { name: p.name, type: p.type, data: p.data }; }) };
+}
+
 /* Owner page, Rates tab: each unit's regular and in-demand rate, written into the Units tab. */
 function saveRates_(list) {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(UNITS_TAB);
@@ -1132,6 +1174,210 @@ function newRef_() {
   var abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r = '';
   for (var i = 0; i < 4; i++) r += abc[Math.floor(Math.random() * abc.length)];
   return p + '-' + r;
+}
+
+/* ---- old bookings ----
+   Bookings kept before the website (the month tabs, a Google Form's responses, or a copy of an older
+   Website Bookings tab) are copied into Website Bookings, so the owner page, the calendar and the
+   dashboard know them too. Each tab's columns are recognised by their header names. Rows already in
+   Website Bookings (same ref, made by the website, or imported before) are skipped. Imported rows say
+   "Imported from <tab> row <n>" in Notes, so they can be removed again. Nothing in the old tabs changes. */
+
+var IMPORT_MARK = 'Imported from ';
+/* Header words for each field; the first column whose header matches is used. Emergency fields first,
+   so "Emergency contact number" isn't taken as the renter's mobile. */
+var IMPORT_FIELDS = [
+  ['ecName', /emergency.*name|name.*emergency|emergency contact$/i],
+  ['ecRel', /relationship/i],
+  ['ecMobile', /emergency.*(number|mobile|phone|contact no)/i],
+  ['ecAddress', /emergency.*address/i],
+  ['ref', /^ref/i],
+  ['startTime', /pick.?up time|scheduled pick|start time/i],
+  ['endTime', /return time|scheduled return|end time/i],
+  ['start', /pick.?up|start date|rental start|date rented|rent date/i],
+  ['end', /^return|end date|rental end|return date/i],
+  ['duration', /duration/i],
+  ['days', /^days?$|no\.? of days|number of days/i],
+  ['fbName', /fb|facebook|social/i],
+  ['name', /^name$|full name|real name|renter|customer|client/i],
+  ['unit', /unit|model|iphone|phone to rent/i],
+  ['status', /status/i],
+  ['total', /total|estimate/i],
+  ['fee', /rental fee|rate|amount|price/i],
+  ['address', /address/i],
+  ['mobile', /mobile|phone|contact|number|cp/i],
+  ['purpose', /purpose/i],
+  ['email', /e-?mail/i]
+];
+var MONTHS_ = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+/* "Oct 5, 10:00 AM", "October 5 2026 10am", "10/5/2026", a Date cell: { y, m, d, h, min } (y may be 0). */
+function parseWhen_(v) {
+  if (v instanceof Date) { var p = fmt_(v, 'yyyy-M-d-H-m').split('-').map(Number); return { y: p[0], m: p[1], d: p[2], h: p[3], min: p[4], hasTime: !!(p[3] || p[4]) }; }
+  var s = String(v == null ? '' : v).toLowerCase().replace(/^'/, '').trim(), y = 0, m = 0, d = 0;
+  if (!s) return null;
+  var mm = s.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(\d{4}))?/);
+  var nn = s.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/), iso = s.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  if (iso) { y = +iso[1]; m = +iso[2]; d = +iso[3]; }
+  else if (mm) { m = MONTHS_.indexOf(mm[1]) + 1; d = +mm[2]; y = mm[3] ? +mm[3] : 0; }
+  else if (nn) { m = +nn[1]; d = +nn[2]; y = nn[3] ? (+nn[3] < 100 ? 2000 + +nn[3] : +nn[3]) : 0; }
+  var t = s.replace(/\b\d{4}\b/g, ' ').match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)|(\d{1,2}):(\d{2})/), h = 0, min = 0;
+  if (t) {
+    if (t[3]) { h = +t[1] % 12 + (/p/.test(t[3]) ? 12 : 0); min = +(t[2] || 0); } else { h = +t[4]; min = +t[5]; }
+  }
+  return m && d ? { y: y, m: m, d: d, h: h, min: min, hasTime: !!t } : (t ? { y: 0, m: 0, d: 0, h: h, min: min, hasTime: true } : null);
+}
+/* A Manila date and time; without a year, the year that puts it closest before today + 60 days. */
+function whenDate_(p, near) {
+  var y = p.y || Number(fmt_(near || new Date(), 'yyyy'));
+  var mk = function (yy) { return new Date(yy + '-' + ('0' + p.m).slice(-2) + '-' + ('0' + p.d).slice(-2) + 'T' + ('0' + p.h).slice(-2) + ':' + ('0' + p.min).slice(-2) + ':00+08:00'); };
+  var dt = mk(y);
+  if (!p.y && !near && dt.getTime() > Date.now() + 60 * 864e5) dt = mk(y - 1);
+  if (!p.y && near && dt < near) dt = mk(y + 1);   // a return in January after a December pick-up
+  return isNaN(dt) ? null : dt;
+}
+
+/* "IP 13 PRO MAX GRAPHITE", "iphone 14 promax space blk": the one unit with that model number, Pro / Pro Max,
+   and (when several fit) a colour word from its detail. None when it can't tell. */
+function guessUnit_(text, units) {
+  var flat = function (x) { return ' ' + String(x).toLowerCase().replace(/iphone/g, ' ').replace(/\bip\b/g, ' ').replace(/pro\s*max|promax|(\d)\s*pm\b/g, '$1 promax ').replace(/[^a-z0-9#]+/g, ' ') + ' '; };
+  var t = flat(text), num = (t.match(/ (1[0-9]|[7-9]) /) || [])[1];
+  if (!num) return null;
+  var pm = / promax /.test(t), pro = !pm && / pro /.test(t);
+  var fits = units.filter(function (u) {
+    var n = flat(u.name);
+    return n.indexOf(' ' + num + ' ') > -1 && / promax /.test(n) === pm && / pro /.test(n) === pro;
+  });
+  if (fits.length > 1) {
+    var byColour = fits.filter(function (u) {
+      return u.detail.toLowerCase().split(/[^a-z0-9#]+/).some(function (w) { return w.length > 2 && !/^\d+gb$/.test(w) && t.indexOf(w) > -1; });
+    });
+    if (byColour.length) fits = byColour;
+  }
+  return fits.length === 1 ? fits[0] : null;
+}
+
+/* Every old booking not yet in Website Bookings: { rows: [row arrays], text: summary for the owner }. */
+function importPlan_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = sheet_(), last = sh.getLastRow();
+  var have = { refs: {}, marks: {} };
+  if (last > 1) sh.getRange(2, 1, last - 1, HEADERS.length).getValues().forEach(function (r) {
+    have.refs[plain_(v_(r, 'ref')).toUpperCase()] = 1;
+    var n = plain_(v_(r, 'notes')); if (n.indexOf(IMPORT_MARK) === 0) have.marks[n.split(' · ')[0]] = 1;
+  });
+  var units = units_(), H = hoursPerDay_(), norm = function (x) { return String(x || '').toLowerCase().replace(/[^a-z0-9#]/g, ''); };
+  var unitOf = function (text) {
+    var t = norm(text); if (!t) return null;
+    return units.filter(function (u) { return norm(u.id) === t || u.monthName.split(',').some(function (m) { return norm(m) === t; }); })[0] ||
+      units.filter(function (u) { return norm(u.name + u.detail) === t || norm(u.name + ' (' + u.detail + ')') === t; })[0] || guessUnit_(text, units);
+  };
+  var skipTabs = [SHEET_NAME, DASH_TAB].concat(OWNER_TABS);
+  var out = [], lines = [], unread = 0, unmatched = {};
+  ss.getSheets().forEach(function (tab) {
+    var name = tab.getName();
+    if (skipTabs.indexOf(name) > -1 || tab.getLastRow() < 2 || tab.getLastColumn() < 2) return;
+    var width = Math.min(tab.getLastColumn(), 40), top = Math.min(5, tab.getLastRow());
+    var head = null, headRow = 0, heads = tab.getRange(1, 1, top, width).getValues();
+    for (var i = 0; i < heads.length && !head; i++) {
+      var cols = {};
+      heads[i].forEach(function (h, c) {
+        h = String(h).trim(); if (!h) return;
+        for (var k = 0; k < IMPORT_FIELDS.length; k++) {
+          var f = IMPORT_FIELDS[k];
+          if (cols[f[0]] == null && f[1].test(h)) { cols[f[0]] = c; break; }
+        }
+      });
+      if (cols.start != null && (cols.name != null || cols.unit != null)) { head = cols; headRow = i + 1; }
+    }
+    if (!head) return;
+    var rows = tab.getRange(headRow + 1, 1, tab.getLastRow() - headRow, width).getValues();
+    var notes = head.name != null ? tab.getRange(headRow + 1, head.name + 1, rows.length, 1).getNotes() : null;
+    var n = 0, abbr = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase() || 'TAB';
+    rows.forEach(function (r, i) {
+      var rowNo = headRow + 1 + i, cell = function (k) { return head[k] == null ? '' : r[head[k]]; };
+      var who = plain_(cell('name')).trim(), unitText = plain_(cell('unit')).trim();
+      if (!who && !unitText) return;
+      var mark = IMPORT_MARK + name + ' row ' + rowNo, ref = plain_(cell('ref')).trim().toUpperCase();
+      if (have.marks[mark] || (ref && have.refs[ref])) return;
+      if (notes && /^Website booking /.test(String(notes[i][0] || ''))) return;   // put in this month tab by the website
+      var ps = parseWhen_(cell('start'));
+      if (ps && !ps.hasTime && head.startTime != null) { var pt = parseWhen_(cell('startTime')); if (pt && pt.hasTime) { ps.h = pt.h; ps.min = pt.min; } }
+      var start = ps && ps.m ? whenDate_(ps) : null;
+      if (!start) { unread++; return; }
+      var dur = plain_(cell('duration')), days = Number(cell('days')) || 0, dm = dur.match(/\((\d+)\s*day/i) || dur.match(/^(\d+)\s*day/i);
+      if (!days && dm) days = Number(dm[1]);
+      var end = null, pe = parseWhen_(cell('end'));
+      if (!pe || !pe.m) { var parts = dur.split(/\s+[-–to]+\s+/); pe = parts.length > 1 ? parseWhen_(parts[1]) : null; }
+      if (pe && pe.m) {
+        if (!pe.hasTime && head.endTime != null) { var et = parseWhen_(cell('endTime')); if (et && et.hasTime) { pe.h = et.h; pe.min = et.min; pe.hasTime = true; } }
+        if (!pe.hasTime) { pe.h = ps.h + 1; pe.min = ps.min; if (pe.h > 23) pe.h = 23; }
+        end = whenDate_(pe, start);
+      }
+      if (!end || end <= start) end = new Date(start.getTime() + Math.max(1, days || 1) * H * 36e5);
+      if (!days) days = Math.max(1, Math.ceil((end - start) / 36e5 / H - 1e-9));
+      var st = plain_(cell('status')).toLowerCase(), done = end.getTime() < Date.now();
+      /* No Status column (a form's responses): upcoming ones wait for the owner to accept them. */
+      var status = /cancel|void/.test(st) ? 'Cancelled' : /return|done|complete|finish/.test(st) ? 'Returned'
+        : /pend|inquir|hold|wait/.test(st) ? 'Pending' : done ? 'Returned' : head.status == null ? 'Pending' : 'Confirmed';
+      var money = function (v) { var x = Number(String(v == null ? '' : v).replace(/[^\d.]/g, '')); return x > 0 ? Math.round(x) : ''; };
+      var u = unitOf(unitText);
+      if (!u && unitText) unmatched[unitText] = 1;
+      var o = {
+        ref: text_(ref || 'OLD-' + abbr + '-' + rowNo), fbName: text_(plain_(cell('fbName'))), unit: text_(u ? u.name + (u.detail ? ' (' + u.detail + ')' : '') : unitText),
+        days: days, start: start, end: end, total: money(cell('total')) || money(cell('fee')), name: text_(who), address: text_(plain_(cell('address'))),
+        mobile: text_(plain_(cell('mobile'))), purpose: text_(plain_(cell('purpose'))), ecName: text_(plain_(cell('ecName'))), ecRel: text_(plain_(cell('ecRel'))),
+        ecMobile: text_(plain_(cell('ecMobile'))), status: status, unitId: u ? u.id : '', submitted: '', handover: '', email: '',
+        ecAddress: text_(plain_(cell('ecAddress'))), notes: text_(mark + (st ? ' · was ' + plain_(cell('status')) : '')), addedTo: 'Imported'
+      };
+      out.push(row_(o)); n++;
+    });
+    if (n) lines.push(name + ': ' + n);
+  });
+  var text = out.length ? 'Found ' + out.length + ' old booking(s) that are not in Website Bookings yet:\n' + lines.join('\n') +
+    '\n\nPast bookings are added as Returned (Completed) and upcoming ones as Confirmed, or as their Status says. A tab without a Status column (like form responses) adds its upcoming bookings as Pending, for you to accept. Upcoming ones block their units on the booking page.' : '';
+  if (unread) text += (text ? '\n\n' : '') + unread + ' row(s) were skipped because their pick-up date couldn\'t be read.';
+  var um = Object.keys(unmatched);
+  if (um.length) text += (text ? '\n\n' : '') + 'Units not in the Units tab (added without a Unit ID, so they don\'t block a unit): ' + um.slice(0, 8).join(', ') +
+    '. To match them, add these names to the right unit\'s "Month-tab name" in the Units tab (several names separated by commas), then undo and import again.';
+  return { rows: out, text: text, tabs: lines };
+}
+
+/** Menu item: shows what would be imported, then copies the old bookings into Website Bookings. */
+function importOldBookings() {
+  var ui = SpreadsheetApp.getUi(), plan = importPlan_();
+  if (!plan.rows.length) { ui.alert('No old bookings to add', plan.text || 'Every booking in the other tabs is already in Website Bookings.', ui.ButtonSet.OK); return; }
+  if (ui.alert('Add ' + plan.rows.length + ' old booking(s) to Website Bookings?', plan.text, ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  var res = importRows_(plan.rows);
+  ui.alert('Added ' + res + ' old booking(s). They are on the owner page now. To take them out again: menu > Undo the import of old bookings.');
+}
+function importRows_(rows) {
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    var sh = sheet_(), at = sh.getLastRow() + 1;
+    sh.getRange(at, C.mobile, rows.length, 1).setNumberFormat('@');
+    sh.getRange(at, C.ecMobile, rows.length, 1).setNumberFormat('@');
+    sh.getRange(at, 1, rows.length, HEADERS.length).setValues(rows);
+  } finally { lock.releaseLock(); }
+  try { updateDashboard(); } catch (err) {}
+  return rows.length;
+}
+/** Menu item: removes the rows the import added (their Notes start with "Imported from"). */
+function removeImportedBookings() {
+  var ui = SpreadsheetApp.getUi(), n = removeImported_(true);
+  if (!n) { ui.alert('There are no imported old bookings in Website Bookings.'); return; }
+  if (ui.alert('Remove ' + n + ' imported old booking(s) from Website Bookings?', 'The month tabs and other old tabs are not touched.', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  ui.alert('Removed ' + removeImported_(false) + ' imported booking(s).');
+}
+function removeImported_(countOnly) {
+  var sh = sheet_(), last = sh.getLastRow(), n = 0;
+  if (last < 2) return 0;
+  var notes = sh.getRange(2, C.notes, last - 1, 1).getValues();
+  for (var i = notes.length - 1; i >= 0; i--) {
+    if (plain_(notes[i][0]).indexOf(IMPORT_MARK) !== 0) continue;
+    n++; if (!countOnly) sh.deleteRow(i + 2);
+  }
+  if (!countOnly) try { updateDashboard(); } catch (err) {}
+  return n;
 }
 
 /* ---- earnings dashboard ---- */
@@ -1248,7 +1494,7 @@ function addToMonth_(r) {
     ' (' + (v_(r, 'days') || 1) + (Number(v_(r, 'days')) === 1 || !v_(r, 'days') ? ' day' : ' days') + ')';
   var id = String(r[COL.unitId - 1]).trim();
   var u = units_().filter(function (x) { return x.id === id; })[0];
-  var unit = (u && u.monthName) || plain_(v_(r, 'unit'));
+  var unit = (u && u.monthName.split(',')[0].trim()) || plain_(v_(r, 'unit'));
   tab.appendRow(['', fmt_(start, 'MMM d, h:mm a'), duration, plain_(v_(r, 'name')), unit, MONTH_STATUS, '', Number(v_(r, 'total')) || '']);
   var nameCell = tab.getRange(tab.getLastRow(), 4);
   nameCell.setNote('Website booking ' + plain_(v_(r, 'ref')) + (plain_(v_(r, 'fbName')) ? '\nFB name: ' + plain_(v_(r, 'fbName')) : '') +

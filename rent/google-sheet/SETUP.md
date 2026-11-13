@@ -143,6 +143,23 @@ Running **setup** on a sheet from an older version moves its bookings into this 
 columns by their names, and keeps a copy of the tab as it was ("Website Bookings (old layout …)").
 Delete that copy once you've checked the new tab.
 
+## Bringing in old bookings
+
+Bookings from before the website (the month tabs like October and September, a Google Form's
+responses, or a copy of an older Website Bookings tab) can be copied into Website Bookings, so the
+owner page, the availability calendar and the dashboard know them too:
+
+- On the owner page → **Bookings** → **Old bookings** → **Check for old bookings**, then **Add them**.
+- Or in the sheet's menu → **Import old bookings**.
+
+Each tab's columns are recognised by their headers (Pick Up, Rental Duration, Name, Unit, Status,
+Total, and so on). Past bookings come in as **Completed**, upcoming ones as **Reserved**, or as
+their Status says; a tab without a Status column (like form responses) adds its upcoming ones as
+**Pending**. Bookings already in Website Bookings, and rows the website put in the month tabs, are
+skipped, so it's safe to run again. Units are matched by the Units tab's **Month-tab name**; to match
+other spellings (like "IP 13 PRO MAX GRAPHITE"), add them to that unit's Month-tab name separated by
+commas. The old tabs are not changed, and **Undo the import** removes every imported row.
+
 ## 5. Emails to renters
 
 Renters type their **active email (Gmail)** on the booking page. When you **accept** a booking, the
