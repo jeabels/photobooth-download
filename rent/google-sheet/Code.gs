@@ -71,7 +71,7 @@ var BOOKING_COLS = [
   ['photos', 'Photos'],
   ['status', 'Status'], ['unitId', 'Unit ID'], ['submitted', 'Submitted'], ['handover', 'Hand-over'], ['email', 'Email'],
   ['ecAddress', 'Emergency address'], ['notes', 'Notes'], ['promo', 'Promo code'], ['discount', 'Discount'], ['fee', 'Delivery fee'],
-  ['addedTo', 'Added to'], ['emailed', 'Renter emailed']
+  ['addedTo', 'Added to'], ['emailed', 'Renter emailed'], ['agreed', 'Policies agreed']
 ];
 var HEADERS = BOOKING_COLS.map(function (c) { return c[1]; });
 var C = {};
@@ -226,7 +226,9 @@ function reorderBookings_(ss, sh) {
   var lastCol = sh.getLastColumn(), last = sh.getLastRow();
   if (last < 1 || lastCol < 1) return;
   var head = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h).trim(); });
-  if (!head.some(Boolean) || head.slice(0, HEADERS.length).join('|') === HEADERS.join('|')) return;
+  /* Already in this order (perhaps without columns added at the end since): nothing to move. */
+  var inOrder = head.every(function (h, i) { return !h || h === HEADERS[i]; });
+  if (!head.some(Boolean) || inOrder) return;
   var keyOf = {};
   BOOKING_COLS.forEach(function (c) { keyOf[c[1]] = c[0]; keyOf[c[0]] = c[0]; });
   Object.keys(OLD_HEADERS).forEach(function (h) { keyOf[h] = OLD_HEADERS[h]; });
@@ -709,13 +711,28 @@ function doPost(e) {
       start: start, end: end, total: q.total || '', name: text_(d.name), address: text_(d.address), mobile: text_(d.mobile),
       purpose: text_(d.purpose), ecName: text_(d.ecName), ecRel: text_(d.ecRel), ecMobile: text_(d.ecMobile),
       status: 'Pending', unitId: d.unitId, submitted: new Date(), handover: text_(d.handover), email: email ? text_(email) : '',
-      ecAddress: text_(d.ecAddress), notes: text_(d.notes), promo: q.code ? text_(q.code) : '', discount: q.discount || '', fee: q.fee || '' }));
+      ecAddress: text_(d.ecAddress), notes: text_(d.notes), promo: q.code ? text_(q.code) : '', discount: q.discount || '', fee: q.fee || '',
+      agreed: agreed_(d.agreed) }));
+    var bs = sheet_();
+    if (String(bs.getRange(1, C.agreed).getValue()).trim() !== HEADERS[C.agreed - 1]) bs.getRange(1, C.agreed).setValue(HEADERS[C.agreed - 1]).setFontWeight('bold');
   } finally {
     lock.releaseLock();
   }
   rememberPage_(d.page);
   notify_(d, start, end, c, q);
   return json_({ ok: true, ref: d.ref, total: q.total, discount: q.discount, fee: q.fee, busy: busy_() });
+}
+
+/* The policies the renter ticked, as the owner page shows them: "# Operational policies", then a
+   "✓ …" line for each, then the financial ones. Plain text, at most 5,000 characters. */
+function agreed_(a) {
+  if (!a || typeof a !== 'object') return '';
+  var part = function (title, list) {
+    list = (list || []).map(function (x) { return String(x).replace(/\s+/g, ' ').trim().slice(0, 400); }).filter(Boolean);
+    return list.length ? ['# ' + title].concat(list.map(function (x) { return '✓ ' + x; })) : [];
+  };
+  var lines = part('Operational policies', a.policies).concat(part('Financial liabilities and security protocols', a.liabilities));
+  return lines.length ? "'" + lines.join('\n').slice(0, 5000) : '';
 }
 
 /* Emails the owner about a new booking. A failed email never stops the booking. */
@@ -955,6 +972,7 @@ function admin_(d) {
   if (d.op === 'importPreview') { var plan = importPlan_(); return { ok: true, count: plan.rows.length, text: plan.text }; }
   if (d.op === 'importOld') { var pl = importPlan_(); return { ok: true, added: pl.rows.length ? importRows_(pl.rows) : 0, text: pl.text }; }
   if (d.op === 'undoImport') return { ok: true, removed: removeImported_(false) };
+  if (d.op === 'photos') return adminPhotos_(Number(d.row) || 0, String(d.ref || ''));
   if (d.op === 'accounts') return accountsOut_(accounts, me.user);
   if (d.op === 'removeAccount') {
     var k = userKey_(d.username);
@@ -1093,6 +1111,25 @@ function adminSave_(b) {
   }
   try { updateDashboard(); } catch (err) {}
   return { ok: true, booking: saved, emailed: emailed };
+}
+
+/* Owner page: a booking's requirement photos from its private Drive folder, so the owner can check
+   them without leaving the page. Oldest first (the order the renter added them), each under 4 MB. */
+function adminPhotos_(row, ref) {
+  var sh = sheet_();
+  if (row < 2 || row > sh.getLastRow()) return { ok: false, error: 'changed' };
+  var r = sh.getRange(row, 1, 1, HEADERS.length).getValues()[0];
+  if (plain_(v_(r, 'ref')) !== ref) return { ok: false, error: 'changed' };
+  var id = (String(v_(r, 'photos') || '').match(/folders\/([\w-]{10,})/) || [])[1];
+  if (!id) return { ok: true, photos: [] };
+  var files = DriveApp.getFolderById(id).getFiles(), list = [];
+  while (files.hasNext() && list.length < 6) {
+    var f = files.next();
+    if (!/^image\//.test(f.getMimeType()) || f.getSize() > 4e6) continue;
+    list.push({ at: f.getDateCreated().getTime(), name: f.getName().replace(/\.\w+$/, ''), type: f.getMimeType(), data: Utilities.base64Encode(f.getBlob().getBytes()) });
+  }
+  list.sort(function (a, b) { return a.at - b.at; });
+  return { ok: true, photos: list.map(function (p) { return { name: p.name, type: p.type, data: p.data }; }) };
 }
 
 /* Owner page, Rates tab: each unit's regular and in-demand rate, written into the Units tab. */
