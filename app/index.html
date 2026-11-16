@@ -176,6 +176,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
     <div class="device">
       <div class="vswitch" role="group" aria-label="Demo version">
         <button type="button" data-demo="demo/" aria-pressed="true">V1 · Cash + GCash</button>
+        <button type="button" data-demo="demo-sticker/" aria-pressed="false">V1.5 · Sticker</button>
         <button type="button" data-demo="demo-qr/" aria-pressed="false">V2 · QR Pay</button>
         <button type="button" data-demo="demo-pkg/" aria-pressed="false">V3 · Package</button>
         <button type="button" data-demo="demo-voucher/" aria-pressed="false">V5 · Vouchers</button>
@@ -201,7 +202,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
 <section class="band" id="versions">
   <div class="wrap">
     <h2>Six versions. Pick the one that fits your booth.</h2>
-    <p class="intro">All ten have the core booth: layouts, stickers, printing, QR digital copies, sales and event mode. Version 3 is the newest app, Version 4 is the same app under your own name, Version 5 adds voucher codes to cash and GCash, Version 6 adds colour prints on a DNP DS620A, Version 7 is made for events: colour prints plus a video guest book, Version 8 is the video guest book on its own, with no printer, Version 9 runs on a Windows computer and prints on any Epson printer, old models too, and Version 10 is a colour photo booth for the Canon SELPHY CP1500 or CP1300.</p>
+    <p class="intro">All ten have the core booth: layouts, stickers, printing, QR digital copies, sales and event mode. Version 1.5 is Version 1 printing on 4×6 stickers (Phomemo PM-241-BT), Version 3 is the newest app, Version 4 is the same app under your own name, Version 5 adds voucher codes to cash and GCash, Version 6 adds colour prints on a DNP DS620A, Version 7 is made for events: colour prints plus a video guest book, Version 8 is the video guest book on its own, with no printer, Version 9 runs on a Windows computer and prints on any Epson printer, old models too, and Version 10 is a colour photo booth for the Canon SELPHY CP1500 or CP1300.</p>
     <div class="versions">
       <div class="version">
         <span class="tag">Version 1</span>
@@ -214,6 +215,18 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
         </ul>
         <p class="for"><b>Best for</b> booths with someone watching: events, parties, staffed pop-ups.</p>
         <a class="btn ghost small" href="demo/" target="_blank" rel="noopener">Try Version 1</a>
+      </div>
+      <div class="version">
+        <span class="tag">Version 1.5</span>
+        <h3>Sticker prints</h3>
+        <ul>
+          <li>Everything in Version 1: cash or your own GCash QR, a price per layout</li>
+          <li>Prints the same black-and-white strip on 4×6 stickers instead of receipt paper</li>
+          <li>For the Phomemo PM-241-BT sticker printer, by Bluetooth or USB cable</li>
+          <li>Each strip fills its own sticker; guests can peel it and stick it anywhere</li>
+        </ul>
+        <p class="for"><b>Best for</b> booths that want sticker keepsakes instead of receipts.</p>
+        <a class="btn ghost small" href="demo-sticker/" target="_blank" rel="noopener">Try Version 1.5</a>
       </div>
       <div class="version">
         <span class="tag">Version 2</span>
@@ -380,6 +393,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--sub);fon
             <label>Which version?</label>
             <div class="pick">
               <label><input type="radio" name="edition" value="standard" checked><span>Version 1 · Cash + GCash<small>with an attendant</small></span></label>
+              <label><input type="radio" name="edition" value="sticker"><span>Version 1.5 · Sticker<small>Version 1 on a Phomemo PM-241-BT sticker printer</small></span></label>
               <label><input type="radio" name="edition" value="qrpay"><span>Version 2 · QR Pay<small>self-service, PayMongo</small></span></label>
               <label><input type="radio" name="edition" value="package"><span>Version 3 · Package<small>newest app</small></span></label>
               <label><input type="radio" name="edition" value="branded"><span>Version 4 · Branded<small>the app named after you</small></span></label>
