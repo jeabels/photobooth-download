@@ -119,6 +119,10 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
 .rate-row b{display:block;font-size:14px}
 .rate-row small{color:var(--sub);font-size:12px}
 @media (max-width:480px){ .rate-row{grid-template-columns:1fr 1fr} .rate-row > div:first-child{grid-column:1/-1} }
+.suggest{margin-top:12px;padding:12px;border-radius:14px;border:1.5px dashed var(--brand-2);display:flex;gap:12px;align-items:center}
+.suggest img{width:64px;height:80px;object-fit:cover;border-radius:8px;flex:none;background:var(--neutral-soft)}
+.suggest .grow{flex:1;min-width:0;font-size:13.5px}
+.suggest b{display:block;font-size:14.5px}
 .dd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
 .dd b{display:block}
 .dd span{font-size:12.5px;color:var(--sub)}
@@ -447,6 +451,19 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
         <div class="chart-head"><div><h2>Daily rates</h2><p>The regular rate, and the higher rate on in-demand dates. The booking page shows each unit as a range, like ₱600 – ₱800 / day.</p></div></div>
         <div id="rateRows" style="margin-top:12px"></div>
         <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap"><button class="btn brand" type="button" id="ratesSave">Save rates</button><span class="err" id="ratesErr" role="alert"></span></div>
+      </section>
+      <section class="card" style="margin-top:12px">
+        <div class="chart-head"><div><h2>Add a unit</h2><p>A new phone for rent. It shows on the booking page within a minute, as the last unit.</p></div></div>
+        <div class="suggest" id="unitSuggest" hidden></div>
+        <form id="unitForm" class="grid" style="margin-top:12px" novalidate>
+          <label class="field full"><span>Name</span><input type="text" id="uName" maxlength="60" placeholder="e.g. iPhone 17 Pro Max"></label>
+          <label class="field full"><span>Detail</span><input type="text" id="uDetail" maxlength="80" placeholder="e.g. 256GB · Cosmic Orange"></label>
+          <label class="field"><span>Regular (₱/day)</span><input type="number" id="uRate" min="1" step="1" inputmode="numeric"></label>
+          <label class="field"><span>In-demand (₱/day)</span><input type="number" id="uHigh" min="1" step="1" inputmode="numeric"></label>
+          <label class="field full"><span>Poster picture link (optional)</span><input type="url" id="uPoster" placeholder="A Google Drive or picture link" autocapitalize="none" spellcheck="false">
+            <small class="hint">Or add it later from the Google Sheet's menu: Upload an image → Poster.</small></label>
+          <div class="full" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn gold" type="submit" id="uAdd">Add unit</button><span class="err" id="uErr" role="alert"></span></div>
+        </form>
       </section>
       <section class="card" style="margin-top:12px">
         <div class="chart-head"><div><h2>In-demand dates</h2><p>On these dates the booking page charges the in-demand rate, marks them on the calendar, and lists them in the rates reminder. A rental day that touches one of these dates is charged the in-demand rate.</p></div></div>
@@ -1093,6 +1110,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
 
   /* ---- rates tab: regular and in-demand daily rates, and in-demand dates ---- */
   function renderRates(){
+    suggestUnits();
     var box = $('rateRows'); box.innerHTML = '';
     DATA.units.forEach(function(u){
       var row = el('div', 'rate-row'), info = el('div');
@@ -1119,6 +1137,36 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       row.appendChild(rm); list.appendChild(row);
     });
   }
+  /* New units: the form, and (on Snaps MNL's own page) a unit with a poster already on the site, ready to add. */
+  var SUGGESTED = [{ id: '17pm-orange', name: 'iPhone 17 Pro Max', detail: '256GB · Cosmic Orange', rate: 1500, rateHigh: 2500, monthName: '17pm', first: true,
+    poster: 'https://jeabels.github.io/photobooth-download/rent/units/iphone-17-pro-max-cosmic-orange.webp' }];
+  function suggestUnits(){
+    var box = $('unitSuggest'), norm = function(x){ return String(x || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
+    var todo = foreign ? [] : SUGGESTED.filter(function(x){ return !DATA.units.some(function(u){ return u.id === x.id || norm(u.name + u.detail) === norm(x.name + x.detail); }); });
+    box.innerHTML = ''; box.hidden = !todo.length;
+    todo.forEach(function(x){
+      var img = document.createElement('img'); img.src = new URL('../units/' + x.poster.split('/').pop(), location.href).href; img.alt = '';
+      var info = el('div', 'grow'); info.appendChild(el('b', '', 'New: ' + x.name)); info.appendChild(el('span', '', x.detail + ' · ' + peso(x.rate) + ' – ' + peso(x.rateHigh) + ' / day, poster included' + (x.first ? '. Shown first on the booking page.' : '')));
+      var go = el('button', 'btn brand small', 'Add it'); go.type = 'button';
+      go.addEventListener('click', function(){ go.disabled = true; addUnit(x).then(function(){ go.disabled = false; }); });
+      box.appendChild(img); box.appendChild(info); box.appendChild(go);
+    });
+  }
+  function addUnit(x){
+    $('uErr').textContent = 'Adding…';
+    return api('addUnit', { unit: x }).then(function(d){
+      if(d && d.ok){ DATA.units = d.units; $('uErr').textContent = ''; ['uName', 'uDetail', 'uRate', 'uHigh', 'uPoster'].forEach(function(id){ $(id).value = ''; }); renderRates(); toast(x.name + ' added. The booking page shows it within a minute.'); return; }
+      $('uErr').textContent = d && d.error === 'unit_fields' ? 'Check the name, the rates (in-demand at least the regular rate) and the poster link (it starts with https://).'
+        : d && d.error === 'signed_out' ? 'You were signed out. Sign in again.' : d && d.error === 'bad_request' ? ERR.old_script : 'Couldn\'t add it. Try again.';
+    }, function(){ $('uErr').textContent = ERR.offline; });
+  }
+  $('unitForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var x = { name: $('uName').value.trim(), detail: $('uDetail').value.trim(), rate: $('uRate').value, rateHigh: $('uHigh').value, poster: $('uPoster').value.trim() };
+    if(!x.name || !(Number(x.rate) > 0)){ $('uErr').textContent = 'Fill in at least the name and the regular rate.'; return; }
+    if(x.rateHigh && Number(x.rateHigh) < Number(x.rate)){ $('uErr').textContent = 'The in-demand rate can\'t be lower than the regular rate.'; return; }
+    $('uAdd').disabled = true; addUnit(x).then(function(){ $('uAdd').disabled = false; });
+  });
   $('ratesSave').addEventListener('click', function(){
     var rates = {}, err = $('ratesErr'), bad = '';
     document.querySelectorAll('#rateRows input').forEach(function(i){

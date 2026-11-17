@@ -57,6 +57,7 @@ var SHOP = {
      `rate` is the regular daily rate and `rateHigh` the daily rate on in-demand dates. */
   /* `id` must match UNIT_IDS in rent/google-sheet/Code.gs (the sheet's Unit ID column). */
   models: [
+    { id: "17pm-orange",     name: "iPhone 17 Pro Max", detail: "256GB · Cosmic Orange",   rate: 1500, rateHigh: 2500, poster: "units/iphone-17-pro-max-cosmic-orange.webp" },
     { id: "16pro-desert",    name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000, rateHigh: 1800, poster: "units/iphone-16-pro-desert-titanium.webp" },
     { id: "14pm-black",      name: "iPhone 14 Pro Max", detail: "128GB · Space Black",     rate: 800,  rateHigh: 1100, poster: "units/iphone-14-pro-max.webp" },
     { id: "13pm-blue",       name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700,  rateHigh: 900, poster: "units/iphone-13-pro-max-sierra-blue.webp" },
@@ -772,6 +773,7 @@ footer b{color:var(--ink)}
         (m.poster ? '<button class="zoom" type="button" aria-label="See the full poster">' + ZOOM_ICON + '</button>' : '');
       if(m.poster){
         var img = wrap.querySelector('img'); img.src = m.poster; img.alt = label(m) + ' rate and inclusions';
+        img.onerror = function(){ img.remove(); var z = wrap.querySelector('.zoom'); if(z) z.remove(); };   // a poster that won't load: just the card
         wrap.querySelector('.zoom').addEventListener('click', function(){ openPoster(i); });
       }
       wrap.querySelector('input').value = label(m);

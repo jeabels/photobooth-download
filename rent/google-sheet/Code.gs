@@ -129,6 +129,7 @@ var DEFAULT_SETTINGS = [
   ['Owner setup code', '', 'Needed to register an admin name and password on the owner page (booking link + /admin). Setup makes one. Change it to stop new sign-ups']
 ];
 var DEFAULT_UNITS = [
+  ['17pm-orange', 'iPhone 17 Pro Max', '256GB · Cosmic Orange', 1500, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-17-pro-max-cosmic-orange.webp', 'Yes', '17pm', 2500],
   ['16pro-desert', 'iPhone 16 Pro', '128GB · Desert Titanium', 1000, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-16-pro-desert-titanium.webp', 'Yes', '16', 1800],
   ['14pm-black', 'iPhone 14 Pro Max', '128GB · Space Black', 800, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-14-pro-max.webp', 'Yes', '14', 1100],
   ['13pm-blue', 'iPhone 13 Pro Max', '256GB · Sierra Blue', 700, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-pro-max-sierra-blue.webp', 'Yes', '13pm', 900],
@@ -344,8 +345,8 @@ function units_() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(UNITS_TAB);
   var rows = sh && sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, UNIT_HEADERS.length).getValues() : DEFAULT_UNITS;
   return rows.map(function (r, i) {
-    return { id: String(r[0]).trim(), name: String(r[1]).trim(), detail: String(r[2]).trim(), rate: Number(r[3]) || null,
-      poster: imageUrl_(r[4]), rawPoster: r[4], show: String(r[5]).trim().toLowerCase() !== 'no', monthName: String(r[6]).trim(),
+    return { id: plain_(r[0]).trim(), name: plain_(r[1]).trim(), detail: plain_(r[2]).trim(), rate: Number(r[3]) || null,
+      poster: imageUrl_(r[4]), rawPoster: r[4], show: String(r[5]).trim().toLowerCase() !== 'no', monthName: plain_(r[6]).trim(),
       rateHigh: Number(r[7]) || null, row: i + 2 };
   }).filter(function (u) { return u.id && u.name; });
 }
@@ -989,6 +990,7 @@ function admin_(d) {
   if (d.op === 'data') { var out = adminData_(); out.me = accounts[me.user].name; return out; }
   if (d.op === 'save') return adminSave_(d.booking || {});
   if (d.op === 'saveRates') return saveRates_(d.rates || []);
+  if (d.op === 'addUnit') return addUnit_(d.unit || {});
   if (d.op === 'saveDemand') return saveDemand_(d.dates || []);
   if (d.op === 'importPreview') { var plan = importPlan_(); return { ok: true, count: plan.rows.length, text: plan.text }; }
   if (d.op === 'importOld') { var pl = importPlan_(); return { ok: true, added: pl.rows.length ? importRows_(pl.rows) : 0, text: pl.text }; }
@@ -1220,6 +1222,28 @@ function saveRates_(list) {
   });
   CacheService.getScriptCache().remove('config');
   return { ok: true, saved: n, units: units_().map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, show: u.show }; }) };
+}
+
+/* Owner page, Rates tab: a new unit, added to the end of the Units tab (or the top, with x.first) and shown on the booking page. */
+function addUnit_(x) {
+  var name = String(x.name || '').trim().slice(0, 60), detail = String(x.detail || '').trim().slice(0, 80);
+  var rate = Math.round(Number(x.rate)), high = x.rateHigh === '' || x.rateHigh == null ? '' : Math.round(Number(x.rateHigh));
+  if (!name || !(rate > 0) || (high !== '' && !(high >= rate))) return { ok: false, error: 'unit_fields' };
+  var poster = String(x.poster || '').trim();
+  if (poster && !/^https:\/\//.test(poster)) return { ok: false, error: 'unit_fields' };
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(UNITS_TAB);
+  if (!sh) return { ok: false, error: 'bad_request' };
+  addDemandRates_(sh);
+  var units = units_(), taken = {};
+  units.forEach(function (u) { taken[u.id.toLowerCase()] = 1; });
+  var base = String(x.id || (name + ' ' + detail)).toLowerCase().replace(/iphone/g, '').replace(/pro\s*max/g, 'pm').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'unit';
+  var id = base, n = 2;
+  while (taken[id]) id = base + '-' + n++;
+  var unitRow = [id, text_(name), text_(detail), rate, poster, 'Yes', text_(String(x.monthName || '').trim() || name), high];
+  if (x.first && sh.getLastRow() > 1) { sh.insertRowBefore(2); sh.getRange(2, 1, 1, unitRow.length).setValues([unitRow]); }   // the new top phone, shown first
+  else sh.appendRow(unitRow);
+  CacheService.getScriptCache().remove('config');
+  return { ok: true, id: id, units: units_().map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, show: u.show }; }) };
 }
 
 /* Owner page, Rates tab: the whole list of in-demand dates, replacing the tab's rows. */
