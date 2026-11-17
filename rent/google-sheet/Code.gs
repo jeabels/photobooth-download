@@ -72,7 +72,8 @@ var BOOKING_COLS = [
   ['photos', 'Photos'],
   ['status', 'Status'], ['unitId', 'Unit ID'], ['submitted', 'Submitted'], ['handover', 'Hand-over'], ['email', 'Email'],
   ['ecAddress', 'Emergency address'], ['notes', 'Notes'], ['promo', 'Promo code'], ['discount', 'Discount'], ['fee', 'Delivery fee'],
-  ['addedTo', 'Added to'], ['emailed', 'Renter emailed'], ['agreed', 'Policies agreed'], ['paid', 'Amount paid'], ['payStatus', 'Payment']
+  ['addedTo', 'Added to'], ['emailed', 'Renter emailed'], ['agreed', 'Policies agreed'], ['paid', 'Deposit / reservation'], ['payStatus', 'Payment'],
+  ['rentalPaid', 'Rental fee paid']
 ];
 var HEADERS = BOOKING_COLS.map(function (c) { return c[1]; });
 var C = {};
@@ -81,7 +82,7 @@ var COL = { status: C.status, unitId: C.unitId, pickup: C.start, ret: C.end, day
   photos: C.photos, promo: C.promo, discount: C.discount, fee: C.fee, email: C.email, emailed: C.emailed };
 /* Header names from older versions of this script, for moving their rows into the order above. */
 var OLD_HEADERS = { 'Estimate': 'total', 'Name': 'name', 'Mobile': 'mobile', 'Social (FB/IG)': 'fbName', 'Purpose': 'purpose',
-  'Emergency name': 'ecName', 'Emergency relationship': 'ecRel', 'Emergency mobile': 'ecMobile' };
+  'Emergency name': 'ecName', 'Emergency relationship': 'ecRel', 'Emergency mobile': 'ecMobile', 'Amount paid': 'paid' };
 /* Columns written as plain text, so Sheets never turns 0917… into a number or runs anything starting with =. */
 var TEXT_KEYS = ['ref', 'fbName', 'unit', 'name', 'address', 'mobile', 'purpose', 'ecName', 'ecRel', 'ecMobile', 'handover', 'email',
   'ecAddress', 'notes', 'promo', 'emailed'];
@@ -215,7 +216,7 @@ function setup() {
   var mails = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'onStatusEdit'; });
   if (!mails) ScriptApp.newTrigger('onStatusEdit').forSpreadsheet(ss).onEdit().create();
   ensureSetupCode_();
-  ratesUpdate_();
+  upgrades_();
   CacheService.getScriptCache().remove('config');
   updateDashboard();
 }
@@ -223,6 +224,38 @@ function setup() {
 /* The November 2026 rates, the iPhone 17 Pro Max and the RATES picture, put into the owner's sheet once,
    the first time the booking page loads after this version is deployed (or when setup runs), so pasting
    this script and deploying a new version is all it takes. Any change the owner makes later stays. */
+function upgrades_() { ratesUpdate_(); moneyUpdate_(); }
+
+/* Deposit / reservation (once "Amount paid", which also counted the rental total) worked out again from
+   each booking's Payment, now that the owner types the rental fee in separately. Runs once. */
+var MONEY_UPDATE = 'moneyUpdate2026-11';
+function moneyUpdate_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty(MONEY_UPDATE)) return;
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(10000); } catch (err) { return; }
+  try {
+    if (props.getProperty(MONEY_UPDATE)) return;
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    if (sh && sh.getLastRow() > 0) {
+      headers_(sh);
+      var last = sh.getLastRow(), s = settings_();
+      if (last > 1) {
+        var cols = sh.getRange(2, C.paid, last - 1, 2).getValues();   // Deposit / reservation, Payment
+        var changed = false;
+        cols.forEach(function (r) {
+          var st = String(r[1]).trim();
+          if (PAY_STATUSES.indexOf(st) < 0) return;
+          var held = collected_(st, s);
+          if (r[0] !== held) { r[0] = held; changed = true; }
+        });
+        if (changed) sh.getRange(2, C.paid, last - 1, 1).setValues(cols.map(function (r) { return [r[0]]; }));
+      }
+    }
+    props.setProperty(MONEY_UPDATE, new Date().toISOString());
+  } finally { lock.releaseLock(); }
+}
+
 var RATES_UPDATE = 'ratesUpdate2026-11';
 var RATES_UPDATE_UNITS = { '17pm-orange': [1500, 2500], '16pro-desert': [1000, 2000], '14pm-black': [800, 1200], '13pm-blue': [700, 1000],
   '13pm-graphite': [700, 1000, '256GB · Space Black'], '13-starlight-z1': [600, 800], '13-starlight-j2': [600, 800] };
@@ -273,7 +306,7 @@ function reorderBookings_(ss, sh) {
   if (last < 1 || lastCol < 1) return;
   var head = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h).trim(); });
   /* Already in this order (perhaps without columns added at the end since): nothing to move. */
-  var inOrder = head.every(function (h, i) { return !h || h === HEADERS[i]; });
+  var inOrder = head.every(function (h, i) { return !h || h === HEADERS[i] || (BOOKING_COLS[i] && OLD_HEADERS[h] === BOOKING_COLS[i][0]); });
   if (!head.some(Boolean) || inOrder) return;
   var keyOf = {};
   BOOKING_COLS.forEach(function (c) { keyOf[c[1]] = c[0]; keyOf[c[0]] = c[0]; });
@@ -709,7 +742,7 @@ function digits_(v) { return String(v == null ? '' : v).replace(/\D/g, '').slice
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
-  try { ratesUpdate_(); } catch (err) {}   // never stops the booking page loading
+  try { upgrades_(); } catch (err) {}   // never stops the booking page loading
   if (p.ref) return json_(lookup_(String(p.ref).trim().toUpperCase(), p.mobile));
   if (p.promo) return json_(promo_(p.promo));
   return json_({ ok: true, busy: busy_(), config: config_() });
@@ -828,7 +861,7 @@ function emailRenter_(sh, row, r) {
   var s = settings_();
   if (String(s['Email renters']).trim().toLowerCase() === 'no') return false;
   var shop = String(s['Shop name'] || '').trim() || 'Phone rentals', ref = plain_(v_(r, 'ref')), name = plain_(v_(r, 'name')) || 'there';
-  var start = r[COL.pickup - 1], end = r[COL.ret - 1], total = Number(r[COL.estimate - 1]) || 0, deposit = Number(s['Deposit']) || 0;
+  var start = r[COL.pickup - 1], end = r[COL.ret - 1], deposit = Number(s['Deposit']) || 0;
   var page = String(s['Booking page link'] || '').trim(), pay = String(s['Payment details'] || '').trim();
   var messenger = String(s['Messenger page'] || '').trim(), mobile = String(s['Mobile'] || '').trim();
   var wasAccepted = sent.indexOf('Confirmed') > -1, subject, intro, rows = [], after = [];
@@ -837,7 +870,9 @@ function emailRenter_(sh, row, r) {
     subject = 'Your booking is accepted · ' + ref + ' · ' + shop;
     intro = 'Good news! ' + shop + ' accepted your booking. Here are the details:';
     rows = [['Booking ref', ref], ['Phone', plain_(v_(r, 'unit'))], ['Pick-up', when(start)], ['Return', when(end)], ['Hand-over', plain_(v_(r, 'handover'))]];
-    if (total) rows.push(['Total', '₱' + total.toLocaleString() + (deposit ? ' + ₱' + deposit.toLocaleString() + ' refundable deposit' : '')]);
+    var u = units_().filter(function (x) { return x.id === String(r[COL.unitId - 1]).trim(); })[0];
+    if (u && u.rate) rows.push(['Rate', '₱' + u.rate.toLocaleString() + (u.rateHigh && u.rateHigh !== u.rate ? ' – ₱' + u.rateHigh.toLocaleString() : '') + ' per day (we\'ll message you the total)']);
+    if (deposit) rows.push(['Deposit', '₱' + deposit.toLocaleString() + ' refundable']);
     if (pay) after.push('Payment: ' + pay);
     if (String(s['Pick-up place'] || '').trim() && /pick/i.test(plain_(v_(r, 'handover')))) after.push('Pick-up place: ' + String(s['Pick-up place']).trim());
     after.push('Please be on time, and bring the IDs you sent us.');
@@ -918,7 +953,7 @@ function onEdit(e) {
   if (range.getColumn() <= C.payStatus && range.getLastColumn() >= C.payStatus) {
     for (var pr = Math.max(2, range.getRow()); pr <= range.getLastRow(); pr++) {
       var ps = String(sh.getRange(pr, C.payStatus).getValue()).trim();
-      if (PAY_STATUSES.indexOf(ps) > -1) sh.getRange(pr, C.paid).setValue(collected_(ps, sh.getRange(pr, C.total).getValue()));
+      if (PAY_STATUSES.indexOf(ps) > -1) sh.getRange(pr, C.paid).setValue(collected_(ps));
     }
   }
   if (range.getColumn() > COL.status || range.getLastColumn() < COL.status) return;
@@ -946,7 +981,13 @@ function onOpen() {
     .addItem('Undo the import of old bookings', 'removeImportedBookings')
     .addItem('Make banner and poster images public', 'publishImages')
     .addToUi();
+  /* Saves on the owner page don't rebuild the Dashboard tab (it made every save slow): it is rebuilt here instead. */
+  try { if (PropertiesService.getScriptProperties().getProperty('dashStale')) updateDashboard(); } catch (err) {}
 }
+
+/* Bookings changed on the owner page: the sheet's Dashboard tab is rebuilt the next time the sheet is
+   opened (or in the morning, or from the menu), not during the save. */
+function dashStale_() { try { PropertiesService.getScriptProperties().setProperty('dashStale', '1'); } catch (err) {} }
 
 /** Menu item: does what onEdit and onStatusEdit do, for every Confirmed row not added or emailed yet
     (e.g. confirmed from the Google Sheets phone app, where triggers can be slow). */
@@ -1027,7 +1068,7 @@ function admin_(d) {
   var tokens = prop_(props, 'adminTokens'), t = hash_(String(d.token || ''), 'token'), me = tokens[t];
   if (!d.token || !me || me.exp < Date.now() || !accounts[me.user]) return { ok: false, error: 'signed_out' };
   if (d.op === 'logout') { delete tokens[t]; props.setProperty('adminTokens', JSON.stringify(tokens)); return { ok: true }; }
-  if (d.op === 'data') { var out = adminData_(); out.me = accounts[me.user].name; return out; }
+  if (d.op === 'data') { try { upgrades_(); } catch (err) {} var out = adminData_(); out.me = accounts[me.user].name; return out; }
   if (d.op === 'save') return adminSave_(d.booking || {});
   if (d.op === 'saveRates') return saveRates_(d.rates || []);
   if (d.op === 'addUnit') return addUnit_(d.unit || {});
@@ -1044,7 +1085,7 @@ function admin_(d) {
   if (d.op === 'undoImport') return { ok: true, removed: removeImported_(false) };
   if (d.op === 'photos') return adminPhotos_(Number(d.row) || 0, String(d.ref || ''));
   if (d.op === 'cleanup') return cleanupRenters_();
-  if (d.op === 'pay') return payBooking_(Number(d.row) || 0, String(d.ref || ''), String(d.payStatus || ''));
+  if (d.op === 'pay') return payBooking_(Number(d.row) || 0, String(d.ref || ''), d.payStatus == null ? '' : String(d.payStatus), d.rentalPaid);
   if (d.op === 'addExpense') return addExpense_(d.expense || {}, accounts[me.user].name);
   if (d.op === 'deleteExpense') return deleteExpense_(String(d.id || ''));
   if (d.op === 'trackFrom') {
@@ -1127,13 +1168,13 @@ function adminData_() {
   var rows = last > 1 ? sh.getRange(2, 1, last - 1, HEADERS.length).getValues() : [];
   var bookings = [];
   rows.forEach(function (r, i) { if (plain_(v_(r, 'ref')) || String(v_(r, 'unitId')).trim()) bookings.push(bookingOf_(r, i + 2)); });
-  var c = config_();
+  var c = config_(), s = settings_();
   return { ok: true, bookings: bookings,
     units: units_().map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, show: u.show }; }),
-    demandDates: demand_(), expenses: expenses_(), trackFrom: day_(settings_()['Track from']),
-    deleteAfter: Number(settings_()['Delete renter details after (days)']) || 0,
-    inclusions: String(settings_()['Included with every rental'] || ''), ratesNote: String(settings_()['Rates note'] || ''), rateCards: links_(settings_()['Rate card images']),
-    shop: { name: c.name, brandColor: c.brandColor, hoursPerDay: c.hoursPerDay, deposit: c.deposit, reservationFee: reservationFee_(), handover: c.handover, delivery: c.delivery, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() } };
+    demandDates: demand_(), expenses: expenses_(), trackFrom: day_(s['Track from']),
+    deleteAfter: Number(s['Delete renter details after (days)']) || 0,
+    inclusions: String(s['Included with every rental'] || ''), ratesNote: String(s['Rates note'] || ''), rateCards: links_(s['Rate card images']),
+    shop: { name: c.name, brandColor: c.brandColor, hoursPerDay: c.hoursPerDay, deposit: c.deposit, reservationFee: reservationFee_(s), handover: c.handover, delivery: c.delivery, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() } };
 }
 
 /* Saves an edited booking (b.row set) or adds a new one (b.row 0). Refused if another Pending or
@@ -1179,8 +1220,9 @@ function adminSave_(b) {
     o.start = start; o.end = end; o.days = Math.max(1, Math.ceil((end - start) / 36e5 / hoursPerDay_() - 1e-9));
     o.total = money(b.total); o.promo = promo ? text_(promo) : ''; o.discount = discount; o.fee = money(b.fee);
     o.email = email ? text_(email) : '';
-    if (b.payStatus != null && PAY_STATUSES.indexOf(String(b.payStatus)) > -1) { o.payStatus = String(b.payStatus); o.paid = collected_(o.payStatus, o.total); }
+    if (b.payStatus != null && PAY_STATUSES.indexOf(String(b.payStatus)) > -1) { o.payStatus = String(b.payStatus); o.paid = collected_(o.payStatus); }
     else if (b.paid != null) o.paid = money(b.paid);
+    if (b.rentalPaid != null) o.rentalPaid = money(b.rentalPaid);
     headers_(sh);
     if (!row) { o.ref = text_(b.ref || newRef_()); o.submitted = new Date(); sh.appendRow(row_(o)); row = sh.getLastRow(); }
     else sh.getRange(row, 1, 1, HEADERS.length).setValues([row_(o)]);
@@ -1194,7 +1236,7 @@ function adminSave_(b) {
   } finally {
     lock.releaseLock();
   }
-  try { updateDashboard(); } catch (err) {}
+  dashStale_();
   return { ok: true, booking: saved, emailed: emailed };
 }
 
@@ -1529,33 +1571,42 @@ function removeImported_(countOnly) {
 }
 
 /* ---- payment (owner page) ----
-   Each booking's Payment is one of these, and "Amount paid" is the money collected for it:
-     Unpaid            nothing yet
-     Reserved          the reservation fee (Settings, 300 by default), part of the rental
-     Paid              the rental total plus the refundable deposit
-     Deposit returned  the rental total: the deposit went back to the renter
-   The owner page's gross is the sum of "Amount paid", so it rises and falls with these. */
+   Each booking's Payment is one of these, and "Deposit / reservation" is what is held for it:
+     Unpaid            nothing yet (0)
+     Reserved          the reservation fee (Settings, 300 by default)
+     Paid              the refundable deposit (Settings, 500 by default)
+     Deposit returned  0: the deposit went back to the renter
+   "Rental fee paid" is what the renter paid for the rental itself, without the deposit: the owner
+   types it in (owner page, Money tab), as the price is agreed with each renter. The owner page's
+   gross is the two added up. */
 var PAY_STATUSES = ['Unpaid', 'Reserved', 'Paid', 'Deposit returned'];
-function reservationFee_() { var v = settings_()['Reservation fee']; return v === '' || v == null ? 300 : Math.max(0, Number(v) || 0); }
-function collected_(status, total) {
-  var rental = Number(total) || 0, deposit = Number(settings_()['Deposit']) || 0;
-  return status === 'Reserved' ? reservationFee_() : status === 'Paid' ? rental + deposit : status === 'Deposit returned' ? rental : 0;
+function reservationFee_(s) { var v = (s || settings_())['Reservation fee']; return v === '' || v == null ? 300 : Math.max(0, Number(v) || 0); }
+function collected_(status, s) {
+  if (status === 'Reserved') return reservationFee_(s);
+  return status === 'Paid' ? Number((s || settings_())['Deposit']) || 0 : 0;
 }
-/* Sets one booking's Payment (and its Amount paid), touching nothing else and emailing no one. */
-function payBooking_(row, ref, status) {
-  if (PAY_STATUSES.indexOf(status) < 0) return { ok: false, error: 'bad_request' };
+/* Sets one booking's Payment (and so its Deposit / reservation) and/or its Rental fee paid, touching
+   nothing else and emailing no one. */
+function payBooking_(row, ref, status, rentalPaid) {
+  var setPay = status !== '' && status != null, setRent = rentalPaid !== undefined && rentalPaid !== null;
+  if ((setPay && PAY_STATUSES.indexOf(status) < 0) || (!setPay && !setRent)) return { ok: false, error: 'bad_request' };
+  var rent = setRent ? (rentalPaid === '' ? '' : Math.max(0, Math.round(Number(rentalPaid) || 0))) : null;
   var lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     var sh = sheet_();
     if (row < 2 || row > sh.getLastRow()) return { ok: false, error: 'changed' };
     var r = sh.getRange(row, 1, 1, HEADERS.length).getValues()[0];
     if (plain_(v_(r, 'ref')) !== ref) return { ok: false, error: 'changed' };
-    headers_(sh);
-    sh.getRange(row, C.payStatus).setValue(status);
-    sh.getRange(row, C.paid).setValue(collected_(status, v_(r, 'total')));
-    var booking = bookingOf_(sh.getRange(row, 1, 1, HEADERS.length).getValues()[0], row);
+    if (String(sh.getRange(1, C.rentalPaid).getValue()).trim() !== HEADERS[C.rentalPaid - 1]) headers_(sh);
+    if (setPay) {
+      var held = collected_(status);
+      sh.getRange(row, C.paid, 1, 2).setValues([[held, status]]);   // Deposit / reservation, Payment: side by side
+      r[C.paid - 1] = held; r[C.payStatus - 1] = status;
+    }
+    if (setRent) { sh.getRange(row, C.rentalPaid).setValue(rent); r[C.rentalPaid - 1] = rent; }
   } finally { lock.releaseLock(); }
-  return { ok: true, booking: booking };
+  dashStale_();
+  return { ok: true, booking: bookingOf_(r, row) };
 }
 
 /* ---- deleting renter details after a rental ----
@@ -1612,6 +1663,7 @@ function updateDashboard(e) {
   /* The morning run (a time trigger, which passes e.triggerUid) also deletes old renter details: see
      cleanupRenters_. Not from onEdit, which has no Drive access. */
   if (e && e.triggerUid) { try { dailyCleanup_(); } catch (err) {} }
+  try { PropertiesService.getScriptProperties().deleteProperty('dashStale'); } catch (err) {}
   var ss = SpreadsheetApp.getActiveSpreadsheet(), src = sheet_(), last = src.getLastRow();
   var rows = last > 1 ? src.getRange(2, 1, last - 1, HEADERS.length).getValues() : [];
   var now = new Date(), month = fmt_(now, 'yyyy-MM'), year = month.slice(0, 4);
@@ -1626,7 +1678,7 @@ function updateDashboard(e) {
       upcoming.push([start, end instanceof Date ? end : '', plain_(v_(r, 'unit')), plain_(v_(r, 'name')), status, plain_(v_(r, 'ref'))]);
     }
     if (EARNING.indexOf(status) < 0) return;
-    var amt = Number(r[COL.estimate - 1]) || 0, m = fmt_(start, 'yyyy-MM'), unit = plain_(v_(r, 'unit')) || String(r[COL.unitId - 1]);
+    var amt = (Number(v_(r, 'paid')) || 0) + (Number(v_(r, 'rentalPaid')) || 0), m = fmt_(start, 'yyyy-MM'), unit = plain_(v_(r, 'unit')) || String(r[COL.unitId - 1]);
     var add = function (k) { tot[k][0]++; tot[k][1] += amt; };
     add('all');
     if (m.slice(0, 4) === year) add('year');
@@ -1651,7 +1703,7 @@ function updateDashboard(e) {
   };
   var title = function (t) { row++; put([t], { bold: true }); sh.getRange(row - 1, 1).setFontSize(13); };
   put([String(settings_()['Shop name'] || 'Shop').trim() + ' earnings'], { bold: true }); sh.getRange(1, 1).setFontSize(16);
-  put(['Updated ' + fmt_(now, 'MMM d, yyyy h:mm a') + '. Confirmed and Returned bookings, by pick-up date: rental after discounts, plus delivery fees. Deposits not included.']);
+  put(['Updated ' + fmt_(now, 'MMM d, yyyy h:mm a') + '. Confirmed and Returned bookings, by pick-up date: the deposit or reservation held plus the rental fee paid, as entered on the owner page (Money tab).']);
   row++;
   put(['This month', 'Last month', 'This year', 'All time'], { bold: true });
   put([tot.month[1], tot.prev[1], tot.year[1], tot.all[1]], { money: [1, 2, 3, 4] });
