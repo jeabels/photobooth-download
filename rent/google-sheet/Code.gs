@@ -215,8 +215,46 @@ function setup() {
   var mails = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'onStatusEdit'; });
   if (!mails) ScriptApp.newTrigger('onStatusEdit').forSpreadsheet(ss).onEdit().create();
   ensureSetupCode_();
+  ratesUpdate_();
   CacheService.getScriptCache().remove('config');
   updateDashboard();
+}
+
+/* The November 2026 rates, the iPhone 17 Pro Max and the RATES picture, put into the owner's sheet once,
+   the first time the booking page loads after this version is deployed (or when setup runs), so pasting
+   this script and deploying a new version is all it takes. Any change the owner makes later stays. */
+var RATES_UPDATE = 'ratesUpdate2026-11';
+var RATES_UPDATE_UNITS = { '17pm-orange': [1500, 2500], '16pro-desert': [1000, 2000], '14pm-black': [800, 1200], '13pm-blue': [700, 1000],
+  '13pm-graphite': [700, 1000, '256GB · Space Black'], '13-starlight-z1': [600, 800], '13-starlight-j2': [600, 800] };
+function ratesUpdate_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty(RATES_UPDATE)) return;
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(10000); } catch (err) { return; }
+  try {
+    if (props.getProperty(RATES_UPDATE)) return;
+    var ss = SpreadsheetApp.getActiveSpreadsheet(), unitsTab = ss.getSheetByName(UNITS_TAB), setTab = ss.getSheetByName(SETTINGS_TAB);
+    if (!unitsTab || !setTab) return;                                  // not set up yet: setup puts all of this in itself
+    var units = units_();
+    saveRates_(units.filter(function (u) { return RATES_UPDATE_UNITS[u.id]; }).map(function (u) {
+      var r = RATES_UPDATE_UNITS[u.id]; return { id: u.id, rate: r[0], rateHigh: r[1], detail: r[2] || null };
+    }));
+    var has17 = units.some(function (u) { return u.id === '17pm-orange' || /17\s*pro\s*max/i.test(u.name); });
+    if (!has17) {
+      var d = DEFAULT_UNITS[0];
+      addUnit_({ id: d[0], name: d[1], detail: d[2], rate: d[3], poster: d[4], monthName: d[6], rateHigh: d[7], first: true });
+    }
+    var s = settings_(), card = DEFAULT_SETTINGS.filter(function (r) { return r[0] === 'Rate card images'; })[0][1];
+    var cards = links_(s['Rate card images']);
+    if (cards.indexOf(card) < 0) saveSetting_('Rate card images', cards.concat([card]).join('\n'));
+    if (!/discount/i.test(String(s['Rates note'] || ''))) {
+      saveSetting_('Rates note', DEFAULT_SETTINGS.filter(function (r) { return r[0] === 'Rates note'; })[0][1]);
+    }
+    var inc = String(s['Included with every rental'] || '');
+    if (/64\s*GB OTG/i.test(inc)) saveSetting_('Included with every rental', inc.replace(/64\s*GB OTG/i, '128GB OTG'));
+    props.setProperty(RATES_UPDATE, new Date().toISOString());
+    CacheService.getScriptCache().remove('config');
+  } finally { lock.releaseLock(); }
 }
 
 function addTab_(ss, name, headers, rows) {
@@ -671,6 +709,7 @@ function digits_(v) { return String(v == null ? '' : v).replace(/\D/g, '').slice
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
+  try { ratesUpdate_(); } catch (err) {}   // never stops the booking page loading
   if (p.ref) return json_(lookup_(String(p.ref).trim().toUpperCase(), p.mobile));
   if (p.promo) return json_(promo_(p.promo));
   return json_({ ok: true, busy: busy_(), config: config_() });

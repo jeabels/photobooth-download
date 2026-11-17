@@ -128,6 +128,10 @@ calendar.
   charged the in-demand rate; the other days are charged the regular rate. The renter sees the split
   in their total, and the sheet works the total out the same way.
 - Change the reminder's wording in Settings → **Rates note**.
+- **November 2026 rates:** the first time the booking page loads after this version is deployed, the
+  sheet puts in the new rates (17 Pro Max ₱1,500 – ₱2,500, 16 Pro ₱1,000 – ₱2,000, 14 Pro Max
+  ₱800 – ₱1,200, 13 Pro Max ₱700 – ₱1,000, 13 ₱600 – ₱800), adds the iPhone 17 Pro Max at the top
+  and the RATES picture. This happens once; rates changed after that are kept.
 
 ## The Website Bookings columns
 
