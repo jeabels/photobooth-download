@@ -53,11 +53,12 @@ var SHOP = {
   minNoticeHours: 2,      /* how soon before pick-up a renter can still book */
   maxDaysAhead: 180,      /* how far ahead renters can book */
   closedDates: [],        /* "YYYY-MM-DD" days with no pick-ups or returns */
-  /* `poster` is the unit's rate-and-inclusions poster in rent/units/ (shown on the card, tap to enlarge).
+  /* `addIfMissing`: shown on Snaps MNL's page even while the sheet's Units tab doesn't have it yet (see applyConfig).
+     `poster` is the unit's rate-and-inclusions poster in rent/units/ (shown on the card, tap to enlarge).
      `rate` is the regular daily rate and `rateHigh` the daily rate on in-demand dates. */
   /* `id` must match UNIT_IDS in rent/google-sheet/Code.gs (the sheet's Unit ID column). */
   models: [
-    { id: "17pm-orange",     name: "iPhone 17 Pro Max", detail: "256GB · Cosmic Orange",   rate: 1500, rateHigh: 2500, poster: "units/iphone-17-pro-max-cosmic-orange.webp" },
+    { id: "17pm-orange",     name: "iPhone 17 Pro Max", detail: "256GB · Cosmic Orange",   rate: 1500, rateHigh: 2500, poster: "units/iphone-17-pro-max-cosmic-orange.webp", addIfMissing: true },
     { id: "16pro-desert",    name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000, rateHigh: 2000, poster: "units/iphone-16-pro-desert-titanium.webp" },
     { id: "14pm-black",      name: "iPhone 14 Pro Max", detail: "128GB · Space Black",     rate: 800,  rateHigh: 1200, poster: "units/iphone-14-pro-max.webp" },
     { id: "13pm-blue",       name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700,  rateHigh: 1000, poster: "units/iphone-13-pro-max-sierra-blue.webp" },
@@ -609,7 +610,7 @@ footer b{color:var(--ink)}
      and their page pauses once its paid-until date (plus the grace days) has passed. */
   var params = new URLSearchParams(location.search);
   var slug = (params.get('s') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-  var shopParam = params.get('shop'), OWN_SHEET = SHOP.bookingSheet;
+  var shopParam = params.get('shop'), OWN_SHEET = SHOP.bookingSheet, BUILTIN_MODELS = SHOP.models.slice();
   var foreign = false, KEY = 'local', DRAFT_KEY = '', CONFIG_KEY = '';
   function useShop(id){
     if(id && /^[\w-]{20,120}$/.test(id)){
@@ -942,6 +943,14 @@ footer b{color:var(--ink)}
     var units = (c.units || []).filter(function(u){ return u && u.id && u.name; }).map(function(u){
       return { id: String(u.id), name: String(u.name), detail: String(u.detail || ''), rate: Number(u.rate) || null, rateHigh: Number(u.rateHigh) || null, poster: u.poster || '' };
     });
+    /* A new unit the owner hasn't added to the sheet's Units tab yet still shows on Snaps MNL's page, first.
+       Its bookings go by Messenger (the sheet would refuse a unit it doesn't know) until it's in the sheet.
+       A sheet that lists every unit ID (hidden ones too) keeps a hidden one hidden. */
+    if(!foreign){
+      var known = c.allUnitIds || units.map(function(u){ return u.id; });
+      BUILTIN_MODELS.filter(function(m){ return m.addIfMissing && known.indexOf(m.id) < 0; }).reverse()
+        .forEach(function(m){ units.unshift(Object.assign({}, m, { local: true })); });
+    }
     var next = {
       name: c.name, area: c.area || '', pickupPlace: c.pickupPlace || c.area || '', mobile: c.mobile || '',
       messenger: c.messenger || '', facebookUrl: c.facebookUrl || '', banner: c.banner || '', brandColor: c.brandColor || '',
@@ -1401,7 +1410,7 @@ footer b{color:var(--ink)}
 
   /* Save the booking to the sheet. Resolves 'saved', 'taken', 'too_soon', 'closed', 'promo', 'area' or 'offline' (sheet off or unreachable). */
   function saveToSheet(ref){
-    if(!SHOP.bookingSheet) return Promise.resolve('offline');
+    if(!SHOP.bookingSheet || (model() && model().local)) return Promise.resolve('offline');
     var m = model(), sl = slot(), q = quote();
     var body = {
       ref: ref, unitId: m.id, unit: label(m), start: sl.start.toISOString(), end: sl.end.toISOString(),
