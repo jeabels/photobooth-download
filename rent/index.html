@@ -40,13 +40,13 @@ var SHOP = {
   /* How the banner sits in the header: zoom in % (100 shows the whole width), the point that stays
      in view when zoomed (left-right, top-bottom %), and its shape as width / height (0 = the picture's own). */
   bannerZoom: 100, bannerX: 50, bannerY: 50, bannerShape: 0,
-  rateCards: [],          /* price list pictures shown above the units */
+  rateCards: ["units/rates-all-units.webp"],   /* price list pictures shown above the units */
   delivery: [],           /* [{ area, fee }] delivery areas; empty means renters pay the courier themselves */
   promos: false,          /* true shows the promo code box (codes are checked by the booking sheet) */
   /* Each unit has a regular `rate` and a `rateHigh` for in-demand dates: [{ from, to, label }] as
      "YYYY-MM-DD". A rental day that touches an in-demand date is charged rateHigh. */
   demandDates: [],
-  ratesNote: "Rates vary by date. In-demand dates (holidays, concerts and big events) use the higher in-demand rate.",
+  ratesNote: "Rates vary by date. In-demand dates (holidays, concerts and big events) use the higher in-demand rate. Discounted rates depending on the number of days rented: message us for longer rentals.",
   deposit: 500,
   hoursPerDay: 25,        /* one rental day = 25 hours from pick-up */
   lateFeePerHour: 100,
@@ -58,17 +58,17 @@ var SHOP = {
   /* `id` must match UNIT_IDS in rent/google-sheet/Code.gs (the sheet's Unit ID column). */
   models: [
     { id: "17pm-orange",     name: "iPhone 17 Pro Max", detail: "256GB · Cosmic Orange",   rate: 1500, rateHigh: 2500, poster: "units/iphone-17-pro-max-cosmic-orange.webp" },
-    { id: "16pro-desert",    name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000, rateHigh: 1800, poster: "units/iphone-16-pro-desert-titanium.webp" },
-    { id: "14pm-black",      name: "iPhone 14 Pro Max", detail: "128GB · Space Black",     rate: 800,  rateHigh: 1100, poster: "units/iphone-14-pro-max.webp" },
-    { id: "13pm-blue",       name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700,  rateHigh: 900, poster: "units/iphone-13-pro-max-sierra-blue.webp" },
-    { id: "13pm-graphite",   name: "iPhone 13 Pro Max", detail: "256GB · Graphite",        rate: 700,  rateHigh: 900, poster: "units/iphone-13-pro-max-graphite.webp" },
+    { id: "16pro-desert",    name: "iPhone 16 Pro",     detail: "128GB · Desert Titanium", rate: 1000, rateHigh: 2000, poster: "units/iphone-16-pro-desert-titanium.webp" },
+    { id: "14pm-black",      name: "iPhone 14 Pro Max", detail: "128GB · Space Black",     rate: 800,  rateHigh: 1200, poster: "units/iphone-14-pro-max.webp" },
+    { id: "13pm-blue",       name: "iPhone 13 Pro Max", detail: "256GB · Sierra Blue",     rate: 700,  rateHigh: 1000, poster: "units/iphone-13-pro-max-sierra-blue.webp" },
+    { id: "13pm-graphite",   name: "iPhone 13 Pro Max", detail: "256GB · Space Black",     rate: 700,  rateHigh: 1000, poster: "units/iphone-13-pro-max-graphite.webp" },
     { id: "13-starlight-z1", name: "iPhone 13",         detail: "128GB · Starlight #Z1",   rate: 600,  rateHigh: 800, poster: "units/iphone-13-starlight.webp" },
     { id: "13-starlight-j2", name: "iPhone 13",         detail: "128GB · Starlight #J2",   rate: 600,  rateHigh: 800, poster: "units/iphone-13-starlight.webp" }
   ],
   /* Google Sheet web app (rent/google-sheet/Code.gs). When set, bookings are saved to the
      sheet and units already booked for the chosen times can't be picked. Empty turns this off. */
   bookingSheet: "https://script.google.com/macros/s/AKfycbwRmFXakF4wRTaYUwm5BcgIwgAMEvOm4E7C4YDVSeqcHrE96X7QB1SWi_7gqboml73pwg/exec",
-  inclusions: ["iPhone with case", "Unit pouch", "64GB OTG file transfer", "Cleaning wipes", "Power bank", "Fast charger"],
+  inclusions: ["iPhone with case", "Unit pouch", "128GB OTG file transfer", "Cleaning wipes", "Power bank", "Fast charger"],
   handover: ["Pick up at Zukiya Residences", "Delivery"],
   uploads: [
     { id: "upSelfie",  label: "Selfie holding 2 different government IDs" },
