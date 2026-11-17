@@ -419,6 +419,7 @@ function config_() {
     lateFeePerHour: Number(s['Late fee per hour']) || 0, handover: list_(s['Hand-over options']),
     inclusions: list_(s['Included with every rental']), minNoticeHours: Number(s['Minimum notice (hours)']) || 0,
     maxDaysAhead: Number(s['Book up to (days ahead)']) || 365, closedDates: list_(s['Closed dates']).filter(function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d); }),
+    allUnitIds: units_().map(function (u) { return u.id; }),   // hidden ones too, so the booking page doesn't add a built-in unit back
     units: units_().filter(function (u) { return u.show; }).map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, poster: u.poster }; }),
     demandDates: demand_().filter(function (x) { return x.to >= fmt_(new Date(Date.now() - 864e5), 'yyyy-MM-dd'); }),
     ratesNote: String(s['Rates note'] || '').trim(),
