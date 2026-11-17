@@ -58,7 +58,8 @@
 
 var SHEET_NAME = 'Website Bookings';
 var SETTINGS_TAB = 'Settings', UNITS_TAB = 'Units', POLICIES_TAB = 'Policies';
-var PROMOS_TAB = 'Promos', DELIVERY_TAB = 'Delivery', DASH_TAB = 'Dashboard', DEMAND_TAB = 'In-demand dates';
+var PROMOS_TAB = 'Promos', DELIVERY_TAB = 'Delivery', DASH_TAB = 'Dashboard', DEMAND_TAB = 'In-demand dates', EXPENSES_TAB = 'Expenses';
+var EXPENSE_HEADERS = ['ID', 'Date', 'Item', 'Category', 'Amount', 'Added by'];
 var OWNER_TABS = [SETTINGS_TAB, UNITS_TAB, POLICIES_TAB, PROMOS_TAB, DELIVERY_TAB, DEMAND_TAB];
 var TZ = 'Asia/Manila';
 /* Website Bookings columns, in the owner's order: what they read first (up to Photos), then what the
@@ -71,7 +72,7 @@ var BOOKING_COLS = [
   ['photos', 'Photos'],
   ['status', 'Status'], ['unitId', 'Unit ID'], ['submitted', 'Submitted'], ['handover', 'Hand-over'], ['email', 'Email'],
   ['ecAddress', 'Emergency address'], ['notes', 'Notes'], ['promo', 'Promo code'], ['discount', 'Discount'], ['fee', 'Delivery fee'],
-  ['addedTo', 'Added to'], ['emailed', 'Renter emailed'], ['agreed', 'Policies agreed']
+  ['addedTo', 'Added to'], ['emailed', 'Renter emailed'], ['agreed', 'Policies agreed'], ['paid', 'Amount paid']
 ];
 var HEADERS = BOOKING_COLS.map(function (c) { return c[1]; });
 var C = {};
@@ -118,6 +119,8 @@ var DEFAULT_SETTINGS = [
   ['Book up to (days ahead)', 180, 'How far ahead renters can book'],
   ['Closed dates', '', 'Days with no pick-ups or returns, comma-separated, e.g. 2026-12-25, 2027-01-01'],
   ['Notify email', '', 'Each new booking is emailed here. Blank turns the emails off'],
+  ['Delete renter details after (days)', 7, 'Days after the return date of a Returned or Cancelled booking when its ID photos are deleted (moved to the Drive trash) and the renter\'s address, mobile, email and emergency contact are cleared, to save storage. Name, FB name, unit, dates and amounts stay for your sales. Blank or 0 never deletes'],
+  ['Track from', '', 'The owner page lists and counts only bookings picked up on or after this date (YYYY-MM-DD), e.g. 2026-11-15. Blank shows every booking'],
   ['Rates note', 'Rates vary by date. In-demand dates (holidays, concerts and big events) use the higher in-demand rate.', 'Reminder shown above the units on the booking page'],
   ['Email renters', 'Yes', 'Yes emails the renter when their booking is accepted (Confirmed) or cancelled. No turns it off'],
   ['Payment details', '', 'Put in the email when a booking is accepted, e.g. GCash 0917 000 0000 (Juan Cruz). Send a screenshot of your payment on Messenger'],
@@ -168,6 +171,7 @@ function setup() {
   addTab_(ss, PROMOS_TAB, PROMO_HEADERS, DEFAULT_PROMOS);
   addTab_(ss, DELIVERY_TAB, DELIVERY_HEADERS, []);
   addTab_(ss, DEMAND_TAB, DEMAND_HEADERS, []);
+  addTab_(ss, EXPENSES_TAB, EXPENSE_HEADERS, []);
   ss.getSheetByName(DEMAND_TAB).getRange(1, 1).setNote('One row per in-demand date or stretch of dates (To can be blank for one day), ' +
     'e.g. 2026-12-24 to 2026-12-25, Christmas. On these dates the booking page charges each unit\'s In-demand rate (Units tab). ' +
     'Easiest: the owner page, Rates tab.');
@@ -713,14 +717,20 @@ function doPost(e) {
       status: 'Pending', unitId: d.unitId, submitted: new Date(), handover: text_(d.handover), email: email ? text_(email) : '',
       ecAddress: text_(d.ecAddress), notes: text_(d.notes), promo: q.code ? text_(q.code) : '', discount: q.discount || '', fee: q.fee || '',
       agreed: agreed_(d.agreed) }));
-    var bs = sheet_();
-    if (String(bs.getRange(1, C.agreed).getValue()).trim() !== HEADERS[C.agreed - 1]) bs.getRange(1, C.agreed).setValue(HEADERS[C.agreed - 1]).setFontWeight('bold');
+    headers_(sheet_());
   } finally {
     lock.releaseLock();
   }
   rememberPage_(d.page);
   notify_(d, start, end, c, q);
   return json_({ ok: true, ref: d.ref, total: q.total, discount: q.discount, fee: q.fee, busy: busy_() });
+}
+
+/* Columns added at the end in later versions get their header with the first row that uses them,
+   so the owner needn't run setup again. */
+function headers_(sh) {
+  var have = sh.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+  HEADERS.forEach(function (h, i) { if (String(have[i]).trim() !== h) sh.getRange(1, i + 1).setValue(h).setFontWeight('bold'); });
 }
 
 /* The policies the renter ticked, as the owner page shows them: "# Operational policies", then a
@@ -880,6 +890,7 @@ function onOpen() {
     .addItem('Remove all owner page accounts (forgot password)', 'resetOwnerAccounts')
     .addSeparator()
     .addItem('Add confirmed website bookings to month tabs', 'addConfirmed')
+    .addItem('Delete old renter details and ID photos now', 'cleanupNow')
     .addItem('Import old bookings (month tabs, old copies, form responses)', 'importOldBookings')
     .addItem('Undo the import of old bookings', 'removeImportedBookings')
     .addItem('Make banner and poster images public', 'publishImages')
@@ -973,6 +984,15 @@ function admin_(d) {
   if (d.op === 'importOld') { var pl = importPlan_(); return { ok: true, added: pl.rows.length ? importRows_(pl.rows) : 0, text: pl.text }; }
   if (d.op === 'undoImport') return { ok: true, removed: removeImported_(false) };
   if (d.op === 'photos') return adminPhotos_(Number(d.row) || 0, String(d.ref || ''));
+  if (d.op === 'cleanup') return cleanupRenters_();
+  if (d.op === 'addExpense') return addExpense_(d.expense || {}, accounts[me.user].name);
+  if (d.op === 'deleteExpense') return deleteExpense_(String(d.id || ''));
+  if (d.op === 'trackFrom') {
+    var tf = day_(d.date);
+    if (d.date && !tf) return { ok: false, error: 'bad_request' };
+    saveSetting_('Track from', tf);
+    return { ok: true, trackFrom: tf };
+  }
   if (d.op === 'accounts') return accountsOut_(accounts, me.user);
   if (d.op === 'removeAccount') {
     var k = userKey_(d.username);
@@ -1050,7 +1070,8 @@ function adminData_() {
   var c = config_();
   return { ok: true, bookings: bookings,
     units: units_().map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, show: u.show }; }),
-    demandDates: demand_(),
+    demandDates: demand_(), expenses: expenses_(), trackFrom: day_(settings_()['Track from']),
+    deleteAfter: Number(settings_()['Delete renter details after (days)']) || 0,
     shop: { name: c.name, brandColor: c.brandColor, hoursPerDay: c.hoursPerDay, deposit: c.deposit, handover: c.handover, delivery: c.delivery, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() } };
 }
 
@@ -1097,6 +1118,8 @@ function adminSave_(b) {
     o.start = start; o.end = end; o.days = Math.max(1, Math.ceil((end - start) / 36e5 / hoursPerDay_() - 1e-9));
     o.total = money(b.total); o.promo = promo ? text_(promo) : ''; o.discount = discount; o.fee = money(b.fee);
     o.email = email ? text_(email) : '';
+    if (b.paid != null) o.paid = money(b.paid);
+    headers_(sh);
     if (!row) { o.ref = text_(b.ref || newRef_()); o.submitted = new Date(); sh.appendRow(row_(o)); row = sh.getLastRow(); }
     else sh.getRange(row, 1, 1, HEADERS.length).setValues([row_(o)]);
     var vals = sh.getRange(row, 1, 1, HEADERS.length).getValues()[0];
@@ -1111,6 +1134,45 @@ function adminSave_(b) {
   }
   try { updateDashboard(); } catch (err) {}
   return { ok: true, booking: saved, emailed: emailed };
+}
+
+/* ---- expenses (owner page, Money tab) ----
+   One row per expense in the Expenses tab: an ID, the date, what it was, a category, the amount
+   in pesos, and who added it. Rows typed in by hand count too (an ID isn't needed). */
+function expensesTab_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(EXPENSES_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(EXPENSES_TAB);
+    sh.getRange(1, 1, 1, EXPENSE_HEADERS.length).setValues([EXPENSE_HEADERS]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+function expenses_() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(EXPENSES_TAB);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, EXPENSE_HEADERS.length).getValues().map(function (r, i) {
+    var amount = Number(String(r[4]).replace(/[^\d.-]/g, '')) || 0, date = day_(r[1]);
+    return date && amount ? { id: plain_(r[0]) || 'row' + (i + 2), date: date, item: plain_(r[2]), category: plain_(r[3]), amount: amount, by: plain_(r[5]) } : null;
+  }).filter(Boolean);
+}
+function addExpense_(x, by) {
+  var date = day_(x.date), amount = Math.round(Number(x.amount) * 100) / 100, item = String(x.item || '').trim();
+  if (!date || !(amount > 0) || !item) return { ok: false, error: 'expense' };
+  var sh = expensesTab_(), id = Utilities.getUuid().slice(0, 8);
+  sh.getRange(sh.getLastRow() + 1, 2).setNumberFormat('yyyy-mm-dd');
+  sh.appendRow([id, new Date(date + 'T00:00:00+08:00'), text_(item.slice(0, 120)), text_(String(x.category || '').slice(0, 40)), amount, text_(by || '')]);
+  return { ok: true, expenses: expenses_() };
+}
+function deleteExpense_(id) {
+  var sh = expensesTab_(), last = sh.getLastRow();
+  if (last > 1) {
+    var ids = sh.getRange(2, 1, last - 1, 1).getValues();
+    for (var i = ids.length - 1; i >= 0; i--) {
+      if (plain_(ids[i][0]) === id || 'row' + (i + 2) === id) { sh.deleteRow(i + 2); break; }
+    }
+  }
+  return { ok: true, expenses: expenses_() };
 }
 
 /* Owner page: a booking's requirement photos from its private Drive folder, so the owner can check
@@ -1271,7 +1333,7 @@ function importPlan_() {
     return units.filter(function (u) { return norm(u.id) === t || u.monthName.split(',').some(function (m) { return norm(m) === t; }); })[0] ||
       units.filter(function (u) { return norm(u.name + u.detail) === t || norm(u.name + ' (' + u.detail + ')') === t; })[0] || guessUnit_(text, units);
   };
-  var skipTabs = [SHEET_NAME, DASH_TAB].concat(OWNER_TABS);
+  var skipTabs = [SHEET_NAME, DASH_TAB, EXPENSES_TAB].concat(OWNER_TABS);
   var out = [], lines = [], unread = 0, unmatched = {};
   ss.getSheets().forEach(function (tab) {
     var name = tab.getName();
@@ -1357,6 +1419,7 @@ function importRows_(rows) {
     sh.getRange(at, C.mobile, rows.length, 1).setNumberFormat('@');
     sh.getRange(at, C.ecMobile, rows.length, 1).setNumberFormat('@');
     sh.getRange(at, 1, rows.length, HEADERS.length).setValues(rows);
+    headers_(sh);
   } finally { lock.releaseLock(); }
   try { updateDashboard(); } catch (err) {}
   return rows.length;
@@ -1380,12 +1443,60 @@ function removeImported_(countOnly) {
   return n;
 }
 
+/* ---- deleting renter details after a rental ----
+   Settings "Delete renter details after (days)" (7 by default) days after the return date of a
+   Returned or Cancelled booking, its ID photos folder goes to the Drive trash (Google empties the
+   trash after 30 days) and the renter's address, mobile, email and emergency contact are cleared.
+   The ref, name, FB name, unit, dates, amounts, payment and ticked policies stay, so sales and the
+   Money tab keep working. Confirmed bookings are never cleared, even late ones: a phone that isn't
+   marked returned may not be back. Runs once a day (with the morning dashboard update), from the
+   menu, and from the owner page. */
+var CLEARED_KEYS = ['address', 'mobile', 'email', 'ecName', 'ecRel', 'ecMobile', 'ecAddress'];
+function cleanupRenters_() {
+  var days = Number(settings_()['Delete renter details after (days)']);
+  if (!(days > 0)) return { ok: true, cleared: 0, off: true };
+  var sh = sheet_(), last = sh.getLastRow(), cleared = 0, cut = Date.now() - days * 864e5;
+  if (last < 2) return { ok: true, cleared: 0, days: days };
+  var rows = sh.getRange(2, 1, last - 1, HEADERS.length).getValues();
+  rows.forEach(function (r, i) {
+    var status = String(v_(r, 'status')).trim(), end = v_(r, 'end');
+    if ((status !== 'Returned' && status !== 'Cancelled') || !(end instanceof Date) || end.getTime() > cut) return;
+    var photos = String(v_(r, 'photos') || ''), folder = (photos.match(/folders\/([\w-]{10,})/) || [])[1];
+    var any = !!folder || CLEARED_KEYS.some(function (k) { return plain_(v_(r, k)).trim(); });
+    if (!any) return;
+    if (folder) {
+      try { DriveApp.getFolderById(folder).setTrashed(true); }
+      catch (e) { if (!/not found|no item|does not exist/i.test(String(e && e.message))) return; }   // try again tomorrow
+    }
+    var row = i + 2;
+    CLEARED_KEYS.forEach(function (k) { sh.getRange(row, C[k]).setValue(''); });
+    if (folder) sh.getRange(row, C.photos).setValue(text_('Deleted ' + fmt_(new Date(), 'MMM d, yyyy')));
+    cleared++;
+  });
+  return { ok: true, cleared: cleared, days: days };
+}
+function dailyCleanup_() {
+  var props = PropertiesService.getScriptProperties(), today = fmt_(new Date(), 'yyyy-MM-dd');
+  if (props.getProperty('lastCleanup') === today) return;
+  cleanupRenters_();
+  props.setProperty('lastCleanup', today);
+}
+/** Menu item: deletes old renter details and ID photos now, instead of waiting for the morning. */
+function cleanupNow() {
+  var res = cleanupRenters_();
+  SpreadsheetApp.getActiveSpreadsheet().toast(res.off ? 'Turned off: set "Delete renter details after (days)" in Settings.' :
+    res.cleared ? 'Cleared ' + res.cleared + ' booking(s) returned or cancelled more than ' + res.days + ' days ago.' : 'Nothing to delete yet.');
+}
+
 /* ---- earnings dashboard ---- */
 
 /** Menu item (also runs every morning and when a booking's status changes): rebuilds the Dashboard tab.
     Earnings are Confirmed and Returned bookings in Website Bookings, by pick-up date: the rental after
     promo discounts, plus delivery fees. Deposits are not counted. */
-function updateDashboard() {
+function updateDashboard(e) {
+  /* The morning run (a time trigger, which passes e.triggerUid) also deletes old renter details: see
+     cleanupRenters_. Not from onEdit, which has no Drive access. */
+  if (e && e.triggerUid) { try { dailyCleanup_(); } catch (err) {} }
   var ss = SpreadsheetApp.getActiveSpreadsheet(), src = sheet_(), last = src.getLastRow();
   var rows = last > 1 ? src.getRange(2, 1, last - 1, HEADERS.length).getValues() : [];
   var now = new Date(), month = fmt_(now, 'yyyy-MM'), year = month.slice(0, 4);
