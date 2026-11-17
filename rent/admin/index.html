@@ -449,6 +449,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     <section id="rates" hidden>
       <section class="card">
         <div class="chart-head"><div><h2>Daily rates</h2><p>The regular rate, and the higher rate on in-demand dates. The booking page shows each unit as a range, like ₱600 – ₱800 / day.</p></div></div>
+        <div class="suggest" id="posterUpdate" hidden style="flex-direction:column;align-items:stretch"></div>
         <div id="rateRows" style="margin-top:12px"></div>
         <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap"><button class="btn brand" type="button" id="ratesSave">Save rates</button><span class="err" id="ratesErr" role="alert"></span></div>
       </section>
@@ -745,7 +746,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
         if(d && (d.error === 'signed_out' || d.error === 'bad_request')){ setToken(''); showEntry(''); return; }
         $('loadbar').textContent = 'Couldn\'t load. Tap Refresh.'; return;
       }
-      DATA = d; DATA.demandDates = d.demandDates || []; DATA.expenses = d.expenses || []; DATA.trackFrom = d.trackFrom || '';
+      DATA = d; DATA.demandDates = d.demandDates || []; DATA.inclusions = d.inclusions; DATA.ratesNote = d.ratesNote; DATA.rateCards = d.rateCards || []; DATA.expenses = d.expenses || []; DATA.trackFrom = d.trackFrom || '';
       DATA.allBookings = d.bookings || []; DATA.bookings = DATA.allBookings.filter(inScope);
       cleanText();
       $('shopName').textContent = d.shop.name || 'Phone rentals';
@@ -1140,7 +1141,50 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   /* New units: the form, and (on Snaps MNL's own page) a unit with a poster already on the site, ready to add. */
   var SUGGESTED = [{ id: '17pm-orange', name: 'iPhone 17 Pro Max', detail: '256GB · Cosmic Orange', rate: 1500, rateHigh: 2500, monthName: '17pm', first: true,
     poster: 'https://jeabels.github.io/photobooth-download/rent/units/iphone-17-pro-max-cosmic-orange.webp' }];
+  /* Snaps MNL's rates poster (Nov 2026): the rates, the 13 Pro Max now called Space Black, a 128GB OTG,
+     discounts for longer rentals, and the all-units rates picture. Offered once, while the sheet differs. */
+  var POSTER = {
+    units: { '17pm-orange': [1500, 2500], '16pro-desert': [1000, 2000], '14pm-black': [800, 1200], '13pm-blue': [700, 1000],
+      '13pm-graphite': [700, 1000, '256GB · Space Black'], '13-starlight-z1': [600, 800], '13-starlight-j2': [600, 800] },
+    note: 'Rates vary by date. In-demand dates (holidays, concerts and big events) use the higher in-demand rate. Discounted rates depending on the number of days rented: message us for longer rentals.',
+    rates: 'https://jeabels.github.io/photobooth-download/rent/units/rates-all-units.webp'
+  };
+  function posterChanges(){
+    if(foreign) return null;
+    var rates = [], lines = [];
+    DATA.units.forEach(function(u){
+      var p = POSTER.units[u.id]; if(!p) return;
+      var newDetail = p[2] && p[2] !== u.detail ? p[2] : null;
+      if(u.rate === p[0] && u.rateHigh === p[1] && !newDetail) return;
+      rates.push({ id: u.id, rate: p[0], rateHigh: p[1], detail: newDetail });
+      lines.push(u.name + ' · ' + (newDetail || u.detail) + ': ' + peso(p[0]) + ' – ' + peso(p[1]) + ' / day' +
+        (u.rate !== p[0] || u.rateHigh !== p[1] ? ' (was ' + peso(u.rate) + ' – ' + peso(u.rateHigh || u.rate) + ')' : '') + (newDetail ? ', renamed from ' + u.detail : ''));
+    });
+    var values = {};
+    if(/64\s*GB OTG/i.test(DATA.inclusions || '')){ values['Included with every rental'] = DATA.inclusions.replace(/64\s*GB OTG/i, '128GB OTG'); lines.push('Inclusions: 128GB OTG file transfer (was 64GB)'); }
+    if(!/discount/i.test(DATA.ratesNote || '')){ values['Rates note'] = POSTER.note; lines.push('Rates reminder: adds "Discounted rates depending on the number of days rented"'); }
+    if((DATA.rateCards || []).indexOf(POSTER.rates) < 0){ values['Rate card images'] = (DATA.rateCards || []).concat([POSTER.rates]).join('\n'); lines.push('The all-units RATES picture, above the units'); }
+    return lines.length ? { rates: rates, values: values, lines: lines } : null;
+  }
+  function posterBox(){
+    var box = $('posterUpdate'), ch = posterChanges();
+    box.innerHTML = ''; box.hidden = !ch;
+    if(!ch) return;
+    box.appendChild(el('b', '', 'Update to your new rates poster'));
+    var ul = el('ul'); ul.style.margin = '6px 0 4px 18px'; ul.style.fontSize = '13.5px';
+    ch.lines.forEach(function(t){ ul.appendChild(el('li', '', t)); }); box.appendChild(ul);
+    var go = el('button', 'btn brand small', 'Apply all'); go.type = 'button'; go.style.alignSelf = 'flex-start';
+    go.addEventListener('click', function(){
+      go.disabled = true; go.textContent = 'Saving…';
+      (ch.rates.length ? api('saveRates', { rates: ch.rates }) : Promise.resolve({ ok: true }))
+        .then(function(d){ if(!(d && d.ok)) throw d; if(d.units) DATA.units = d.units; return Object.keys(ch.values).length ? api('saveSettings', { values: ch.values }) : { ok: true }; })
+        .then(function(d){ if(!(d && d.ok)) throw d; toast('Rates updated. The booking page shows them within a minute.'); load(); },
+          function(d){ go.disabled = false; go.textContent = 'Apply all'; alert(d && d.error === 'bad_request' ? ERR.old_script : d && d.error === 'signed_out' ? 'You were signed out. Sign in again.' : 'Couldn\'t save. Try again.'); });
+    });
+    box.appendChild(go);
+  }
   function suggestUnits(){
+    posterBox();
     var box = $('unitSuggest'), norm = function(x){ return String(x || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
     var todo = foreign ? [] : SUGGESTED.filter(function(x){ return !DATA.units.some(function(u){ return u.id === x.id || norm(u.name + u.detail) === norm(x.name + x.detail); }); });
     box.innerHTML = ''; box.hidden = !todo.length;

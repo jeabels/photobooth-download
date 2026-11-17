@@ -108,21 +108,21 @@ var DEFAULT_SETTINGS = [
   ['Banner zoom (%)', 100, '100 shows the whole width. Higher zooms in, lower zooms out. Easiest: menu > Adjust banner'],
   ['Banner position', '50% 50%', 'Which part stays in view when zoomed in: left-right %, then top-bottom % (50% 50% is the middle)'],
   ['Banner shape', 'Auto', 'Auto keeps the picture\'s own shape. Or width:height, e.g. 4:1 for a shorter banner, 2:1 for a taller one'],
-  ['Rate card images', '', 'Price list pictures shown above the units, one link per line. Easiest: menu > Upload an image'],
+  ['Rate card images', 'https://jeabels.github.io/photobooth-download/rent/units/rates-all-units.webp', 'Price list pictures shown above the units, one link per line. Easiest: menu > Upload an image'],
   ['Brand colour', '#8E1016', 'Colour of buttons and the header, as a hex code like #8E1016 (blank keeps the standard red)'],
   ['Deposit', 500, 'Refundable security deposit in pesos (0 for none)'],
   ['Reservation fee', 300, 'Paid to reserve a unit, in pesos. On the owner page, Payment "Reserved" counts this much'],
   ['Hours per rental day', 25, 'How many hours one rental day lasts'],
   ['Late fee per hour', 100, 'In pesos'],
   ['Hand-over options', 'Pick up at Zukiya Residences, Delivery', 'Comma-separated. The first is pick-up at your place; the rest are deliveries'],
-  ['Included with every rental', 'iPhone with case, Unit pouch, 64GB OTG file transfer, Cleaning wipes, Power bank, Fast charger', 'Comma-separated'],
+  ['Included with every rental', 'iPhone with case, Unit pouch, 128GB OTG file transfer, Cleaning wipes, Power bank, Fast charger', 'Comma-separated'],
   ['Minimum notice (hours)', 2, 'How long before pick-up a renter can still book online'],
   ['Book up to (days ahead)', 180, 'How far ahead renters can book'],
   ['Closed dates', '', 'Days with no pick-ups or returns, comma-separated, e.g. 2026-12-25, 2027-01-01'],
   ['Notify email', '', 'Each new booking is emailed here. Blank turns the emails off'],
   ['Delete renter details after (days)', 7, 'Days after the return date of a Returned or Cancelled booking when its ID photos are deleted (moved to the Drive trash) and the renter\'s address, mobile, email and emergency contact are cleared, to save storage. Name, FB name, unit, dates and amounts stay for your sales. Blank or 0 never deletes'],
   ['Track from', '', 'The owner page lists and counts only bookings picked up on or after this date (YYYY-MM-DD), e.g. 2026-11-15. Blank shows every booking'],
-  ['Rates note', 'Rates vary by date. In-demand dates (holidays, concerts and big events) use the higher in-demand rate.', 'Reminder shown above the units on the booking page'],
+  ['Rates note', 'Rates vary by date. In-demand dates (holidays, concerts and big events) use the higher in-demand rate. Discounted rates depending on the number of days rented: message us for longer rentals.', 'Reminder shown above the units on the booking page'],
   ['Email renters', 'Yes', 'Yes emails the renter when their booking is accepted (Confirmed) or cancelled. No turns it off'],
   ['Payment details', '', 'Put in the email when a booking is accepted, e.g. GCash 0917 000 0000 (Juan Cruz). Send a screenshot of your payment on Messenger'],
   ['Booking page link', '', 'Your booking page, for the renter emails. Filled in by the first website booking'],
@@ -130,10 +130,10 @@ var DEFAULT_SETTINGS = [
 ];
 var DEFAULT_UNITS = [
   ['17pm-orange', 'iPhone 17 Pro Max', '256GB · Cosmic Orange', 1500, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-17-pro-max-cosmic-orange.webp', 'Yes', '17pm', 2500],
-  ['16pro-desert', 'iPhone 16 Pro', '128GB · Desert Titanium', 1000, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-16-pro-desert-titanium.webp', 'Yes', '16', 1800],
-  ['14pm-black', 'iPhone 14 Pro Max', '128GB · Space Black', 800, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-14-pro-max.webp', 'Yes', '14', 1100],
-  ['13pm-blue', 'iPhone 13 Pro Max', '256GB · Sierra Blue', 700, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-pro-max-sierra-blue.webp', 'Yes', '13pm', 900],
-  ['13pm-graphite', 'iPhone 13 Pro Max', '256GB · Graphite', 700, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-pro-max-graphite.webp', 'Yes', '13pm (2)', 900],
+  ['16pro-desert', 'iPhone 16 Pro', '128GB · Desert Titanium', 1000, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-16-pro-desert-titanium.webp', 'Yes', '16', 2000],
+  ['14pm-black', 'iPhone 14 Pro Max', '128GB · Space Black', 800, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-14-pro-max.webp', 'Yes', '14', 1200],
+  ['13pm-blue', 'iPhone 13 Pro Max', '256GB · Sierra Blue', 700, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-pro-max-sierra-blue.webp', 'Yes', '13pm', 1000],
+  ['13pm-graphite', 'iPhone 13 Pro Max', '256GB · Space Black', 700, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-pro-max-graphite.webp', 'Yes', '13pm (2)', 1000],
   ['13-starlight-z1', 'iPhone 13', '128GB · Starlight #Z1', 600, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-starlight.webp', 'Yes', '13 (Z1)', 800],
   ['13-starlight-j2', 'iPhone 13', '128GB · Starlight #J2', 600, 'https://jeabels.github.io/photobooth-download/rent/units/iphone-13-starlight.webp', 'Yes', '13 (J2)', 800]
 ];
@@ -991,6 +991,13 @@ function admin_(d) {
   if (d.op === 'save') return adminSave_(d.booking || {});
   if (d.op === 'saveRates') return saveRates_(d.rates || []);
   if (d.op === 'addUnit') return addUnit_(d.unit || {});
+  if (d.op === 'saveSettings') {
+    /* Only these, from the owner page; the rest are changed in the Settings tab. */
+    var allowed = ['Included with every rental', 'Rates note', 'Rate card images'], vals = d.values || {}, done = [];
+    Object.keys(vals).forEach(function (k) { if (allowed.indexOf(k) > -1) { saveSetting_(k, String(vals[k] == null ? '' : vals[k]).slice(0, 1000)); done.push(k); } });
+    CacheService.getScriptCache().remove('config');
+    return { ok: true, saved: done };
+  }
   if (d.op === 'saveDemand') return saveDemand_(d.dates || []);
   if (d.op === 'importPreview') { var plan = importPlan_(); return { ok: true, count: plan.rows.length, text: plan.text }; }
   if (d.op === 'importOld') { var pl = importPlan_(); return { ok: true, added: pl.rows.length ? importRows_(pl.rows) : 0, text: pl.text }; }
@@ -1085,6 +1092,7 @@ function adminData_() {
     units: units_().map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, show: u.show }; }),
     demandDates: demand_(), expenses: expenses_(), trackFrom: day_(settings_()['Track from']),
     deleteAfter: Number(settings_()['Delete renter details after (days)']) || 0,
+    inclusions: String(settings_()['Included with every rental'] || ''), ratesNote: String(settings_()['Rates note'] || ''), rateCards: links_(settings_()['Rate card images']),
     shop: { name: c.name, brandColor: c.brandColor, hoursPerDay: c.hoursPerDay, deposit: c.deposit, reservationFee: reservationFee_(), handover: c.handover, delivery: c.delivery, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() } };
 }
 
@@ -1219,6 +1227,7 @@ function saveRates_(list) {
     var rate = Math.round(Number(x.rate)), high = x.rateHigh === '' || x.rateHigh == null ? '' : Math.round(Number(x.rateHigh));
     if (!u || !(rate > 0) || (high !== '' && !(high > 0))) return;
     sh.getRange(u.row, 4).setValue(rate); sh.getRange(u.row, 8).setValue(high); n++;
+    if (x.detail != null && String(x.detail).trim()) sh.getRange(u.row, 3).setValue(text_(String(x.detail).trim().slice(0, 80)));
   });
   CacheService.getScriptCache().remove('config');
   return { ok: true, saved: n, units: units_().map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, show: u.show }; }) };
