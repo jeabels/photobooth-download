@@ -85,6 +85,19 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
 .login h2{font-size:22px}
 .stack{margin-top:14px;display:flex;flex-direction:column;gap:12px}
 .field small.hint{font-size:12px;margin-top:1px}
+.scope{margin:0 0 12px;padding:9px 12px;border-radius:12px;background:var(--brand-soft);font-size:13px;font-weight:600}
+.scope button{appearance:none;border:0;background:none;color:var(--brand-2);font-weight:800;cursor:pointer;padding:0;font-size:13px}
+.pay{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:800;white-space:nowrap}
+.pay.Paid{background:var(--good-soft);color:var(--good)}
+.pay.Unpaid{background:var(--warn-soft);color:var(--warn)}
+.pay.Part{background:var(--info-soft);color:var(--info)}
+.xrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.xrow:first-child{border-top:0}
+.xrow .grow{flex:1;min-width:0}
+.xrow b{display:block;font-size:14px;overflow-wrap:anywhere}
+.xrow span{font-size:12.5px;color:var(--sub)}
+.xrow .amt{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile .val.neg{color:var(--bad)}
 .rate-row{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:end;padding:10px 0;border-top:1px solid var(--line)}
 .rate-row:first-child{border-top:0}
 .rate-row b{display:block;font-size:14px}
@@ -325,7 +338,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   <div id="app" hidden>
     <p class="notice" id="pausedNote" hidden></p>
     <div class="tabs">
-      <div class="seg" role="group" aria-label="View"><button type="button" data-tab="dash" aria-pressed="true">Dashboard</button><button type="button" data-tab="list" aria-pressed="false">Bookings</button><button type="button" data-tab="rates" aria-pressed="false">Rates</button></div>
+      <div class="seg" role="group" aria-label="View"><button type="button" data-tab="dash" aria-pressed="true">Dashboard</button><button type="button" data-tab="list" aria-pressed="false">Bookings</button><button type="button" data-tab="money" aria-pressed="false">Money</button><button type="button" data-tab="rates" aria-pressed="false">Rates</button></div>
       <span class="spacer"></span>
       <span class="loadbar" id="loadbar" role="status"></span>
       <button class="btn gold small" type="button" id="newBtn">+ New booking</button>
@@ -369,6 +382,49 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       </section>
     </section>
 
+    <p class="scope" id="scopeNote" hidden></p>
+
+    <!-- money: gross sales, expenses and what's left, for a month, a year or everything -->
+    <section id="money" hidden>
+      <div class="filters" style="margin-top:4px"><span>Period</span>
+        <label class="field" style="min-width:200px"><span class="sr-only">Period</span><select id="mPeriod"></select></label>
+      </div>
+      <div class="tiles">
+        <div class="tile"><div class="lbl">Gross sales</div><div class="val" id="mGross"></div><div class="sub" id="mGrossN"></div></div>
+        <div class="tile"><div class="lbl">Expenses</div><div class="val" id="mExp"></div><div class="sub" id="mExpN"></div></div>
+        <div class="tile"><div class="lbl">Net (gross − expenses)</div><div class="val" id="mNet"></div><div class="sub" id="mNetN"></div></div>
+      </div>
+      <p class="hint" style="margin-top:8px" id="mPaidLine"></p>
+
+      <section class="card" style="margin-top:12px">
+        <div class="chart-head"><div><h2>Expenses</h2><p>Anything the business paid for: a unit, repairs, load, delivery, ads, supplies.</p></div></div>
+        <form id="expForm" class="grid" style="margin-top:12px" novalidate>
+          <label class="field"><span>Date</span><input type="date" id="xDate" required></label>
+          <label class="field"><span>Amount (₱)</span><input type="number" id="xAmount" min="1" step="0.01" inputmode="decimal" required></label>
+          <label class="field full"><span>What for</span><input type="text" id="xItem" maxlength="120" placeholder="e.g. Screen protector for 13 Pro Max" required></label>
+          <label class="field full"><span>Category (optional)</span><input type="text" id="xCat" maxlength="40" list="xCats" placeholder="Repairs, Load, Delivery…"></label>
+          <datalist id="xCats"><option>Unit purchase</option><option>Repairs</option><option>Accessories</option><option>Load / data</option><option>Delivery</option><option>Ads</option><option>Supplies</option><option>Salary</option><option>Other</option></datalist>
+          <div class="full" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn gold" type="submit" id="xAdd">Add expense</button><span class="err" id="xErr" role="alert"></span></div>
+        </form>
+        <div id="expList" style="margin-top:14px"></div>
+      </section>
+
+      <section class="card" style="margin-top:12px">
+        <div class="chart-head"><div><h2 id="mRentersTitle">Renters</h2><p>Accepted bookings picked up in this period, and whether they've paid. Tap one to open it.</p></div></div>
+        <div class="list" id="mRenters"></div>
+      </section>
+
+      <section class="card" style="margin-top:12px">
+        <div class="chart-head"><div><h2>Start date</h2><p>The owner page lists and counts only bookings picked up on or after this date, and expenses from this date. Earlier bookings stay in your Google Sheet.</p></div></div>
+        <form id="tfForm" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:12px" novalidate>
+          <label class="field" style="min-width:180px"><span>Track bookings from</span><input type="date" id="tfDate"></label>
+          <button class="btn brand small" type="submit" id="tfSave">Save</button>
+          <button class="btn ghost small" type="button" id="tfClear">Show everything</button>
+        </form>
+        <p class="err" id="tfErr" role="alert" style="margin-top:8px"></p>
+      </section>
+    </section>
+
     <!-- rates: regular and in-demand daily rates, and the in-demand dates -->
     <section id="rates" hidden>
       <section class="card">
@@ -397,6 +453,12 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       <div class="chips" id="chips" role="group" aria-label="More filters"></div>
       <p class="hint" id="stageHint" style="margin-top:10px"></p>
       <div class="list" id="rows"></div>
+      <section class="card" style="margin-top:16px" id="cleanCard">
+        <h2 style="font-size:16px">Storage</h2>
+        <p class="hint" style="margin-top:4px" id="cleanText"></p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn ghost small" type="button" id="cleanNow">Delete old ones now</button></div>
+        <p class="hint" id="cleanMsg" style="margin-top:10px" role="status"></p>
+      </section>
       <section class="card" style="margin-top:16px" id="importCard">
         <h2 style="font-size:16px">Old bookings</h2>
         <p class="hint" style="margin-top:4px">Bring in bookings from before the website: your month tabs (October, September…), a Google Form's responses, or a copy of an older Website Bookings tab. Nothing in those tabs changes, and you can undo it.</p>
@@ -442,6 +504,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
         <div class="grid">
           <label class="field"><span>Discount for this renter (₱)</span><input type="number" id="fDisc" min="0" step="1" inputmode="numeric" placeholder="0"></label>
           <label class="field"><span>Total to pay, without deposit (₱) <button class="linkbtn" type="button" id="recalc" hidden>Recalculate</button></span><input type="number" id="fTotal" min="0" step="1" inputmode="numeric"></label>
+          <label class="field"><span>Amount paid so far (₱) <button class="linkbtn" type="button" id="paidAll">Paid in full</button></span><input type="number" id="fPaid" min="0" step="1" inputmode="numeric" placeholder="0"></label>
           <input type="hidden" id="fFee">
         </div>
         <div class="price" id="priceBox"></div>
@@ -649,7 +712,9 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
         if(d && (d.error === 'signed_out' || d.error === 'bad_request')){ setToken(''); showEntry(''); return; }
         $('loadbar').textContent = 'Couldn\'t load. Tap Refresh.'; return;
       }
-      DATA = d; DATA.demandDates = d.demandDates || [];
+      DATA = d; DATA.demandDates = d.demandDates || []; DATA.expenses = d.expenses || []; DATA.trackFrom = d.trackFrom || '';
+      DATA.allBookings = d.bookings || []; DATA.bookings = DATA.allBookings.filter(inScope);
+      cleanText();
       $('shopName').textContent = d.shop.name || 'Phone rentals';
       document.title = 'Owner · ' + (d.shop.name || 'Phone rentals');
       applyBrand(d.shop.brandColor);
@@ -741,13 +806,13 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   function setTab(t){
     tab = t;
     document.querySelectorAll('[data-tab]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.tab === t); });
-    $('dash').hidden = t !== 'dash'; $('list').hidden = t !== 'list'; $('rates').hidden = t !== 'rates';
+    $('dash').hidden = t !== 'dash'; $('list').hidden = t !== 'list'; $('rates').hidden = t !== 'rates'; $('money').hidden = t !== 'money';
     render();
   }
   document.querySelectorAll('[data-tab]').forEach(function(b){ b.addEventListener('click', function(){ setTab(b.dataset.tab); }); });
   document.querySelectorAll('[data-go]').forEach(function(b){ b.addEventListener('click', function(){ chip = b.dataset.go; setTab('list'); }); });
 
-  function render(){ if(tab === 'dash') renderDash(); else if(tab === 'rates') renderRates(); else renderList(); }
+  function render(){ scopeNote(); if(tab === 'dash') renderDash(); else if(tab === 'rates') renderRates(); else if(tab === 'money') renderMoney(); else renderList(); }
 
   /* ---- sales ---- */
   var EARNING = ['Confirmed', 'Returned'], BLOCKING = ['Pending', 'Confirmed'];
@@ -905,13 +970,15 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     ['Ongoing', 'Ongoing', 'var(--good)', 'Picked up and not back yet. Late ones are marked. Tap Mark as completed when the phone is returned.'],
     ['Completed', 'Completed', 'var(--sub)', 'Returned bookings. These count in your sales.']
   ];
-  var CHIPS = ['Today', 'Cancelled', 'All'];
+  var CHIPS = ['Paid', 'Unpaid', 'Today', 'Cancelled', 'All'];
   function matches(b, f){
     var t = today(), st = stage(b);
     switch(f){
       case 'Ongoing': return st === 'Ongoing' || st === 'Overdue';
       case 'Today': return (b.status === 'Pending' || b.status === 'Confirmed') && ((b.start && mday(b.start) === t) || (b.end && mday(b.end) === t));
       case 'All': return true;
+      case 'Paid': return !!payState(b) && payState(b).cls === 'Paid';
+      case 'Unpaid': return !!payState(b) && payState(b).cls !== 'Paid';
       default: return st === f;
     }
   }
@@ -950,6 +1017,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   function card(b, lead, actions){
     var wrap = el('div', 'bk-wrap'), c = el('button', 'bk'), st = stage(b); c.type = 'button';
     var who = el('div', 'who'); who.appendChild(el('span', '', b.name || '(no name)')); who.appendChild(el('span', 'pill ' + st, STAGE_LABEL[st]));
+    var ps = payState(b); if(ps) who.appendChild(el('span', 'pay ' + ps.cls, ps.label));
     c.appendChild(who);
     c.appendChild(el('div', 'amt', b.total !== '' && b.total != null ? peso(b.total) : ''));
     c.appendChild(el('div', 'meta unit-line', (lead ? lead + ' · ' : '') + unitName(b.unitId, b.unit)));
@@ -971,26 +1039,40 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       };
       if(st === 'Pending'){ add('Accept', 'brand', 'Confirmed'); add('Decline', 'danger', 'Cancelled', 'Decline ' + (b.name || 'this booking') + '\'s booking? The unit becomes free for those times' + (b.email ? ' and they get an email.' : '.')); }
       if(st === 'Ongoing' || st === 'Overdue') add('Mark as completed (returned)', 'ghost', 'Returned');
+      var pz = payState(b);
+      if(pz && pz.cls !== 'Paid' && Number(b.total) > 0){
+        var mp = el('button', 'btn small gold', 'Mark as paid'); mp.type = 'button';
+        mp.addEventListener('click', function(){ mp.disabled = true; markPaid(b).then(function(){ mp.disabled = false; }); });
+        acts.appendChild(mp);
+      }
       if(acts.childNodes.length) wrap.appendChild(acts);
     }
     return wrap;
   }
+  /* Records a booking as paid in full, keeping everything else as it is. */
+  function markPaid(b){
+    var booking = {};
+    ['row','ref','unitId','start','end','discount','fee','total','email','handover','name','address','mobile','fbName','purpose','ecName','ecRel','ecMobile','ecAddress','notes']
+      .forEach(function(k){ booking[k] = b[k] == null ? '' : b[k]; });
+    booking.status = b.status; booking.paid = Number(b.total) || 0; booking.notify = false;
+    return sendSave(booking, 'Marked as paid:').then(function(err){ if(err) alert(err); });
+  }
   /* Changes only a booking's status, keeping everything else as it is. */
   function setStatus(b, status){
     var booking = {};
-    ['row','ref','unitId','start','end','discount','fee','total','email','handover','name','address','mobile','fbName','purpose','ecName','ecRel','ecMobile','ecAddress','notes']
+    ['row','ref','unitId','start','end','discount','fee','total','paid','email','handover','name','address','mobile','fbName','purpose','ecName','ecRel','ecMobile','ecAddress','notes']
       .forEach(function(k){ booking[k] = b[k] == null ? '' : b[k]; });
     booking.status = status;
     return sendSave(booking).then(function(err){ if(err) alert(err); });
   }
   /* Saves a booking; resolves '' when saved, or the error to show. */
-  function sendSave(booking){
+  function sendSave(booking, saidAs){
     return api('save', { booking: booking }).then(function(d){
       if(d && d.ok){
         var i = DATA.bookings.map(function(x){ return x.row; }).indexOf(d.booking.row);
         if(i > -1) DATA.bookings[i] = d.booking; else DATA.bookings.push(d.booking);
         var said = { Confirmed: 'Accepted', Cancelled: 'Cancelled', Returned: 'Completed', Pending: 'Saved' }[d.booking.status] || 'Saved';
-        render(); toast((booking.row ? said + ' ' : 'Added ') + d.booking.ref + (d.emailed ? ' · renter emailed' : ''));
+        render(); toast((saidAs || (booking.row ? said : 'Added')) + ' ' + d.booking.ref + (d.emailed ? ' · renter emailed' : ''));
         return '';
       }
       if(d && d.error === 'signed_out'){ closeEditor(); setToken(''); showEntry('You were signed out. Sign in again to save.'); return 'signed_out'; }
@@ -1066,6 +1148,23 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     });
   });
 
+  /* ---- storage: renter details and ID photos deleted some days after a rental (cleanupRenters_ in Code.gs) ---- */
+  function cleanText(){
+    var n = Number(DATA.deleteAfter) || 0;
+    $('cleanText').textContent = n ? 'Each Returned or Cancelled booking\'s ID photos, address, mobile, email and emergency contact are deleted ' + plural(n, 'day') +
+      ' after its return date, every morning. Name, FB name, unit, dates and amounts stay for your sales. Change the number of days in the Google Sheet: Settings → "Delete renter details after (days)".'
+      : 'Deleting old renter details is turned off. Set "Delete renter details after (days)" in the Google Sheet\'s Settings tab (7 is a good number).';
+    $('cleanNow').hidden = !n;
+  }
+  $('cleanNow').addEventListener('click', function(){
+    if(!confirm('Delete the ID photos and private details of bookings returned or cancelled more than ' + plural(Number(DATA.deleteAfter) || 0, 'day') + ' ago?')) return;
+    $('cleanNow').disabled = true; $('cleanMsg').textContent = 'Deleting…';
+    api('cleanup').then(function(d){
+      if(d && d.ok){ $('cleanMsg').textContent = d.cleared ? 'Deleted the details of ' + plural(d.cleared, 'booking') + '.' : 'Nothing old enough to delete yet.'; load(); return; }
+      $('cleanMsg').textContent = d && d.error === 'bad_request' ? ERR.old_script : 'Couldn\'t do that. Try again.';
+    }, function(){ $('cleanMsg').textContent = ERR.offline; }).then(function(){ $('cleanNow').disabled = false; });
+  });
+
   /* ---- old bookings: copied in from the sheet's older tabs (see importPlan_ in Code.gs) ---- */
   function importCall(op, busyText){
     $('impMsg').textContent = busyText; $('impCheck').disabled = $('impGo').disabled = $('impUndo').disabled = true;
@@ -1100,6 +1199,110 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       load();
     });
   });
+
+  /* ---- payments and the start date ----
+     A booking is paid when "Amount paid" reaches its total. Only accepted bookings (Confirmed or
+     Returned) are paid or unpaid; pending and cancelled ones are neither. */
+  function payState(b){
+    if(b.status !== 'Confirmed' && b.status !== 'Returned') return null;
+    var total = Number(b.total) || 0, paid = Number(b.paid) || 0;
+    if(total && paid >= total) return { cls: 'Paid', label: 'Paid', long: 'Paid ' + peso(paid) };
+    if(paid > 0) return { cls: 'Part', label: peso(paid) + ' paid', long: peso(paid) + ' paid · ' + peso(Math.max(0, total - paid)) + ' to collect' };
+    return { cls: 'Unpaid', label: 'Unpaid', long: 'Not paid yet' };
+  }
+  /* Bookings picked up before the start date (Money tab) stay in the sheet but not on this page. */
+  function inScope(b){ return !DATA.trackFrom || (!!b.start && mday(b.start) >= DATA.trackFrom); }
+  function scopeNote(){
+    var n = $('scopeNote');
+    n.hidden = !DATA.trackFrom || tab === 'rates'; n.innerHTML = '';
+    if(n.hidden) return;
+    n.appendChild(document.createTextNode('Showing bookings from ' + dayLabel(DATA.trackFrom, { weekday:'short', month:'short', day:'numeric', year:'numeric' }) + '. '));
+    var b = el('button', '', 'Change'); b.type = 'button'; b.addEventListener('click', function(){ setTab('money'); $('tfDate').focus(); });
+    n.appendChild(b);
+  }
+
+  /* ---- money tab: gross sales (accepted bookings by pick-up date), expenses, and net ---- */
+  var period = (function(){ try{ return localStorage.getItem('rent_owner_money') || ''; }catch(e){ return ''; } })();
+  /* Pesos with centavos when there are any (expenses can have them). */
+  function pesoC(n){ n = Math.round((Number(n) || 0) * 100) / 100; return n % 1 ? '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : peso(n); }
+  function monthName(ym){ return dayLabel(ym + '-15', { month:'long', year:'numeric' }); }
+  function periodOptions(){
+    var t = today(), months = {}, years = {};
+    var add = function(d){ if(d && (!DATA.trackFrom || d >= DATA.trackFrom)){ months[d.slice(0, 7)] = 1; years[d.slice(0, 4)] = 1; } };
+    add(t); DATA.bookings.forEach(function(b){ if(b.start) add(mday(b.start)); }); (DATA.expenses || []).forEach(function(x){ add(x.date); });
+    var out = Object.keys(months).sort().reverse().map(function(m){ return ['m:' + m, monthName(m) + (m === t.slice(0, 7) ? ' (this month)' : '')]; });
+    Object.keys(years).sort().reverse().forEach(function(y){ out.push(['y:' + y, 'All of ' + y]); });
+    out.push(['all', DATA.trackFrom ? 'Everything since ' + dayLabel(DATA.trackFrom, { month:'short', day:'numeric', year:'numeric' }) : 'Everything']);
+    return out;
+  }
+  function inPeriod(d){
+    if(!d || (DATA.trackFrom && d < DATA.trackFrom)) return false;
+    if(period === 'all') return true;
+    if(/^y:/.test(period)) return d.slice(0, 4) === period.slice(2);
+    return d.slice(0, 7) === period.slice(2);
+  }
+  function renderMoney(){
+    var opts = periodOptions(), sel = $('mPeriod');
+    if(!opts.some(function(o){ return o[0] === period; })) period = 'm:' + today().slice(0, 7);
+    sel.innerHTML = '';
+    opts.forEach(function(o){ var op = el('option', '', o[1]); op.value = o[0]; sel.appendChild(op); });
+    sel.value = period;
+    var acc = DATA.bookings.filter(function(b){ return (b.status === 'Confirmed' || b.status === 'Returned') && b.start && inPeriod(mday(b.start)); })
+      .sort(function(a, b){ return Date.parse(a.start) - Date.parse(b.start); });
+    var gross = acc.reduce(function(a, b){ return a + (Number(b.total) || 0); }, 0);
+    var got = acc.reduce(function(a, b){ return a + Math.min(Number(b.paid) || 0, Number(b.total) || 0); }, 0);
+    var unpaid = acc.filter(function(b){ return payState(b).cls !== 'Paid'; });
+    var xs = (DATA.expenses || []).filter(function(x){ return inPeriod(x.date); }).sort(function(a, b){ return a.date < b.date ? 1 : -1; });
+    var spent = xs.reduce(function(a, x){ return a + x.amount; }, 0), net = gross - spent;
+    $('mGross').textContent = peso(gross); $('mGrossN').textContent = plural(acc.length, 'booking');
+    $('mExp').textContent = pesoC(spent); $('mExpN').textContent = plural(xs.length, 'expense');
+    $('mNet').textContent = (net < 0 ? '−' : '') + pesoC(Math.abs(net)); $('mNet').classList.toggle('neg', net < 0);
+    $('mNetN').textContent = net < 0 ? 'spent more than earned' : 'what\'s left after expenses';
+    $('mPaidLine').textContent = 'Received so far: ' + peso(got) + (unpaid.length ? ' · Still to collect: ' + peso(gross - got) + ' from ' + plural(unpaid.length, 'renter') : (acc.length ? ' · Everyone has paid.' : ''));
+    var list = $('expList'); list.innerHTML = '';
+    if(!xs.length) list.appendChild(el('p', 'hint', 'No expenses in this period.'));
+    xs.forEach(function(x){
+      var row = el('div', 'xrow'), info = el('div', 'grow');
+      info.appendChild(el('b', '', x.item));
+      info.appendChild(el('span', '', dayLabel(x.date, { weekday:'short', month:'short', day:'numeric' }) + (x.category ? ' · ' + x.category : '') + (x.by ? ' · added by ' + x.by : '')));
+      row.appendChild(info); row.appendChild(el('span', 'amt', pesoC(x.amount)));
+      var rm = el('button', 'btn danger small', 'Remove'); rm.type = 'button';
+      rm.addEventListener('click', function(){
+        if(!confirm('Remove "' + x.item + '" (' + pesoC(x.amount) + ')?')) return;
+        rm.disabled = true;
+        api('deleteExpense', { id: x.id }).then(function(d){ if(d && d.ok){ DATA.expenses = d.expenses; renderMoney(); toast('Expense removed'); } else { rm.disabled = false; alert(moneyErr(d)); } },
+          function(){ rm.disabled = false; alert(ERR.offline); });
+      });
+      row.appendChild(rm); list.appendChild(row);
+    });
+    $('mRentersTitle').textContent = 'Renters · ' + sel.options[sel.selectedIndex].text.replace(/ \(this month\)/, '');
+    var rl = $('mRenters'); rl.innerHTML = '';
+    if(!acc.length) rl.appendChild(el('p', 'empty', 'No accepted bookings in this period.'));
+    acc.forEach(function(b){ rl.appendChild(card(b, null, true)); });
+    $('tfDate').value = DATA.trackFrom || '';
+    if(!$('xDate').value) $('xDate').value = today();
+  }
+  function moneyErr(d){ return d && d.error === 'signed_out' ? 'You were signed out. Sign in again.' : d && d.error === 'bad_request' ? ERR.old_script : 'Couldn\'t save. Try again.'; }
+  $('mPeriod').addEventListener('change', function(){ period = this.value; try{ localStorage.setItem('rent_owner_money', period); }catch(e){} renderMoney(); });
+  $('expForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var x = { date: $('xDate').value, amount: $('xAmount').value, item: $('xItem').value.trim(), category: $('xCat').value.trim() };
+    if(!x.date || !(Number(x.amount) > 0) || !x.item){ $('xErr').textContent = 'Fill in the date, the amount and what it was for.'; return; }
+    $('xErr').textContent = 'Saving…'; $('xAdd').disabled = true;
+    api('addExpense', { expense: x }).then(function(d){
+      if(d && d.ok){ DATA.expenses = d.expenses; $('xErr').textContent = ''; $('xAmount').value = ''; $('xItem').value = ''; $('xCat').value = ''; renderMoney(); toast('Expense added'); return; }
+      $('xErr').textContent = moneyErr(d);
+    }, function(){ $('xErr').textContent = ERR.offline; }).then(function(){ $('xAdd').disabled = false; });
+  });
+  function saveTrackFrom(date){
+    $('tfErr').textContent = 'Saving…';
+    api('trackFrom', { date: date }).then(function(d){
+      if(d && d.ok){ $('tfErr').textContent = ''; toast(date ? 'Showing bookings from ' + dayLabel(date, { month:'short', day:'numeric', year:'numeric' }) : 'Showing every booking'); load(); return; }
+      $('tfErr').textContent = moneyErr(d);
+    }, function(){ $('tfErr').textContent = ERR.offline; });
+  }
+  $('tfForm').addEventListener('submit', function(e){ e.preventDefault(); if(!$('tfDate').value){ $('tfErr').textContent = 'Choose a date, or tap Show everything.'; return; } saveTrackFrom($('tfDate').value); });
+  $('tfClear').addEventListener('click', function(){ saveTrackFrom(''); });
 
   /* ---- booking editor ---- */
   var editing = null, totalTouched = false;
@@ -1144,6 +1347,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   function onPriceInput(){ if(!totalTouched){ var p = suggested(); if(p.days) $('fTotal').value = p.total; } paintPrice(); }
   ['fUnit', 'fSd', 'fSt', 'fEd', 'fEt', 'fDisc', 'fFee'].forEach(function(id){ $(id).addEventListener('input', onPriceInput); $(id).addEventListener('change', onPriceInput); });
   $('fTotal').addEventListener('input', function(){ totalTouched = true; paintPrice(); });
+  $('paidAll').addEventListener('click', function(){ $('fPaid').value = $('fTotal').value; });
   $('recalc').addEventListener('click', function(){ totalTouched = false; $('fTotal').value = suggested().total; paintPrice(); });
 
   function newRef(){
@@ -1174,6 +1378,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     $('fDisc').value = e.discount === '' || e.discount == null ? '' : e.discount;
     $('fFee').value = e.fee === '' || e.fee == null ? '' : e.fee;
     $('fTotal').value = e.total === '' || e.total == null ? '' : e.total;
+    $('fPaid').value = e.paid === '' || e.paid == null ? '' : e.paid;
     totalTouched = !isNew && e.total !== '' && e.total != null;
     if(isNew) onPriceInput(); else paintPrice();
     Object.keys(FIELDS).forEach(function(id){ $(id).value = e[FIELDS[id]] == null ? '' : e[FIELDS[id]]; });
@@ -1203,10 +1408,11 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
       ['Return', e.end ? when(e.end) : '', dueText(e)],
       ['Rental', days ? plural(days, 'day') : '', price && price.peak ? price.peak + ' in-demand ' + (price.peak === 1 ? 'day' : 'days') + ' at ' + peso(u && u.rateHigh) : ''],
       ['Total to pay', e.total !== '' && e.total != null ? peso(e.total) : '', (Number(e.discount) ? 'after a ' + peso(e.discount) + ' discount' + (e.promo && e.promo !== 'Owner discount' ? ' (promo ' + e.promo + ')' : '') : '') + (DATA.shop.deposit ? (Number(e.discount) ? ' · ' : '') + 'plus ' + peso(DATA.shop.deposit) + ' refundable deposit' : '')],
+      ['Payment', payState(e) ? payState(e).long : '', payState(e) && payState(e).cls !== 'Paid' && Number(e.total) ? 'Tap "Mark as paid" when they pay in full' : ''],
       ['Hand-over', e.handover],
       ['Booked', e.submitted ? when(e.submitted) : '']
     ]);
-    kv('rvRenter', [['Real name', e.name], ['FB name', e.fbName], ['Mobile', e.mobile], ['Email', e.email], ['Address', e.address], ['Purpose', e.purpose], ['Notes', e.notes]]);
+    kv('rvRenter', [['Real name', e.name], ['FB name', e.fbName], ['Private details', /^Deleted/.test(e.photos || '') ? 'Deleted after the rental' : '', 'Address, mobile, email and emergency contact'], ['Mobile', e.mobile], ['Email', e.email], ['Address', e.address], ['Purpose', e.purpose], ['Notes', e.notes]]);
     kv('rvEc', [['Name', e.ecName], ['Relationship', e.ecRel], ['Number', e.ecMobile], ['Address', e.ecAddress]]);
     /* What they ticked: kept with each booking since this version; older bookings had to tick them all too. */
     var ag = $('rvAgreed'); ag.innerHTML = '';
@@ -1234,6 +1440,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
   var shots = {};
   function photosFor(e){
     var box = $('rvPhotos'); box.innerHTML = '';
+    if(/^Deleted/.test(e.photos || '')){ box.appendChild(el('p', 'hint', 'The ID photos were deleted on ' + e.photos.replace(/^Deleted\s*/, '') + ', after the rental, to save storage.')); return; }
     if(!/^https:\/\//.test(e.photos || '')){ box.appendChild(el('p', 'hint', e.submitted ? 'No photos were uploaded with this booking. Ask the renter to send them on Messenger.' : 'No photos for this booking.')); return; }
     var show = function(list){
       box.innerHTML = '';
@@ -1275,6 +1482,12 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     if(st === 'Ongoing' || st === 'Overdue') act('Mark as completed (returned)', 'Returned', 'brand');
     if(st === 'Reserved' || st === 'Ongoing' || st === 'Overdue') act('Cancel booking', 'Cancelled', 'danger', 'Cancel this booking? The unit becomes free for those times' + mailNote + '.');
     if(st === 'Cancelled') act('Restore as Pending', 'Pending', 'ghost');
+    var pq = payState(e);
+    if(pq && pq.cls !== 'Paid' && Number(e.total) > 0){
+      var mpb = el('button', 'btn small gold', 'Mark as paid'); mpb.type = 'button';
+      mpb.addEventListener('click', function(){ $('fPaid').value = $('fTotal').value || e.total; save(); });
+      q.appendChild(mpb);
+    }
     if(st === 'Pending'){ var tip = el('p', 'hint', e.email ? 'Accepting emails ' + e.email + ' with the booking details.' : 'This renter gave no email, so message them yourself.'); tip.style.flexBasis = '100%'; q.appendChild(tip); }
     var digits = String(e.mobile || '').replace(/[^\d+]/g, '');
     var link = function(label, href, newTab){ var a = el('a', 'btn ghost small', label); a.href = href; if(newTab){ a.target = '_blank'; a.rel = 'noopener'; } c.appendChild(a); };
@@ -1293,7 +1506,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:112%;font-weight:800;line-heigh
     if($('fEmail').value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test($('fEmail').value.trim())){ err.textContent = ERR.email; return; }
     var booking = { row: e.row, ref: e.ref, status: $('fStatus').value, unitId: $('fUnit').value,
       start: toIso($('fSd').value, $('fSt').value), end: toIso($('fEd').value, $('fEt').value),
-      discount: $('fDisc').value, fee: $('fFee').value, total: $('fTotal').value };
+      discount: $('fDisc').value, fee: $('fFee').value, total: $('fTotal').value, paid: $('fPaid').value };
     if(Date.parse(booking.end) <= Date.parse(booking.start)){ err.textContent = ERR.dates; return; }
     Object.keys(FIELDS).forEach(function(id){ booking[FIELDS[id]] = $(id).value.trim(); });
     err.textContent = 'Saving…'; $('edSave').disabled = true;

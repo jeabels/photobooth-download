@@ -160,6 +160,34 @@ skipped, so it's safe to run again. Units are matched by the Units tab's **Month
 other spellings (like "IP 13 PRO MAX GRAPHITE"), add them to that unit's Month-tab name separated by
 commas. The old tabs are not changed, and **Undo the import** removes every imported row.
 
+## Money: payments, expenses and net
+
+On the owner page:
+
+- **Payments:** accepted bookings show **Paid**, **Unpaid** or how much is paid. Tap **Mark as paid**
+  on a booking (or type the amount in **Amount paid so far**). The Bookings tab has **Paid** and
+  **Unpaid** filters. Payments are kept in the **Amount paid** column.
+- **Money tab:** for a month, a year or everything: **Gross sales** (accepted bookings by pick-up
+  date), **Expenses**, and **Net** (gross − expenses), with how much is received and still to
+  collect, and the list of renters with their payment. Add expenses there (date, amount, what for,
+  category); they're kept in the **Expenses** tab.
+- **Start date:** in the Money tab, **Track bookings from** (e.g. Nov 15) makes the whole owner page
+  list and count only bookings picked up from that date, and expenses from that date. Earlier
+  bookings stay in the sheet. **Show everything** turns it off.
+
+## Deleting renter details after a rental
+
+To save storage and keep renters' IDs private, every morning the script clears bookings that were
+**Returned** or **Cancelled** more than **7 days** ago (Settings → "Delete renter details after
+(days)"; blank or 0 turns it off):
+
+- the booking's ID photos folder goes to the Google Drive trash (Google empties the trash after 30 days);
+- the renter's address, mobile, email and emergency contact are cleared.
+
+The ref, real name, FB name, unit, dates, amounts, payment and ticked policies stay, so sales and the
+Money tab are not affected. Accepted bookings that were never marked returned are not cleared. To do
+it right away: the owner page → Bookings → **Storage** → **Delete old ones now**, or the sheet's menu.
+
 ## 5. Emails to renters
 
 Renters type their **active email (Gmail)** on the booking page. When you **accept** a booking, the
