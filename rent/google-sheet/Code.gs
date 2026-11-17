@@ -72,7 +72,7 @@ var BOOKING_COLS = [
   ['photos', 'Photos'],
   ['status', 'Status'], ['unitId', 'Unit ID'], ['submitted', 'Submitted'], ['handover', 'Hand-over'], ['email', 'Email'],
   ['ecAddress', 'Emergency address'], ['notes', 'Notes'], ['promo', 'Promo code'], ['discount', 'Discount'], ['fee', 'Delivery fee'],
-  ['addedTo', 'Added to'], ['emailed', 'Renter emailed'], ['agreed', 'Policies agreed'], ['paid', 'Amount paid']
+  ['addedTo', 'Added to'], ['emailed', 'Renter emailed'], ['agreed', 'Policies agreed'], ['paid', 'Amount paid'], ['payStatus', 'Payment']
 ];
 var HEADERS = BOOKING_COLS.map(function (c) { return c[1]; });
 var C = {};
@@ -111,6 +111,7 @@ var DEFAULT_SETTINGS = [
   ['Rate card images', '', 'Price list pictures shown above the units, one link per line. Easiest: menu > Upload an image'],
   ['Brand colour', '#8E1016', 'Colour of buttons and the header, as a hex code like #8E1016 (blank keeps the standard red)'],
   ['Deposit', 500, 'Refundable security deposit in pesos (0 for none)'],
+  ['Reservation fee', 300, 'Paid to reserve a unit, in pesos. On the owner page, Payment "Reserved" counts this much'],
   ['Hours per rental day', 25, 'How many hours one rental day lasts'],
   ['Late fee per hour', 100, 'In pesos'],
   ['Hand-over options', 'Pick up at Zukiya Residences, Delivery', 'Comma-separated. The first is pick-up at your place; the rest are deliveries'],
@@ -197,6 +198,8 @@ function setup() {
   var rows = sh.getMaxRows() - 1;
   sh.getRange(2, COL.status, rows, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(STATUSES, true).build());
+  sh.getRange(2, C.payStatus, rows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(PAY_STATUSES, true).build());
   sh.getRange(2, COL.unitId, rows, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInRange(units.getRange('A2:A'), true).build());
   sh.getRange(2, C.submitted, rows, 1).setNumberFormat('mmm d, yyyy h:mm am/pm');
@@ -869,8 +872,15 @@ function onEdit(e) {
   var name = range.getSheet().getName();
   if (OWNER_TABS.indexOf(name) > -1) { CacheService.getScriptCache().remove('config'); return; }
   if (name !== SHEET_NAME) return;
-  if (range.getColumn() > COL.status || range.getLastColumn() < COL.status) return;
   var sh = range.getSheet();
+  /* Payment chosen in the sheet: its Amount paid follows, as on the owner page. */
+  if (range.getColumn() <= C.payStatus && range.getLastColumn() >= C.payStatus) {
+    for (var pr = Math.max(2, range.getRow()); pr <= range.getLastRow(); pr++) {
+      var ps = String(sh.getRange(pr, C.payStatus).getValue()).trim();
+      if (PAY_STATUSES.indexOf(ps) > -1) sh.getRange(pr, C.paid).setValue(collected_(ps, sh.getRange(pr, C.total).getValue()));
+    }
+  }
+  if (range.getColumn() > COL.status || range.getLastColumn() < COL.status) return;
   for (var row = Math.max(2, range.getRow()); row <= range.getLastRow(); row++) {
     var r = sh.getRange(row, 1, 1, HEADERS.length).getValues()[0];
     if (String(r[COL.status - 1]).trim() !== 'Confirmed' || r[COL.addedTo - 1]) continue;
@@ -985,6 +995,7 @@ function admin_(d) {
   if (d.op === 'undoImport') return { ok: true, removed: removeImported_(false) };
   if (d.op === 'photos') return adminPhotos_(Number(d.row) || 0, String(d.ref || ''));
   if (d.op === 'cleanup') return cleanupRenters_();
+  if (d.op === 'pay') return payBooking_(Number(d.row) || 0, String(d.ref || ''), String(d.payStatus || ''));
   if (d.op === 'addExpense') return addExpense_(d.expense || {}, accounts[me.user].name);
   if (d.op === 'deleteExpense') return deleteExpense_(String(d.id || ''));
   if (d.op === 'trackFrom') {
@@ -1072,7 +1083,7 @@ function adminData_() {
     units: units_().map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, show: u.show }; }),
     demandDates: demand_(), expenses: expenses_(), trackFrom: day_(settings_()['Track from']),
     deleteAfter: Number(settings_()['Delete renter details after (days)']) || 0,
-    shop: { name: c.name, brandColor: c.brandColor, hoursPerDay: c.hoursPerDay, deposit: c.deposit, handover: c.handover, delivery: c.delivery, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() } };
+    shop: { name: c.name, brandColor: c.brandColor, hoursPerDay: c.hoursPerDay, deposit: c.deposit, reservationFee: reservationFee_(), handover: c.handover, delivery: c.delivery, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() } };
 }
 
 /* Saves an edited booking (b.row set) or adds a new one (b.row 0). Refused if another Pending or
@@ -1118,7 +1129,8 @@ function adminSave_(b) {
     o.start = start; o.end = end; o.days = Math.max(1, Math.ceil((end - start) / 36e5 / hoursPerDay_() - 1e-9));
     o.total = money(b.total); o.promo = promo ? text_(promo) : ''; o.discount = discount; o.fee = money(b.fee);
     o.email = email ? text_(email) : '';
-    if (b.paid != null) o.paid = money(b.paid);
+    if (b.payStatus != null && PAY_STATUSES.indexOf(String(b.payStatus)) > -1) { o.payStatus = String(b.payStatus); o.paid = collected_(o.payStatus, o.total); }
+    else if (b.paid != null) o.paid = money(b.paid);
     headers_(sh);
     if (!row) { o.ref = text_(b.ref || newRef_()); o.submitted = new Date(); sh.appendRow(row_(o)); row = sh.getLastRow(); }
     else sh.getRange(row, 1, 1, HEADERS.length).setValues([row_(o)]);
@@ -1441,6 +1453,36 @@ function removeImported_(countOnly) {
   }
   if (!countOnly) try { updateDashboard(); } catch (err) {}
   return n;
+}
+
+/* ---- payment (owner page) ----
+   Each booking's Payment is one of these, and "Amount paid" is the money collected for it:
+     Unpaid            nothing yet
+     Reserved          the reservation fee (Settings, 300 by default), part of the rental
+     Paid              the rental total plus the refundable deposit
+     Deposit returned  the rental total: the deposit went back to the renter
+   The owner page's gross is the sum of "Amount paid", so it rises and falls with these. */
+var PAY_STATUSES = ['Unpaid', 'Reserved', 'Paid', 'Deposit returned'];
+function reservationFee_() { var v = settings_()['Reservation fee']; return v === '' || v == null ? 300 : Math.max(0, Number(v) || 0); }
+function collected_(status, total) {
+  var rental = Number(total) || 0, deposit = Number(settings_()['Deposit']) || 0;
+  return status === 'Reserved' ? reservationFee_() : status === 'Paid' ? rental + deposit : status === 'Deposit returned' ? rental : 0;
+}
+/* Sets one booking's Payment (and its Amount paid), touching nothing else and emailing no one. */
+function payBooking_(row, ref, status) {
+  if (PAY_STATUSES.indexOf(status) < 0) return { ok: false, error: 'bad_request' };
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    var sh = sheet_();
+    if (row < 2 || row > sh.getLastRow()) return { ok: false, error: 'changed' };
+    var r = sh.getRange(row, 1, 1, HEADERS.length).getValues()[0];
+    if (plain_(v_(r, 'ref')) !== ref) return { ok: false, error: 'changed' };
+    headers_(sh);
+    sh.getRange(row, C.payStatus).setValue(status);
+    sh.getRange(row, C.paid).setValue(collected_(status, v_(r, 'total')));
+    var booking = bookingOf_(sh.getRange(row, 1, 1, HEADERS.length).getValues()[0], row);
+  } finally { lock.releaseLock(); }
+  return { ok: true, booking: booking };
 }
 
 /* ---- deleting renter details after a rental ----

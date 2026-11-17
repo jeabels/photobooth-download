@@ -164,12 +164,20 @@ commas. The old tabs are not changed, and **Undo the import** removes every impo
 
 On the owner page:
 
-- **Payments:** accepted bookings show **Paid**, **Unpaid** or how much is paid. Tap **Mark as paid**
-  on a booking (or type the amount in **Amount paid so far**). The Bookings tab has **Paid** and
-  **Unpaid** filters. Payments are kept in the **Amount paid** column.
-- **Money tab:** for a month, a year or everything: **Gross sales** (accepted bookings by pick-up
-  date), **Expenses**, and **Net** (gross − expenses), with how much is received and still to
-  collect, and the list of renters with their payment. Add expenses there (date, amount, what for,
+- **Payments:** every booking has a **Payment**:
+  - **Unpaid**: nothing collected yet.
+  - **Reserved**: the reservation fee (Settings → **Reservation fee**, ₱300) is collected.
+  - **Paid**: the rental plus the refundable **Deposit** (₱500) is collected.
+  - **Deposit returned**: the deposit went back to the renter, so only the rental is counted.
+
+  Choose it in the Money tab's **Renters** table, in a booking (Discount, total and payment), or with
+  **Mark as paid** / **Deposit returned** on a booking card. **Amount paid** is filled in to match. The
+  Bookings tab can filter by payment (Unpaid, Reservation paid, Paid in full, Deposit returned). You
+  can also choose Payment in the sheet; its Amount paid follows.
+- **Money tab:** for a month, a year or everything: **Gross** (the money collected: the sum of Amount
+  paid, so it rises with Reserved and Paid and drops by the deposit with Deposit returned),
+  **Expenses**, and **Net** (gross − expenses); the deposits still to give back and what's still to
+  collect; and the **Renters** table, like a spreadsheet: payment, collected, rental, unit, dates. Add expenses there (date, amount, what for,
   category); they're kept in the **Expenses** tab.
 - **Start date:** in the Money tab, **Track bookings from** (e.g. Nov 15) makes the whole owner page
   list and count only bookings picked up from that date, and expenses from that date. Earlier
