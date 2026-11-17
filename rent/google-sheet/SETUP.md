@@ -168,21 +168,28 @@ commas. The old tabs are not changed, and **Undo the import** removes every impo
 
 On the owner page:
 
-- **Payments:** every booking has a **Payment**:
-  - **Unpaid**: nothing collected yet.
-  - **Reserved**: the reservation fee (Settings → **Reservation fee**, ₱300) is collected.
-  - **Paid**: the rental plus the refundable **Deposit** (₱500) is collected.
-  - **Deposit returned**: the deposit went back to the renter, so only the rental is counted.
+- **Prices:** the owner page doesn't work out a price for a booking. It shows each unit's daily rates
+  as a range (for example **₱600 – ₱800 / day**), and you type in what the renter actually paid.
+- **Payments:** every booking has a **Payment**, and the **Deposit / reservation** column follows it:
+  - **Unpaid**: ₱0.
+  - **Reserved**: the reservation fee (Settings → **Reservation fee**, ₱300).
+  - **Paid**: the refundable **Deposit** (₱500).
+  - **Deposit returned**: ₱0, the deposit went back to the renter.
 
-  Choose it in the Money tab's **Renters** table, in a booking (Discount, total and payment), or with
-  **Mark as paid** / **Deposit returned** on a booking card. **Amount paid** is filled in to match. The
-  Bookings tab can filter by payment (Unpaid, Reservation paid, Paid in full, Deposit returned). You
-  can also choose Payment in the sheet; its Amount paid follows.
-- **Money tab:** for a month, a year or everything: **Gross** (the money collected: the sum of Amount
-  paid, so it rises with Reserved and Paid and drops by the deposit with Deposit returned),
-  **Expenses**, and **Net** (gross − expenses); the deposits still to give back and what's still to
-  collect; and the **Renters** table, like a spreadsheet: payment, collected, rental, unit, dates. Add expenses there (date, amount, what for,
-  category); they're kept in the **Expenses** tab.
+  Choose it in the Money tab's **Renters** table, in a booking (Payment), or with **Mark as paid** /
+  **Deposit returned** on a booking card. You can also choose Payment in the sheet; Deposit /
+  reservation follows.
+- **Rental fee paid:** what the renter paid for the rental itself, without the deposit. Type it in the
+  Money tab's **Renters** table (like a spreadsheet: type, then Enter to save and go to the next
+  renter) or in a booking. It saves by itself and is kept in the sheet's **Rental fee paid** column.
+- **Money tab:** for a month, a year or everything: **Total gross** (deposits and reservations +
+  rental fees), **Expenses**, and **Net** (gross − expenses); the deposits still to give back; and
+  the **Renters** table with totals for both money columns, then a summary: total deposits and
+  reservations, total rental fees, total gross, expenses, gross minus expenses. Add expenses there
+  (date, amount, what for, category); they're kept in the **Expenses** tab.
+- **Speed:** changes on the owner page show at once and save to the sheet in the background. If the
+  sheet refuses one (say the unit is already booked), it is put back and you're told. The sheet's
+  Dashboard tab is rebuilt when you open the sheet and every morning, not on each save.
 - **Start date:** in the Money tab, **Track bookings from** (e.g. Nov 15) makes the whole owner page
   list and count only bookings picked up from that date, and expenses from that date. Earlier
   bookings stay in the sheet. **Show everything** turns it off.
