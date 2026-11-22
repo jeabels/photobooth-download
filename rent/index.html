@@ -314,6 +314,7 @@ main.wrap{margin-top:18px;position:relative;z-index:2}
 .day{appearance:none;border:0;border-radius:10px;min-height:48px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;font-variant-numeric:tabular-nums;color:var(--ink)}
 .day b{font-size:14px;font-weight:700}
 .day small{font-size:10.5px;font-weight:700;line-height:1}
+.day small.u{font-size:9px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
 .day.free{background:var(--free)} .day.free small{color:var(--good)}
 .day.some{background:var(--some)} .day.some small{color:var(--some-ink)}
 .day.full{background:var(--full)} .day.full small{color:var(--bad)}
@@ -332,6 +333,9 @@ main.wrap{margin-top:18px;position:relative;z-index:2}
 .mini .g i.closed{background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)}
 .cal-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12.5px;color:var(--sub)}
 .cal-legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:5px}
+.cal-list{margin-top:14px;padding:14px;border-radius:14px;background:var(--bg);border:1px solid var(--line)}
+.cal-list h3{font-size:15px;font-weight:700;margin-bottom:4px}
+.cal-list .unit-row span{display:block}
 .cal-day{margin-top:14px;padding:14px;border-radius:14px;background:var(--bg);border:1px solid var(--line)}
 .cal-day h3{font-size:15px;font-weight:700;margin-bottom:8px}
 .unit-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
@@ -415,7 +419,7 @@ footer b{color:var(--ink)}
       <h2>Availability calendar</h2>
       <div class="toggle" role="group" aria-label="Calendar view"><button type="button" data-view="month" aria-pressed="true">Month</button><button type="button" data-view="year" aria-pressed="false">Year</button></div>
     </div>
-    <p class="hint">Check which units are free before you book. Tap a day to see each unit.</p>
+    <p class="hint">Each day shows which phones are already booked. Tap a day to see the times, or pick a phone to see only its dates.</p>
     <div class="cal-bar">
       <select id="calUnit" aria-label="Unit"><option value="">All units</option></select>
       <div class="cal-nav"><button type="button" id="calPrev" aria-label="Previous">‹</button><b id="calTitle"></b><button type="button" id="calNext" aria-label="Next">›</button></div>
@@ -423,6 +427,7 @@ footer b{color:var(--ink)}
     <div id="calBody"><p class="hint" style="margin-top:14px">Loading bookings…</p></div>
     <div class="cal-legend" id="calLegend"></div>
     <div class="cal-day" id="calDay" hidden></div>
+    <div class="cal-list" id="calList" hidden></div>
   </section>
 
   <form class="card" id="form" novalidate>
@@ -528,7 +533,7 @@ footer b{color:var(--ink)}
     <div class="sendstep" id="savedStep" hidden>
       <dl class="summary" id="summary"></dl>
       <h3 style="margin-top:18px">What happens next</h3>
-      <ol class="next">
+      <ol class="next" id="nextSteps">
         <li>We check your details and photos.</li>
         <li>We email you when your booking is accepted, with the payment details.</li>
         <li>You get your phone at your booked pick-up time.</li>
@@ -573,7 +578,7 @@ footer b{color:var(--ink)}
     <h2>How renting works</h2>
     <ol>
       <li><div><b>Send your booking</b><span id="howSend">Fill in this form, then send the message and your 3 photos on Messenger.</span></div></li>
-      <li><div><b>We confirm</b><span>We check that the phone is free on your dates and send the total and payment details. Down payments are non-refundable.</span></div></li>
+      <li><div><b id="howConfirmT">We confirm</b><span id="howConfirm">We check that the phone is free on your dates and send the total and payment details. Down payments are non-refundable.</span></div></li>
       <li><div><b>Get your phone</b><span id="howGet">Pick it up at Zukiya Residences, Sampaloc, Manila, or get it delivered (you pay shipping both ways). Pay the ₱500 refundable deposit, and we check the phone with you before handing it over.</span></div></li>
       <li><div><b>Return it on time</b><span id="howReturn">Each rental day is 25 hours from pick-up, and late returns are ₱100 per hour. Bring back everything that came with it. We'll send a reminder before your return time.</span></div></li>
       <li id="howDeposit"><div><b>Get your deposit back</b><span>When the phone comes back on time and in the same condition, we give the deposit back on the spot.</span></div></li>
@@ -698,6 +703,10 @@ footer b{color:var(--ink)}
   /* ---- shop text: banner, headings, steps, footer ---- */
   function applyShop(){
     applyBrand();
+    if(SHOP.autoAccept){
+      $('howConfirmT').textContent = 'Your booking is confirmed';
+      $('howConfirm').textContent = 'As soon as you send the form, the phone is booked for your dates and we email you the details. We message you the payment details. Down payments are non-refundable.';
+    }
     document.title = 'Phone Rental Booking Form · ' + SHOP.name;
     $('pageTitle').textContent = SHOP.name + ' | Phone Rental Booking Form';
     if(SHOP.banner){
@@ -964,7 +973,8 @@ footer b{color:var(--ink)}
       deposit: Number(c.deposit) || 0, hoursPerDay: Number(c.hoursPerDay) || 24, lateFeePerHour: Number(c.lateFeePerHour) || 0,
       handover: (c.handover && c.handover.length) ? c.handover : ['Pick up'], inclusions: c.inclusions || [],
       minNoticeHours: Number(c.minNoticeHours) || 0, maxDaysAhead: Number(c.maxDaysAhead) || 365, closedDates: c.closedDates || [],
-      models: units, policies: c.policies || [], liabilities: c.liabilities || []
+      models: units, policies: c.policies || [], liabilities: c.liabilities || [],
+      autoAccept: c.autoAccept === true
     };
     var lists = function(){ return JSON.stringify([SHOP.models, SHOP.handover, SHOP.inclusions, SHOP.policies, SHOP.liabilities, SHOP.rateCards, SHOP.delivery, SHOP.demandDates, SHOP.ratesNote]); };
     var before = lists();
@@ -1072,6 +1082,37 @@ footer b{color:var(--ink)}
     var n = Object.keys(units).length, total = SHOP.models.length;
     return { lv: n === 0 ? 'free' : n >= total ? 'full' : 'some', n: n };
   }
+  /* A short name for a phone on the calendar, e.g. 17PM, 16 Pro, 13PM Blue, 13 #Z1. */
+  function shortName(m){
+    var base = function(x){ return x.name.replace(/^iPhone\s*/i, '').replace(/\s*Pro\s*Max\b/i, 'PM').trim(); };
+    var b = base(m);
+    if(SHOP.models.filter(function(x){ return base(x) === b; }).length < 2) return b;
+    var tag = (m.detail.match(/#\w+/) || [])[0] || (m.detail.split('·').pop().trim().split(/\s+/).pop() || '');
+    return (b + ' ' + tag).trim();
+  }
+  function modelById(id){ return SHOP.models.filter(function(m){ return m.id === id; })[0]; }
+  /* The phones booked on a day, as short names, in the order the units are listed. */
+  function bookedNames(ds){
+    var on = {}; bookingsOn(ds).forEach(function(x){ on[x.unit] = 1; });
+    return SHOP.models.filter(function(m){ return on[m.id]; }).map(shortName);
+  }
+  function esc(t){ return String(t).replace(/[&<>"]/g, function(ch){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]; }); }
+  /* Under the month: each phone that has bookings in it, with the booked times. */
+  function renderCalList(){
+    var box = $('calList'), y = cal.y, m = cal.m;
+    if(cal.view !== 'month'){ box.hidden = true; return; }
+    var a = new Date(ymd(y, m, 1) + 'T00:00:00+08:00'), z = new Date(a.getTime() + daysIn(y, m) * 864e5), now = Date.now();
+    var html = '';
+    SHOP.models.forEach(function(md){
+      if(cal.unit && cal.unit !== md.id) return;
+      var list = busy.filter(function(x){ return x.unit === md.id && new Date(x.start) < z && a < new Date(x.end) && new Date(x.end).getTime() > now; })
+        .sort(function(p, q){ return new Date(p.start) - new Date(q.start); });
+      if(!list.length) return;
+      html += '<div class="unit-row"><div><b>' + esc(label(md)) + '</b><span class="bk">Booked ' + list.map(function(x){ return esc(when(x.start) + ' – ' + when(x.end)); }).join('<br>') + '</span></div></div>';
+    });
+    box.innerHTML = '<h3>Booked in ' + MONTHS[m] + '</h3>' + (html || '<p class="hint">No phones booked yet this month. All free!</p>');
+    box.hidden = false;
+  }
   function renderCal(){
     if(!SHOP.bookingSheet) return;
     $('cal').hidden = !$('sent').hidden || !SHOP.models.length;
@@ -1088,10 +1129,13 @@ footer b{color:var(--ink)}
       for(var d = 1; d <= daysIn(cal.y, cal.m); d++){
         var ds = ymd(cal.y, cal.m, d), past = ds < today || ds > last, closed = !past && isClosed(ds);
         var L = past ? { lv:'past', n:0 } : closed ? { lv:'closed', n:0 } : dayLevel(ds);
-        var tag = past ? '' : closed ? 'Closed' : cal.unit ? (L.n ? 'Booked' : 'Free') : (L.n ? L.n + '/' + SHOP.models.length : 'Free');
+        var names = !past && !closed && !cal.unit && L.n ? bookedNames(ds) : [];
+        var tag = past ? '' : closed ? 'Closed' : cal.unit ? (L.n ? 'Booked' : 'Free') : (L.n ? 'Booked: ' + names.join(', ') : 'Free');
+        var shown = names.length > 3 ? names.slice(0, 2).map(function(n){ return '<small class="u">' + esc(n) + '</small>'; }).join('') + '<small class="u">+' + (names.length - 2) + ' more</small>'
+          : names.map(function(n){ return '<small class="u">' + esc(n) + '</small>'; }).join('');
         var hot = !past && !closed && anyRange() && demandOn(ds);
         html += '<button type="button" class="day ' + L.lv + (hot ? ' hot' : '') + (ds === today ? ' today' : '') + (ds === cal.sel ? ' sel' : '') + '" data-day="' + ds + '"' +
-          (past || closed ? ' disabled' : '') + ' aria-label="' + ds + (past ? '' : ', ' + tag) + (hot ? ', in-demand date' : '') + '"><b>' + d + '</b><small>' + tag + '</small></button>';
+          (past || closed ? ' disabled' : '') + ' aria-label="' + esc(ds + (past ? '' : ', ' + tag) + (hot ? ', in-demand date' : '')) + '"><b>' + d + '</b>' + (names.length ? shown : '<small>' + tag + '</small>') + '</button>';
       }
       html += '</div>';
     } else {
@@ -1117,6 +1161,7 @@ footer b{color:var(--ink)}
       ((SHOP.closedDates || []).length ? '<span><i style="background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)"></i>Closed</span>' : '') +
       (anyRange() && (SHOP.demandDates || []).length ? '<span><i style="box-shadow:inset 0 3px 0 var(--gold);background:var(--free)"></i>In-demand date (higher rate)</span>' : '');
     if(cal.sel) showDay(cal.sel);
+    renderCalList();
   }
   /* Each unit on one day: booked (with times) or free, with a button to start a booking from that day. */
   function showDay(ds){
@@ -1173,11 +1218,11 @@ footer b{color:var(--ink)}
   /* ---- check my booking ---- */
   var STATUS_TEXT = {
     pending: 'We have your booking and are reviewing your details and photos. We\'ll email you when it\'s accepted.',
-    confirmed: 'Your booking is accepted. See you at pick-up!',
+    confirmed: 'Your booking is confirmed. See you at pick-up!',
     cancelled: 'This booking was cancelled. Message us if you think this is a mistake.',
     returned: 'The phone has been returned. Thank you for renting with us!'
   };
-  var STATUS_LABEL = { Pending: 'Pending', Confirmed: 'Accepted', Cancelled: 'Cancelled', Returned: 'Completed' };
+  var STATUS_LABEL = { Pending: 'Pending', Confirmed: 'Confirmed', Cancelled: 'Cancelled', Returned: 'Completed' };
   $('lookupBtn').addEventListener('click', function(){
     var open = $('lookup').hidden;
     $('lookup').hidden = !open; this.setAttribute('aria-expanded', open);
@@ -1428,7 +1473,7 @@ footer b{color:var(--ink)}
       .then(function(r){ return r.json(); })
       .then(function(d){
         if(d && d.busy){ busy = d.busy; }
-        if(d && d.ok) return 'saved';
+        if(d && d.ok){ savedStatus = d.status || 'Pending'; return 'saved'; }
         if(d && d.error === 'taken'){ markUnits(); return 'taken'; }
         if(d && (d.error === 'too_soon' || d.error === 'closed' || d.error === 'area' || d.error === 'email')) return d.error;
         if(d && d.error === 'promo'){ promo = null; promoMsg(PROMO_ERR[d.reason] || PROMO_ERR.not_found, false); refresh(); return 'promo'; }
@@ -1519,14 +1564,24 @@ footer b{color:var(--ink)}
     });
   }
 
-  var followNote = '';
+  var followNote = '', savedStatus = '';
   /* result: 'saved' (in the sheet) or 'offline' (sheet off or unreachable); photos: true when uploaded. */
   function showSend(ref, result, photosOk){
     var saved = result === 'saved';
     $('sent').classList.toggle('saved', saved);
     $('sentTitle').textContent = saved ? 'Booking received' : 'Send this to us to book';
     $('sentHint').innerHTML = '';
-    if(saved){
+    var confirmed = saved && savedStatus === 'Confirmed';
+    $('nextSteps').innerHTML = confirmed
+      ? '<li>We emailed your booking details.</li><li>We message you the payment details.</li><li>You get your phone at your booked pick-up time.</li>'
+      : '<li>We check your details and photos.</li><li>We email you when your booking is accepted, with the payment details.</li><li>You get your phone at your booked pick-up time.</li>';
+    if(confirmed){
+      $('sentTitle').textContent = 'Booking confirmed';
+      $('sentHint').append('Thank you! Your booking is ');
+      var ok = document.createElement('b'); ok.textContent = 'confirmed'; $('sentHint').append(ok);
+      $('sentHint').append(': the phone is booked for your dates. ' + ($('email').value.trim() ? 'We emailed the details to ' + $('email').value.trim() + '. ' : '') +
+        'Keep your reference ' + ref + ' to check your booking later.' + (photosOk ? '' : ' Your photos didn\'t upload, so please send them on Messenger (below).'));
+    } else if(saved){
       $('sentHint').append('Thank you! Your booking' + (photosOk ? ' and photos were' : ' was') + ' sent to ' + SHOP.name + ', and the unit is ');
       var held = document.createElement('b'); held.textContent = 'held for you'; $('sentHint').append(held);
       $('sentHint').append(' while we review it. We\'ll email ' + $('email').value.trim() + ' when we accept it. Keep your reference ' + ref + ' to check your booking later.' +
