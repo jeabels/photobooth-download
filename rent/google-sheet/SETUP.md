@@ -71,6 +71,15 @@ Renters can tap the banner, a rate card or a poster to see it bigger, and use **
 
 ## 4. The owner page
 
+> **Now (Nov 2026):** bookings from the website are accepted automatically (Settings →
+> **Accept bookings automatically**, Yes): the phone is booked on the calendar right away, the booking
+> goes into its month tab and the renter gets a confirmation email. The owner page is for looking:
+> **Renter forms** (everything each renter filled in, their photos and ticked policies; Cancel booking
+> if someone backs out), **Most rented** (how often each unit goes out) and **Rates**. Sales, payments
+> and expenses are kept in Excel, so the Money tab and the sales charts are gone; the parts below about
+> them describe the older version. The booking page's calendar shows which phones are booked each day.
+
+
 The booking link is for renters. The owner has their own page, at the booking link with `/admin` added:
 
 ```

@@ -124,6 +124,7 @@ var DEFAULT_SETTINGS = [
   ['Delete renter details after (days)', 7, 'Days after the return date of a Returned or Cancelled booking when its ID photos are deleted (moved to the Drive trash) and the renter\'s address, mobile, email and emergency contact are cleared, to save storage. Name, FB name, unit, dates and amounts stay for your sales. Blank or 0 never deletes'],
   ['Track from', '', 'The owner page lists and counts only bookings picked up on or after this date (YYYY-MM-DD), e.g. 2026-11-15. Blank shows every booking'],
   ['Rates note', 'Rates vary by date. In-demand dates (holidays, concerts and big events) use the higher in-demand rate. Discounted rates depending on the number of days rented: message us for longer rentals.', 'Reminder shown above the units on the booking page'],
+  ['Accept bookings automatically', 'Yes', 'Yes: a booking from the website is accepted (Confirmed) as soon as the renter sends it, and the phone is booked on the calendar. No: it waits as Pending until you accept it'],
   ['Email renters', 'Yes', 'Yes emails the renter when their booking is accepted (Confirmed) or cancelled. No turns it off'],
   ['Payment details', '', 'Put in the email when a booking is accepted, e.g. GCash 0917 000 0000 (Juan Cruz). Send a screenshot of your payment on Messenger'],
   ['Booking page link', '', 'Your booking page, for the renter emails. Filled in by the first website booking'],
@@ -489,6 +490,7 @@ function config_() {
     deposit: Number(s['Deposit']) || 0, hoursPerDay: Number(s['Hours per rental day']) || 24,
     lateFeePerHour: Number(s['Late fee per hour']) || 0, handover: list_(s['Hand-over options']),
     inclusions: list_(s['Included with every rental']), minNoticeHours: Number(s['Minimum notice (hours)']) || 0,
+    autoAccept: autoAccept_(s),
     maxDaysAhead: Number(s['Book up to (days ahead)']) || 365, closedDates: list_(s['Closed dates']).filter(function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d); }),
     allUnitIds: units_().map(function (u) { return u.id; }),   // hidden ones too, so the booking page doesn't add a built-in unit back
     units: units_().filter(function (u) { return u.show; }).map(function (u) { return { id: u.id, name: u.name, detail: u.detail, rate: u.rate, rateHigh: u.rateHigh, poster: u.poster }; }),
@@ -779,7 +781,7 @@ function doPost(e) {
   if (c.closedDates.indexOf(fmt_(start, 'yyyy-MM-dd')) > -1 || c.closedDates.indexOf(fmt_(end, 'yyyy-MM-dd')) > -1) {
     return json_({ ok: false, error: 'closed' });
   }
-  var lock = LockService.getScriptLock(), q;
+  var lock = LockService.getScriptLock(), q, status = autoAccept_() ? 'Confirmed' : 'Pending', row = 0;
   lock.waitLock(20000);
   try {
     var taken = busy_().filter(function (b) {
@@ -791,17 +793,31 @@ function doPost(e) {
     sheet_().appendRow(row_({ ref: text_(d.ref), fbName: text_(d.fbName || d.social), unit: text_(d.unit), days: q.days,
       start: start, end: end, total: q.total || '', name: text_(d.name), address: text_(d.address), mobile: text_(d.mobile),
       purpose: text_(d.purpose), ecName: text_(d.ecName), ecRel: text_(d.ecRel), ecMobile: text_(d.ecMobile),
-      status: 'Pending', unitId: d.unitId, submitted: new Date(), handover: text_(d.handover), email: email ? text_(email) : '',
+      status: status, unitId: d.unitId, submitted: new Date(), handover: text_(d.handover), email: email ? text_(email) : '',
       ecAddress: text_(d.ecAddress), notes: text_(d.notes), promo: q.code ? text_(q.code) : '', discount: q.discount || '', fee: q.fee || '',
       agreed: agreed_(d.agreed) }));
+    row = sheet_().getLastRow();
     headers_(sheet_());
+    if (status === 'Confirmed') {                       // accepted already: into its month tab, as when the owner accepts
+      try {
+        var tab = addToMonth_(sheet_().getRange(row, 1, 1, HEADERS.length).getValues()[0]);
+        if (tab) sheet_().getRange(row, COL.addedTo).setValue(tab);
+      } catch (err) {}
+    }
   } finally {
     lock.releaseLock();
   }
   rememberPage_(d.page);
-  notify_(d, start, end, c, q);
-  return json_({ ok: true, ref: d.ref, total: q.total, discount: q.discount, fee: q.fee, busy: busy_() });
+  var emailed = false;
+  if (status === 'Confirmed') {
+    try { var sh = sheet_(); emailed = emailRenter_(sh, row, sh.getRange(row, 1, 1, HEADERS.length).getValues()[0]); } catch (err) {}
+  }
+  notify_(d, start, end, c, q, status);
+  return json_({ ok: true, ref: d.ref, status: status, emailed: emailed, total: q.total, discount: q.discount, fee: q.fee, busy: busy_() });
 }
+
+/* Website bookings are accepted as soon as they are sent unless the owner turned that off. */
+function autoAccept_(s) { return String((s || settings_())['Accept bookings automatically']).trim().toLowerCase() !== 'no'; }
 
 /* Columns added at the end in later versions get their header with the first row that uses them,
    so the owner needn't run setup again. */
@@ -823,13 +839,13 @@ function agreed_(a) {
 }
 
 /* Emails the owner about a new booking. A failed email never stops the booking. */
-function notify_(d, start, end, c, q) {
+function notify_(d, start, end, c, q, status) {
   try {
     var to = String(settings_()['Notify email'] || '').trim();
     if (!to) return;
     var url = SpreadsheetApp.getActiveSpreadsheet().getUrl();
     MailApp.sendEmail(to, 'New booking ' + d.ref + ' · ' + d.unit + ' · ' + fmt_(start, 'MMM d, h:mm a'),
-      'New website booking for ' + c.name + ' (Pending)\n\n' +
+      'New website booking for ' + c.name + ' (' + (status === 'Confirmed' ? 'accepted automatically' : 'Pending') + ')\n\n' +
       'Ref: ' + d.ref + '\nUnit: ' + d.unit + '\nPick-up: ' + fmt_(start, 'EEE MMM d, h:mm a') + '\nReturn: ' + fmt_(end, 'EEE MMM d, h:mm a') +
       '\nDays: ' + q.days + (q.peakDays ? ' (' + q.peakDays + ' in-demand)' : '') + (q.rental ? '\nRental: ₱' + q.rental : '') +
       (q.discount ? '\nPromo ' + q.code + ': -₱' + q.discount : '') + (q.fee ? '\nDelivery fee: ₱' + q.fee : '') +
@@ -838,7 +854,7 @@ function notify_(d, start, end, c, q) {
       '\nEmergency: ' + d.ecName + ' (' + d.ecRel + '), ' + d.ecMobile +
       (d.notes ? '\nNotes: ' + d.notes : '') +
       '\n\nThe requirement photos upload to Google Drive in a moment; the link appears in the Photos column.\n' +
-      'Open the sheet to confirm or cancel: ' + url);
+      (status === 'Confirmed' ? 'See the renter\'s form on your owner page, or in the sheet: ' : 'Open the sheet to confirm or cancel: ') + url);
   } catch (err) {}
 }
 
@@ -867,8 +883,8 @@ function emailRenter_(sh, row, r) {
   var wasAccepted = sent.indexOf('Confirmed') > -1, subject, intro, rows = [], after = [];
   var when = function (d) { return d instanceof Date ? fmt_(d, 'EEE, MMM d, yyyy · h:mm a') : ''; };
   if (status === 'Confirmed') {
-    subject = 'Your booking is accepted · ' + ref + ' · ' + shop;
-    intro = 'Good news! ' + shop + ' accepted your booking. Here are the details:';
+    subject = 'Your booking is confirmed · ' + ref + ' · ' + shop;
+    intro = 'Thank you! Your booking with ' + shop + ' is confirmed. Here are the details:';
     rows = [['Booking ref', ref], ['Phone', plain_(v_(r, 'unit'))], ['Pick-up', when(start)], ['Return', when(end)], ['Hand-over', plain_(v_(r, 'handover'))]];
     var u = units_().filter(function (x) { return x.id === String(r[COL.unitId - 1]).trim(); })[0];
     if (u && u.rate) rows.push(['Rate', '₱' + u.rate.toLocaleString() + (u.rateHigh && u.rateHigh !== u.rate ? ' – ₱' + u.rateHigh.toLocaleString() : '') + ' per day (we\'ll message you the total)']);
